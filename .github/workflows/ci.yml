@@ -54,3 +54,6 @@ jobs:
       # Also runs verifyDebugManifest / verifyReleaseManifest (no network permission, no backup).
       - run: ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --console=plain
         working-directory: android
+      # Reproducible builds: compare with a local build of the same commit (docs/fdroid/README.md).
+      - name: SHA-256 of the unsigned release APK
+        run: sha256sum android/app/build/outputs/apk/release/app-release-unsigned.apk

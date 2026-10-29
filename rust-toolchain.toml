@@ -1,0 +1,6 @@
+# Exact toolchain for reproducible builds (F-Droid compares its build with the published APK).
+# Update it deliberately, together with android/README.md.
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy"]
+targets = ["aarch64-linux-android", "armv7-linux-androideabi", "x86_64-linux-android"]

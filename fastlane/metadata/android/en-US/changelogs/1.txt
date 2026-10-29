@@ -1,0 +1,1 @@
+First release: offline encrypted vault, fingerprint unlock, autofill and login saving, TOTP, vault health, automatic encrypted backup, emergency kit and import from KeePass, 1Password, Bitwarden and CSV.
