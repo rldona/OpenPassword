@@ -1,9 +1,5 @@
 package io.github.rldona.openpassword
 
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -21,14 +17,6 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private val app get() = application as OpenPasswordApp
 
-    /** Locks as soon as the screen turns off. */
-    private val screenOffReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            app.session.lock()
-            app.clipboard.clearIfOurs()
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         // No screenshots, screen recording or recents thumbnail of any screen.
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
@@ -36,7 +24,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 while (true) {
@@ -56,10 +43,5 @@ class MainActivity : ComponentActivity() {
     override fun onUserInteraction() {
         super.onUserInteraction()
         app.session.onUserInteraction()
-    }
-
-    override fun onDestroy() {
-        unregisterReceiver(screenOffReceiver)
-        super.onDestroy()
     }
 }

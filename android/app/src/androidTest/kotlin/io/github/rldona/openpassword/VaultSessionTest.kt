@@ -226,6 +226,18 @@ class VaultSessionTest {
     }
 
     @Test
+    fun locksInTheBackgroundWithoutComingBack() = runBlocking {
+        val d = device()
+        d.session.create(PASSWORD, generateSecretKey())
+        InstrumentationRegistry.getInstrumentation().runOnMainSync { d.session.onAppBackgrounded() }
+        kotlinx.coroutines.delay(VaultSession.BACKGROUND_TIMEOUT_MS - 5_000)
+        assertTrue("todavía abierto antes de 30 s", d.session.state.value is SessionState.Unlocked)
+        kotlinx.coroutines.delay(7_000)
+        // No onAppForegrounded(): autofill must not keep offering logins from a forgotten session.
+        assertEquals(SessionState.Locked, d.session.state.value)
+    }
+
+    @Test
     fun biometricUnlockGivesWayToThePasswordAfterRebootOrInvalidation() {
         val d = device()
         runBlocking { d.session.create(PASSWORD, generateSecretKey()) }

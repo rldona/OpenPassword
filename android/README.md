@@ -16,9 +16,10 @@ Kotlin, Jetpack Compose y Material 3. Toda la criptografía la hace `op-core` (R
 - Restaurar una copia en un teléfono nuevo desde la bienvenida, con la clave secreta del kit y la contraseña maestra.
 - Importar una copia en el baúl actual: si es del mismo baúl se fusiona por revisión; si es de otro, sus elementos se vuelven a cifrar con las claves de este.
 - Ver la clave secreta de nuevo, tras volver a pedir la contraseña maestra.
-- Bloqueo automático: 5 min sin uso, 30 s en segundo plano o al apagar la pantalla.
+- Bloqueo automático: 5 min sin uso, 30 s después de salir de la app (aunque no vuelvas) o al apagar la pantalla.
+- Autorrelleno en otras apps y en el navegador (Chrome: *Ajustes → Servicios de autocompletar → Autocompletar con otro servicio*).
 
-Pendiente (Fase 2): autorrelleno, TOTP, respaldo automático, salud del baúl e importadores.
+Pendiente (Fase 2): guardar logins nuevos desde el autorrelleno, TOTP, respaldo automático, salud del baúl e importadores.
 
 ## Seguridad que impone la build
 
@@ -28,6 +29,17 @@ Pendiente (Fase 2): autorrelleno, TOTP, respaldo automático, salud del baúl e 
 - Huella: la clave del baúl se sella con otra clave de Keystore que exige una autenticación biométrica fuerte en cada uso, solo funciona con el teléfono desbloqueado y Android la destruye si se añade una huella o cara nueva. El único permiso del manifiesto es `USE_BIOMETRIC`.
 - Los elementos se guardan en SQLite como blobs opacos con `secure_delete`. Se usa SQLite directo en lugar de Room para no depender de procesadores de anotaciones.
 - Nada sensible se guarda en el estado de instancia de Compose (`rememberSaveable`).
+
+## Autorrelleno
+
+- Android muestra las sugerencias y solo rellena la que el usuario toca.
+- **Coincidencia estricta**:
+  - En webs, solo el host guardado o sus subdominios: `google.com` vale para `accounts.google.com`, pero nunca para `google.com.phishing.net` ni para `evilgoogle.com`.
+  - En apps, solo el nombre de paquete exacto, que Android verifica, guardado como `androidapp://paquete`.
+  - Un login de una web nunca vale para una app, ni al revés.
+- Con el baúl bloqueado solo se ofrece «Desbloquear OpenPassword», que abre una ventana con contraseña o huella.
+- Si no hay coincidencia, el usuario puede elegir un login a mano. En apps puede recordarlo para esa app; en webs se le avisa de que compruebe el sitio.
+- Los campos se detectan en `autofill/FieldClassifier.kt` (pistas de autorrelleno, tipo de entrada, atributos HTML y nombres en español e inglés). La lógica de detección y de coincidencia tiene tests unitarios.
 
 ## Compilar
 
