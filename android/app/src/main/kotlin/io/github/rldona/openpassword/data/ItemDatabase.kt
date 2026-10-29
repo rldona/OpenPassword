@@ -10,7 +10,7 @@ import io.github.rldona.openpassword.core.EncryptedItemRecord
  * Encrypted items. Each row holds only an id, a revision and opaque blobs sealed by op-core:
  * no titles, types or URLs are stored in clear.
  */
-class ItemDatabase(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
+class ItemDatabase(context: Context, name: String = NAME) : SQLiteOpenHelper(context, name, null, VERSION) {
 
     override fun onConfigure(db: SQLiteDatabase) {
         // Overwrite deleted content instead of leaving it in free pages.

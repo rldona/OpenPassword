@@ -11,14 +11,26 @@ import java.io.File
  * - the secret key, sealed with Android Keystore,
  * - optionally, the vault key sealed with a biometric-bound Keystore key,
  * - the encrypted items.
+ *
+ * [namespace] keeps separate vaults apart (files, database and Keystore alias). The app
+ * uses the default; tests use their own so they never touch real data.
  */
-class VaultStorage(context: Context) {
+class VaultStorage(context: Context, namespace: String = "") {
+    private val prefix = if (namespace.isEmpty()) "" else "$namespace-"
     private val dir = context.noBackupFilesDir
-    private val headerFile = File(dir, "vault-header.json")
-    private val secretKeyFile = File(dir, "secret-key.bin")
-    private val biometricKeyFile = File(dir, "vault-key.biometric")
-    private val deviceKeys = DeviceKeyStore()
-    private val db = ItemDatabase(context)
+    private val headerFile = File(dir, "${prefix}vault-header.json")
+    private val secretKeyFile = File(dir, "${prefix}secret-key.bin")
+    private val biometricKeyFile = File(dir, "${prefix}vault-key.biometric")
+    private val deviceKeys = DeviceKeyStore(alias = "${prefix}op-device-key-v1")
+    private val db = ItemDatabase(context, name = "${prefix}items.db")
+
+    /** Deletes every file and the Keystore key of this namespace. For tests. */
+    fun destroy(context: Context) {
+        db.close()
+        context.deleteDatabase(db.databaseName)
+        listOf(headerFile, secretKeyFile, biometricKeyFile).forEach(File::delete)
+        deviceKeys.delete()
+    }
 
     fun hasVault(): Boolean = headerFile.exists() && secretKeyFile.exists()
 

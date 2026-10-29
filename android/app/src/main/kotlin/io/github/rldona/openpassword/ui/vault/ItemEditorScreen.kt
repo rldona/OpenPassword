@@ -33,7 +33,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import android.content.Context
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -44,6 +46,7 @@ import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.core.ItemOverviewRecord
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.security.PasswordGenerator
+import io.github.rldona.openpassword.security.Wordlist
 import io.github.rldona.openpassword.session.VaultEntry
 import io.github.rldona.openpassword.session.VaultSession
 import io.github.rldona.openpassword.session.toUserMessage
@@ -69,6 +72,7 @@ fun ItemEditorScreen(
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     LaunchedEffect(existing?.id) {
         if (existing == null) {
@@ -146,7 +150,7 @@ fun ItemEditorScreen(
                 )
             }
             fields.forEachIndexed { i, field ->
-                FieldEditor(field, onChange = { fields[i] = field.copy(value = it) }, generate = generatorFor(kind, field))
+                FieldEditor(field, onChange = { fields[i] = field.copy(value = it) }, generators = generatorsFor(kind, field, context))
             }
             OutlinedTextField(
                 value = notes,
@@ -165,7 +169,7 @@ fun ItemEditorScreen(
 }
 
 @Composable
-private fun FieldEditor(field: FieldRecord, onChange: (String) -> Unit, generate: (() -> String)?) {
+private fun FieldEditor(field: FieldRecord, onChange: (String) -> Unit, generators: List<Pair<String, () -> String>>) {
     if (field.kind.isSecret) {
         Column {
             PasswordField(
@@ -179,8 +183,12 @@ private fun FieldEditor(field: FieldRecord, onChange: (String) -> Unit, generate
                     else -> KeyboardType.Password
                 },
             )
-            if (generate != null) {
-                TextButton(onClick = { onChange(generate()) }) { Text("Generar al azar") }
+            if (generators.isNotEmpty()) {
+                Row {
+                    generators.forEach { (label, generate) ->
+                        TextButton(onClick = { onChange(generate()) }) { Text(label) }
+                    }
+                }
             }
         }
     } else {
@@ -204,10 +212,14 @@ private fun FieldEditor(field: FieldRecord, onChange: (String) -> Unit, generate
     }
 }
 
-private fun generatorFor(kind: ItemKindRecord, field: FieldRecord): (() -> String)? = when {
-    field.kind == FieldKindRecord.CONCEALED && (kind == ItemKindRecord.LOGIN || kind == ItemKindRecord.WIFI) -> { -> PasswordGenerator.password() }
-    field.kind == FieldKindRecord.PIN && kind == ItemKindRecord.PIN -> { -> PasswordGenerator.pin() }
-    else -> null
+private fun generatorsFor(kind: ItemKindRecord, field: FieldRecord, context: Context): List<Pair<String, () -> String>> = when {
+    field.kind == FieldKindRecord.CONCEALED && (kind == ItemKindRecord.LOGIN || kind == ItemKindRecord.WIFI) -> listOf(
+        "Contraseña al azar" to { PasswordGenerator.password() },
+        // Websites often reject spaces; this one is stored, not memorised.
+        "Frase de paso" to { PasswordGenerator.passphrase(Wordlist.eff(context), words = 5, separator = "-") },
+    )
+    field.kind == FieldKindRecord.PIN && kind == ItemKindRecord.PIN -> listOf("Generar al azar" to { PasswordGenerator.pin() })
+    else -> emptyList()
 }
 
 private fun placeholderTitle(kind: ItemKindRecord) = when (kind) {

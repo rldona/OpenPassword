@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -36,14 +37,22 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.core.generateSecretKey
+import io.github.rldona.openpassword.security.EmergencyKit
+import io.github.rldona.openpassword.security.PasswordGenerator
+import io.github.rldona.openpassword.security.Wordlist
+import io.github.rldona.openpassword.ui.EMERGENCY_KIT_FILE_NAME
+import io.github.rldona.openpassword.ui.writeDocument
 import io.github.rldona.openpassword.session.toUserMessage
 import io.github.rldona.openpassword.ui.PasswordField
 import io.github.rldona.openpassword.ui.SectionLabel
@@ -112,6 +121,8 @@ private fun Point(title: String, body: String) {
 private fun ChoosePassword(password: String, onChange: (String) -> Unit, onNext: () -> Unit) {
     var confirm by remember { mutableStateOf("") }
     var triedNext by remember { mutableStateOf(false) }
+    var suggestion by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
     val tooShort = password.length < MIN_PASSWORD
     val mismatch = confirm != password
     val strength = strengthOf(password)
@@ -121,6 +132,21 @@ private fun ChoosePassword(password: String, onChange: (String) -> Unit, onNext:
         "Es la única que tendrás que recordar. Una frase de varias palabras es más fácil de recordar y más difícil de adivinar.",
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+    TextButton(onClick = { suggestion = PasswordGenerator.passphrase(Wordlist.eff(context), words = 6) }) {
+        Text(if (suggestion == null) "Sugiéreme una frase de paso" else "Otra frase")
+    }
+    suggestion?.let { phrase ->
+        Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(phrase, fontFamily = SecretFont, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                Text(
+                    "6 palabras al azar de la lista de la EFF, unos 77 bits. Apréndetela: tendrás que escribirla tú en «Repite la contraseña».",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                TextButton(onClick = { onChange(phrase) }) { Text("Usar esta frase") }
+            }
+        }
+    }
     PasswordField(
         value = password,
         onValueChange = onChange,
@@ -158,7 +184,20 @@ private fun SecretKeyStep(secretKey: String, onCreate: suspend () -> Unit) {
     var saved by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var kitMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val kitLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            kitMessage = try {
+                writeDocument(context, uri, EmergencyKit.pdf(secretKey))
+                "Kit guardado. Imprímelo y después borra el PDF del teléfono."
+            } catch (_: Exception) {
+                "No se pudo guardar el kit en esa ubicación."
+            }
+        }
+    }
 
     Text("Tu clave secreta", style = MaterialTheme.typography.headlineMedium)
     Text(
@@ -181,16 +220,20 @@ private fun SecretKeyStep(secretKey: String, onCreate: suspend () -> Unit) {
         }
     }
     Text(
-        "Anótala en papel y guárdala con tus documentos importantes. No le hagas foto ni la guardes en la nube: la app bloquea las capturas de pantalla.",
+        "Guárdala en papel con tus documentos importantes. No le hagas foto ni la guardes en la nube: la app bloquea las capturas de pantalla.",
         style = MaterialTheme.typography.bodyMedium,
     )
+    OutlinedButton(onClick = { kitLauncher.launch(EMERGENCY_KIT_FILE_NAME) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+        Text("Guardar kit de emergencia (PDF) para imprimir")
+    }
+    kitMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary) }
     Row(
         Modifier.fillMaxWidth().toggleable(value = saved, enabled = !busy, role = Role.Checkbox, onValueChange = { saved = it }),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Checkbox(checked = saved, onCheckedChange = null, enabled = !busy)
         Spacer(Modifier.size(12.dp))
-        Text("He anotado mi clave secreta en un lugar seguro")
+        Text("He guardado mi clave secreta en papel")
     }
     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     Button(

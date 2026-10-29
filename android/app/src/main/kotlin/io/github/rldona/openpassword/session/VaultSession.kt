@@ -338,19 +338,23 @@ class VaultSession(
         _state.value = current.copy(entries = transform(current.entries))
     }
 
-    /** Seconds to wait before the next attempt: free for 4 failures, then 30 s doubling up to 1 h. */
-    private fun remainingWait(): Long {
-        val failures = prefs.getInt(KEY_FAILURES, 0)
-        if (failures < FREE_ATTEMPTS) return 0
-        val delayMs = min(30_000L shl min(failures - FREE_ATTEMPTS, 7), 3_600_000L)
-        val elapsed = System.currentTimeMillis() - prefs.getLong(KEY_LAST_FAILURE, 0)
-        return ((delayMs - elapsed).coerceAtLeast(0) + 999) / 1000
-    }
+    private fun remainingWait(): Long = unlockWaitSeconds(
+        failures = prefs.getInt(KEY_FAILURES, 0),
+        msSinceLastFailure = System.currentTimeMillis() - prefs.getLong(KEY_LAST_FAILURE, 0),
+    )
 
     companion object {
         const val BACKGROUND_TIMEOUT_MS = 30_000L
         const val IDLE_TIMEOUT_MS = 5 * 60_000L
-        private const val FREE_ATTEMPTS = 4
+        const val FREE_ATTEMPTS = 4
+
+        /** Seconds to wait before the next attempt: free for 4 failures, then 30 s doubling up to 1 h. */
+        fun unlockWaitSeconds(failures: Int, msSinceLastFailure: Long): Long {
+            if (failures < FREE_ATTEMPTS) return 0
+            val delayMs = min(30_000L shl min(failures - FREE_ATTEMPTS, 7), 3_600_000L)
+            return ((delayMs - msSinceLastFailure).coerceAtLeast(0) + 999) / 1000
+        }
+
         private const val KEY_FAILURES = "unlock_failures"
         private const val KEY_LAST_FAILURE = "unlock_last_failure"
         private const val KEY_LAST_PASSWORD_UNLOCK = "last_password_unlock"

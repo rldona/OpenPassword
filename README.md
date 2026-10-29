@@ -50,3 +50,7 @@ SK=$(./target/release/opvault new-secret-key)
 ## Licencia
 
 OpenPassword es software libre bajo la [GNU General Public License v3.0 o posterior](LICENSE) (`GPL-3.0-or-later`). Puedes usarlo, estudiarlo, modificarlo y redistribuirlo, pero cualquier versión modificada que distribuyas debe publicarse con la misma licencia y su código fuente. Así nadie puede cerrar un fork de un gestor de contraseñas que debe poder auditarse.
+
+### Componentes de terceros
+
+- Lista de palabras para frases de paso: [EFF Large Wordlist](https://www.eff.org/dice) de la Electronic Frontier Foundation, bajo [CC BY 3.0 US](https://creativecommons.org/licenses/by/3.0/us/). Se incluye solo la columna de palabras, sin otros cambios (`android/app/src/main/assets/eff_large_wordlist.txt`).
