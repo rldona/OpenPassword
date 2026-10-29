@@ -36,6 +36,8 @@ enum Command {
     },
     /// Genera una clave secreta nueva.
     NewSecretKey,
+    /// Calcula el código TOTP actual. Lee el enlace otpauth:// o el secreto de la entrada estándar.
+    Totp,
     /// Crea un respaldo con elementos de ejemplo, para probar la herramienta.
     Sample {
         file: PathBuf,
@@ -98,6 +100,7 @@ fn main() -> Result<()> {
             Ok(())
         }
         Command::Sample { file, creds } => sample(&file, &creds),
+        Command::Totp => totp(),
     }
 }
 
@@ -141,6 +144,19 @@ fn decrypt(file: &PathBuf, creds: &Credentials) -> Result<()> {
     }
     let json = Zeroizing::new(serde_json::to_string_pretty(&out)?);
     writeln!(stdout.lock(), "{}", json.as_str())?;
+    Ok(())
+}
+
+fn totp() -> Result<()> {
+    let mut line = Zeroizing::new(String::new());
+    std::io::stdin().lock().read_line(&mut line)?;
+    let totp = op_core::totp::Totp::parse(&line).context("secreto TOTP no válido")?;
+    let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+    println!(
+        "{} (cambia en {} s)",
+        totp.code_at(now),
+        totp.seconds_remaining(now)
+    );
     Ok(())
 }
 

@@ -46,6 +46,7 @@ import io.github.rldona.openpassword.core.ItemDetailsRecord
 import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.core.ItemOverviewRecord
 import io.github.rldona.openpassword.core.OpException
+import io.github.rldona.openpassword.core.totpCode
 import io.github.rldona.openpassword.security.PasswordGenerator
 import io.github.rldona.openpassword.security.Wordlist
 import io.github.rldona.openpassword.session.VaultEntry
@@ -97,6 +98,11 @@ fun ItemEditorScreen(
             try {
                 val now = (System.currentTimeMillis() / 1000).toULong()
                 val kept = fields.filter { it.value.isNotBlank() }
+                kept.firstOrNull { it.kind == FieldKindRecord.TOTP && !isValidTotp(it.value) }?.let {
+                    error = "El código TOTP no es válido. Pega el enlace otpauth:// o el secreto que te dio el servicio."
+                    saving = false
+                    return@launch
+                }
                 val overview = ItemOverviewRecord(
                     kind = kind,
                     title = title.trim().ifEmpty { kind.label() },
@@ -232,3 +238,5 @@ private fun placeholderTitle(kind: ItemKindRecord) = when (kind) {
     ItemKindRecord.SECURE_NOTE -> "Códigos de recuperación"
     else -> ""
 }
+
+private fun isValidTotp(value: String): Boolean = runCatching { totpCode(value, 0uL) }.isSuccess

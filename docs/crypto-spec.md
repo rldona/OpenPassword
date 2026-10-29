@@ -152,6 +152,14 @@ Esta parte vive en la capa Android, no en `op-core`.
 - Los dominios llevan sufijo de versión (`/v1`). Un cambio incompatible crea `/v2` y una nueva versión de formato.
 - Los vectores de prueba de `core/tests/vectors/op-v1.json` fijan esta versión. Si un cambio de código los rompe, el cambio es incompatible.
 
-## 12. Fuera de alcance de v1
+## 12. Códigos TOTP
+
+- RFC 6238 sobre HOTP (RFC 4226), con HMAC-SHA1, SHA-256 o SHA-512, de 6 a 8 dígitos y un periodo de 1 a 3600 s. Por defecto: SHA-1, 6 dígitos y 30 s.
+- Entrada: un enlace `otpauth://totp/Emisor:cuenta?secret=…&issuer=…&algorithm=…&digits=…&period=…` o el secreto en base32 (se ignoran mayúsculas, espacios, guiones y relleno `=`). No se admite HOTP (`otpauth://hotp`), porque exige guardar un contador.
+- El secreto introducido por el usuario DEBE tener al menos 80 bits. Así se rechazan palabras o texto pegado por error.
+- El secreto es un campo más de los detalles del elemento: va cifrado como el resto y nunca se muestra. La app solo muestra y copia el código.
+- Implementación en `core/src/totp.rs`, probada con los vectores de RFC 6238 (apéndice B) y RFC 4226 (apéndice D).
+
+## 13. Fuera de alcance de v1
 
 Compartir elementos entre usuarios, sincronización, passkeys y adjuntos. El diseño de IK por elemento deja preparado compartir.
