@@ -20,18 +20,18 @@ Kotlin, Jetpack Compose y Material 3. Toda la criptografía la hace `op-core` (R
 - Importar una copia en el baúl actual: si es del mismo baúl se fusiona por revisión; si es de otro, sus elementos se vuelven a cifrar con las claves de este.
 - Ver la clave secreta de nuevo, tras volver a pedir la contraseña maestra.
 - Bloqueo automático: 5 min sin uso, 30 s después de salir de la app (aunque no vuelvas) o al apagar la pantalla. Mientras está abierto un selector de ficheros o carpetas que el usuario ha pedido (exportar, importar, kit, carpeta de copias), el margen es de 3 minutos, solo para esa vez.
-- Códigos TOTP (verificación en dos pasos): se pega el enlace `otpauth://` o el secreto y el detalle muestra el código actual con su cuenta atrás. Se copia el código, nunca el secreto.
+- Códigos TOTP (verificación en dos pasos): se escanea el QR con la cámara, se lee de una captura o imagen, o se pega el enlace `otpauth://` o el secreto; el detalle muestra el código actual con su cuenta atrás. Se copia el código, nunca el secreto. El QR se decodifica en el teléfono con ZXing; los fotogramas no se guardan y la copia de luminancia se borra tras analizarla.
 - Guardar logins nuevos desde el autorrelleno: al enviar un formulario con contraseña, Android ofrece «Guardar en OpenPassword». Si ya existe un login de ese sitio con el mismo usuario, se ofrece actualizar su contraseña. La contraseña tecleada se queda en la memoria de la app; la ventana de confirmación solo recibe un token, y nada se guarda sin confirmar.
 - Autorrelleno en otras apps y en el navegador (Chrome: *Ajustes → Servicios de autocompletar → Autocompletar con otro servicio*).
 
-Pendiente (Fase 2): escanear QR de TOTP y publicar en F-Droid.
+Pendiente (Fase 2): publicar en F-Droid.
 
 ## Seguridad que impone la build
 
 - `verify<Variant>Manifest` hace fallar la compilación si el manifiesto final declara `INTERNET` o `ACCESS_NETWORK_STATE`, o si `allowBackup` no es `false`.
 - `FLAG_SECURE` en la actividad: sin capturas, grabación ni miniatura en recientes.
 - La clave secreta se guarda sellada con una clave AES-256-GCM de Android Keystore (StrongBox si existe).
-- Huella: la clave del baúl se sella con otra clave de Keystore que exige una autenticación biométrica fuerte en cada uso, solo funciona con el teléfono desbloqueado y Android la destruye si se añade una huella o cara nueva. El único permiso del manifiesto es `USE_BIOMETRIC`.
+- Huella: la clave del baúl se sella con otra clave de Keystore que exige una autenticación biométrica fuerte en cada uso, solo funciona con el teléfono desbloqueado y Android la destruye si se añade una huella o cara nueva. Los únicos permisos del manifiesto son `USE_BIOMETRIC` y `CAMERA`; la cámara se pide solo al pulsar «Escanear QR» y es opcional (`required="false"`): leer el QR de una imagen no necesita ningún permiso. CameraX arrastra `ACCESS_NETWORK_STATE` desde media3 y el manifiesto lo elimina.
 - Los elementos se guardan en SQLite como blobs opacos con `secure_delete`. Se usa SQLite directo en lugar de Room para no depender de procesadores de anotaciones.
 - Nada sensible se guarda en el estado de instancia de Compose (`rememberSaveable`).
 - Las ventanas de la app se excluyen de todos los servicios de autorrelleno, así que ni el de Google ni ningún otro puede leer u ofrecer guardar lo que se escribe en el baúl.

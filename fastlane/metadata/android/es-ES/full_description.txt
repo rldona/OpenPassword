@@ -13,7 +13,7 @@ OpenPassword guarda tus contraseñas, tarjetas, PINs, códigos de verificación 
 <ul>
 <li>Logins, tarjetas, PINs, secretos y notas seguras, con búsqueda y favoritos.</li>
 <li>Autorrelleno en otras apps y en el navegador, con coincidencia estricta para evitar webs falsas, y guardado de logins nuevos.</li>
-<li>Códigos TOTP integrados.</li>
+<li>Códigos TOTP integrados: escanea el QR con la cámara o léelo de una captura.</li>
 <li>Generador de contraseñas, PINs y frases de paso (lista de palabras de la EFF).</li>
 <li>Salud del baúl: contraseñas débiles o repetidas y tarjetas que caducan.</li>
 <li>Copia cifrada automática en la carpeta que elijas (tu nube, Syncthing, tarjeta SD) y kit de emergencia en PDF.</li>

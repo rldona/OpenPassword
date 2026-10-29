@@ -1,1 +1,1 @@
-Primera versión: baúl cifrado sin conexión, huella, autorrelleno y guardado de logins, TOTP, salud del baúl, copia automática cifrada, kit de emergencia e importación desde KeePass, 1Password, Bitwarden y CSV.
+Primera versión: baúl cifrado sin conexión, huella, autorrelleno y guardado de logins, TOTP con lector de QR, salud del baúl, copia automática cifrada, kit de emergencia e importación desde KeePass, 1Password, Bitwarden y CSV.
