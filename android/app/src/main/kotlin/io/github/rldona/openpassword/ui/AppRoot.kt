@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.rldona.openpassword.backup.AutoBackup
 import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.security.SensitiveClipboard
 import io.github.rldona.openpassword.security.strongBiometricsAvailable
@@ -31,7 +32,7 @@ private sealed interface Screen {
 }
 
 @Composable
-fun AppRoot(session: VaultSession, clipboard: SensitiveClipboard) {
+fun AppRoot(session: VaultSession, clipboard: SensitiveClipboard, autoBackup: AutoBackup) {
     val state by session.state.collectAsStateWithLifecycle()
     when (val s = state) {
         SessionState.NoVault -> OnboardingScreen(onCreate = session::create, onRestore = session::restore)
@@ -46,12 +47,12 @@ fun AppRoot(session: VaultSession, clipboard: SensitiveClipboard) {
             )
         }
         // Leaving this branch on lock discards the whole navigation stack and every decrypted value in it.
-        is SessionState.Unlocked -> UnlockedRoot(s.entries, session, clipboard)
+        is SessionState.Unlocked -> UnlockedRoot(s.entries, session, clipboard, autoBackup)
     }
 }
 
 @Composable
-private fun UnlockedRoot(entries: List<VaultEntry>, session: VaultSession, clipboard: SensitiveClipboard) {
+private fun UnlockedRoot(entries: List<VaultEntry>, session: VaultSession, clipboard: SensitiveClipboard, autoBackup: AutoBackup) {
     var stack by remember { mutableStateOf(listOf<Screen>(Screen.List)) }
     fun push(screen: Screen) { stack = stack + screen }
     fun pop() { stack = stack.dropLast(1) }
@@ -87,6 +88,6 @@ private fun UnlockedRoot(entries: List<VaultEntry>, session: VaultSession, clipb
             },
             onCancel = ::pop,
         )
-        Screen.Settings -> SettingsScreen(session = session, onBack = ::pop)
+        Screen.Settings -> SettingsScreen(session = session, autoBackup = autoBackup, onBack = ::pop)
     }
 }

@@ -10,16 +10,20 @@ import android.provider.Settings
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import io.github.rldona.openpassword.backup.AutoBackup
 import io.github.rldona.openpassword.core.KdfProfile
 import io.github.rldona.openpassword.data.VaultStorage
 import io.github.rldona.openpassword.security.BiometricKeyStore
 import io.github.rldona.openpassword.security.SensitiveClipboard
 import io.github.rldona.openpassword.session.VaultSession
+import kotlinx.coroutines.MainScope
 
 class OpenPasswordApp : Application() {
     lateinit var session: VaultSession
         private set
     lateinit var clipboard: SensitiveClipboard
+        private set
+    lateinit var autoBackup: AutoBackup
         private set
 
     override fun onCreate() {
@@ -32,6 +36,9 @@ class OpenPasswordApp : Application() {
             biometricKeys = BiometricKeyStore(),
             bootCount = { Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT, 0) },
         )
+        autoBackup = AutoBackup(this, session, getSharedPreferences("backup", MODE_PRIVATE), MainScope())
+        session.onChanged = autoBackup::onVaultChanged
+        session.onUnlocked = autoBackup::onUnlocked
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) = session.onAppForegrounded()
             override fun onStop(owner: LifecycleOwner) = session.onAppBackgrounded()

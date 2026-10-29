@@ -36,7 +36,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             OpenPasswordTheme {
-                AppRoot(session = app.session, clipboard = app.clipboard)
+                AppRoot(session = app.session, clipboard = app.clipboard, autoBackup = app.autoBackup)
             }
         }
         excludeFromAutofill(this)

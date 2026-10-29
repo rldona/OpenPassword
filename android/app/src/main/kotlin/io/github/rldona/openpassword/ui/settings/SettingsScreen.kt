@@ -2,6 +2,7 @@ package io.github.rldona.openpassword.ui.settings
 
 import android.content.Intent
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.view.autofill.AutofillManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,7 +46,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.rldona.openpassword.BuildConfigInfo
+import io.github.rldona.openpassword.backup.AutoBackup
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.security.EmergencyKit
 import io.github.rldona.openpassword.security.strongBiometricsAvailable
@@ -62,11 +65,13 @@ import io.github.rldona.openpassword.ui.unlock.enableBiometricUnlock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.DateFormat
 import java.time.LocalDate
+import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(session: VaultSession, onBack: () -> Unit) {
+fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
@@ -76,6 +81,13 @@ fun SettingsScreen(session: VaultSession, onBack: () -> Unit) {
     var biometricOn by remember { mutableStateOf(session.isBiometricEnabled()) }
     var biometricBusy by remember { mutableStateOf(false) }
     var importBytes by remember { mutableStateOf<ByteArray?>(null) }
+    val backup by autoBackup.status.collectAsStateWithLifecycle()
+    var backingUp by remember { mutableStateOf(false) }
+    val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+        if (tree == null) return@rememberLauncherForActivityResult
+        runCatching { autoBackup.setFolder(tree, folderLabel(tree)) }
+            .onFailure { scope.launch { snackbar.showSnackbar("No se pudo usar esa carpeta. Prueba con otra.") } }
+    }
     val autofillManager = remember { context.getSystemService(AutofillManager::class.java) }
     var autofillOn by remember { mutableStateOf(autofillManager?.hasEnabledAutofillServices() == true) }
     val autofillLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -139,14 +151,54 @@ fun SettingsScreen(session: VaultSession, onBack: () -> Unit) {
         Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState())) {
             SectionLabel("Copia de seguridad", Modifier.padding(start = 16.dp, top = 8.dp))
             ListItem(
+                headlineContent = { Text("Copia automática") },
+                supportingContent = {
+                    when {
+                        !backup.enabled -> Text("Desactivada. Elige una carpeta, por ejemplo de tu nube, y guardaremos ahí una copia cifrada tras cada cambio.")
+                        backup.lastError != null -> Text(backup.lastError!!, color = MaterialTheme.colorScheme.error)
+                        else -> Text(
+                            "En «${backup.folderName ?: "la carpeta elegida"}». " +
+                                (backup.lastBackupAt?.let { "Última copia: ${dateTime.format(Date(it))}." } ?: "Aún no hay ninguna copia.") +
+                                " Se guardan las 10 últimas.",
+                        )
+                    }
+                },
+                trailingContent = { Switch(checked = backup.enabled, onCheckedChange = null) },
+                modifier = Modifier.toggleable(value = backup.enabled, role = Role.Switch) { on ->
+                    if (on) {
+                        session.beforeSystemPicker()
+                        folderLauncher.launch(null)
+                    } else {
+                        autoBackup.disable()
+                    }
+                },
+            )
+            if (backup.enabled) {
+                ListItem(
+                    headlineContent = { Text(if (backingUp) "Haciendo copia…" else "Hacer copia ahora") },
+                    modifier = Modifier.clickable(enabled = !backingUp) {
+                        backingUp = true
+                        scope.launch {
+                            val error = autoBackup.backupNow()
+                            backingUp = false
+                            snackbar.showSnackbar(error ?: "Copia guardada en «${backup.folderName ?: "la carpeta"}».")
+                        }
+                    },
+                )
+                ListItem(
+                    headlineContent = { Text("Cambiar carpeta") },
+                    modifier = Modifier.clickable { session.beforeSystemPicker(); folderLauncher.launch(null) },
+                )
+            }
+            ListItem(
                 headlineContent = { Text("Exportar copia cifrada") },
                 supportingContent = { Text("Guarda un fichero .opvault donde elijas: tu ordenador, una tarjeta SD o una carpeta de la nube.") },
-                modifier = Modifier.clickable { exportLauncher.launch("openpassword-${LocalDate.now()}.opvault") },
+                modifier = Modifier.clickable { session.beforeSystemPicker(); exportLauncher.launch("openpassword-${LocalDate.now()}.opvault") },
             )
             ListItem(
                 headlineContent = { Text("Importar copia") },
                 supportingContent = { Text("Añade los elementos de un fichero .opvault. Los que ya tengas se actualizan si la copia es más nueva.") },
-                modifier = Modifier.clickable { importLauncher.launch(arrayOf("*/*")) },
+                modifier = Modifier.clickable { session.beforeSystemPicker(); importLauncher.launch(arrayOf("*/*")) },
             )
             ListItem(
                 headlineContent = { Text("Ver clave secreta") },
@@ -258,7 +310,7 @@ fun SettingsScreen(session: VaultSession, onBack: () -> Unit) {
                 }
             },
             confirmButton = { TextButton(onClick = { shownSecretKey = null }) { Text("Hecho") } },
-            dismissButton = { TextButton(onClick = { kitLauncher.launch(EMERGENCY_KIT_FILE_NAME) }) { Text("Guardar kit PDF") } },
+            dismissButton = { TextButton(onClick = { session.beforeSystemPicker(); kitLauncher.launch(EMERGENCY_KIT_FILE_NAME) }) { Text("Guardar kit PDF") } },
         )
     }
 }
@@ -359,3 +411,10 @@ private fun ImportDialog(onDismiss: () -> Unit, onImport: suspend (password: Str
         dismissButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text("Cancelar") } },
     )
 }
+
+/** "primary:Download/OpenPassword" → "OpenPassword". */
+private fun folderLabel(tree: Uri): String? =
+    runCatching { DocumentsContract.getTreeDocumentId(tree) }.getOrNull()
+        ?.substringAfter(':')?.trimEnd('/')?.substringAfterLast('/')?.ifBlank { null }
+
+private val dateTime: DateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)

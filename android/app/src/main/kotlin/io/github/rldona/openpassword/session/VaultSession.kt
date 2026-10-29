@@ -67,6 +67,11 @@ class VaultSession(
     )
     val state: StateFlow<SessionState> = _state.asStateFlow()
 
+    /** Called after any change to the items (save, delete, import). Used by automatic backup. */
+    var onChanged: () -> Unit = {}
+    /** Called every time the vault is unlocked, by password, fingerprint or restore. */
+    var onUnlocked: () -> Unit = {}
+
     private var lastInteraction = SystemClock.elapsedRealtime()
     private var backgroundedAt: Long? = null
 
@@ -159,6 +164,7 @@ class VaultSession(
                 }
                 val entries = storage.items().map { VaultEntry(it, current.decryptOverview(it)) }
                 _state.value = SessionState.Unlocked(entries)
+                if (added + updated > 0) onChanged()
                 ImportSummary(added, updated, unchanged)
             } finally {
                 source.lock()
@@ -285,12 +291,12 @@ class VaultSession(
             VaultEntry(record, overview).also { saved ->
                 updateEntries { entries -> entries.filterNot { it.id == saved.id } + saved }
             }
-        }
+        }.also { onChanged() }
 
     suspend fun delete(entry: VaultEntry) = withVault {
         storage.delete(entry.id)
         updateEntries { entries -> entries.filterNot { it.id == entry.id } }
-    }
+    }.also { onChanged() }
 
     suspend fun exportBackup(): ByteArray = withVault { v ->
         v.exportBackup(storage.items(), (System.currentTimeMillis() / 1000).toULong())
@@ -308,17 +314,32 @@ class VaultSession(
      */
     fun onAppBackgrounded() {
         backgroundedAt = SystemClock.elapsedRealtime()
+        backgroundTimeout = if (pickerOpen) PICKER_TIMEOUT_MS else BACKGROUND_TIMEOUT_MS
         mainHandler.removeCallbacks(backgroundLock)
-        mainHandler.postDelayed(backgroundLock, BACKGROUND_TIMEOUT_MS)
+        mainHandler.postDelayed(backgroundLock, backgroundTimeout)
     }
 
     fun onAppForegrounded() {
         mainHandler.removeCallbacks(backgroundLock)
+        pickerOpen = false
         // Backup check: delayed callbacks may not run while the device sleeps.
         val since = backgroundedAt?.let { SystemClock.elapsedRealtime() - it } ?: 0
         backgroundedAt = null
-        if (since >= BACKGROUND_TIMEOUT_MS) lock()
+        if (since >= backgroundTimeout) lock()
     }
+
+    /**
+     * Call right before opening a system file or folder picker the user asked for: the next
+     * trip to the background may last [PICKER_TIMEOUT_MS] instead of [BACKGROUND_TIMEOUT_MS],
+     * so browsing for a folder does not lock the vault halfway through an export or import.
+     * Applies once; turning the screen off still locks immediately.
+     */
+    fun beforeSystemPicker() {
+        pickerOpen = true
+    }
+
+    private var pickerOpen = false
+    private var backgroundTimeout = BACKGROUND_TIMEOUT_MS
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val backgroundLock = Runnable { lock() }
@@ -344,6 +365,7 @@ class VaultSession(
         vault = newVault
         lastInteraction = SystemClock.elapsedRealtime()
         _state.value = SessionState.Unlocked(entries)
+        onUnlocked()
     }
 
     private fun updateEntries(transform: (List<VaultEntry>) -> List<VaultEntry>) {
@@ -358,6 +380,7 @@ class VaultSession(
 
     companion object {
         const val BACKGROUND_TIMEOUT_MS = 30_000L
+        const val PICKER_TIMEOUT_MS = 3 * 60_000L
         const val IDLE_TIMEOUT_MS = 5 * 60_000L
         const val FREE_ATTEMPTS = 4
 
