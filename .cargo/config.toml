@@ -1,0 +1,10 @@
+# Hardware AES on ARM (phones, Apple Silicon): the aes crate needs this flag, then checks
+# the CPU at run time. Without it KeePass AES-KDF imports run ~10x slower in software.
+[target.aarch64-linux-android]
+rustflags = ["--cfg", "aes_armv8"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["--cfg", "aes_armv8"]
+
+[target.aarch64-unknown-linux-gnu]
+rustflags = ["--cfg", "aes_armv8"]

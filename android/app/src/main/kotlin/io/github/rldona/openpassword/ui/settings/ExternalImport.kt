@@ -15,11 +15,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.rldona.openpassword.core.ImportResult
 import io.github.rldona.openpassword.core.OpException
+import io.github.rldona.openpassword.core.importNeedsPassword
 import io.github.rldona.openpassword.core.parseImport
 import io.github.rldona.openpassword.session.VaultSession
+import io.github.rldona.openpassword.ui.PasswordField
 import io.github.rldona.openpassword.ui.readBackupFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -28,17 +32,41 @@ import kotlinx.coroutines.withContext
 /** A picked export file, parsed and waiting for the user to confirm. */
 class PendingImport(val uri: Uri, val result: ImportResult)
 
-/** Reads and parses an export. The plaintext bytes are wiped as soon as they are parsed. */
-suspend fun readExternalExport(context: Context, uri: Uri): Result<PendingImport> = runCatching {
+/** An encrypted file (KeePass) waiting for its password. Wipe [bytes] when done. */
+class LockedExport(val uri: Uri, val bytes: ByteArray)
+
+private fun now() = (System.currentTimeMillis() / 1000).toULong()
+
+/**
+ * Reads a picked file. Plaintext exports are parsed right away and their bytes wiped;
+ * encrypted ones (KeePass) are returned as [LockedExport] so the app can ask for the password.
+ */
+suspend fun readExternalExport(context: Context, uri: Uri): Result<Any> = runCatching {
     val bytes = readBackupFile(context, uri)
+    if (importNeedsPassword(bytes)) return@runCatching LockedExport(uri, bytes)
     try {
-        withContext(Dispatchers.Default) { PendingImport(uri, parseImport(bytes, (System.currentTimeMillis() / 1000).toULong())) }
+        withContext(Dispatchers.Default) { PendingImport(uri, parseImport(bytes, null, now())) }
     } finally {
         bytes.fill(0)
     }
 }
 
+/** Decrypts a KeePass database. On a wrong password the bytes are kept so the user can retry. */
+suspend fun unlockExternalExport(locked: LockedExport, password: String): Result<PendingImport> = runCatching {
+    withContext(Dispatchers.Default) { PendingImport(locked.uri, parseImport(locked.bytes, password, now())) }
+}.onSuccess { locked.bytes.fill(0) }
+
 fun importErrorMessage(e: Throwable): String = when {
+    e is OpException.WrongCredentials ->
+        "Contraseña incorrecta. Si tu base de KeePass usa un archivo de clave, OpenPassword aún no lo admite."
+    e is OpException.InvalidInput && "KeePass version" in e.reason ->
+        "Esta versión de KeePass no está admitida. Guarda la base como KDBX 4 en KeePass o KeePassXC."
+    e is OpException.InvalidInput && "KeePass cipher" in e.reason ->
+        "Esta base de KeePass usa Twofish. Cámbiala a AES-256 o ChaCha20 en la configuración de la base."
+    e is OpException.InvalidInput && "too costly" in e.reason ->
+        "La protección de esta base de KeePass es demasiado costosa para un teléfono. Bájala en la configuración de la base."
+    e is OpException.InvalidInput && "KeePass" in e.reason -> "Esta base de KeePass usa una opción que OpenPassword aún no admite."
+    e is OpException.Corrupted -> "El fichero está dañado o incompleto."
     e is OpException.InvalidInput && "encrypted Bitwarden" in e.reason ->
         "Es una exportación cifrada de Bitwarden. Vuelve a exportar eligiendo el formato «.json» sin cifrar."
     e is OpException.InvalidInput && ("no password column" in e.reason || "no items" in e.reason) ->
@@ -54,6 +82,7 @@ fun importErrorMessage(e: Throwable): String = when {
 private fun formatName(format: String) = when (format) {
     "bitwarden-json" -> "Bitwarden (JSON)"
     "1password-1pux" -> "1Password (.1pux)"
+    "keepass-kdbx" -> "KeePass (.kdbx)"
     else -> "CSV"
 }
 
@@ -91,7 +120,7 @@ fun ExternalImportDialogs(
                 TextButton(enabled = !busy && result.items.isNotEmpty(), onClick = {
                     busy = true
                     scope.launch {
-                        imported = try {
+                        val message = try {
                             val s = session.importExternal(result.items)
                             when {
                                 s.added == 0 && s.duplicates == 1 -> "No había nada nuevo: ese elemento ya estaba en tu baúl."
@@ -104,6 +133,8 @@ fun ExternalImportDialogs(
                         } catch (e: OpException) {
                             "No se pudo importar: el baúl está bloqueado."
                         }
+                        // A .kdbx is the user's own encrypted database, not a plaintext export: keep it.
+                        if (result.format == "keepass-kdbx") onDone(message) else imported = message
                         busy = false
                     }
                 }) { Text(if (busy) "Importando…" else "Importar") }
@@ -126,4 +157,47 @@ fun ExternalImportDialogs(
             dismissButton = { TextButton(onClick = { onDone("$summary Recuerda borrar el fichero exportado.") }) { Text("Ahora no") } },
         )
     }
+}
+
+/** Asks for the KeePass database password. Decrypting can take a few seconds. */
+@Composable
+fun KeePassPasswordDialog(locked: LockedExport, onUnlocked: (PendingImport) -> Unit, onCancel: () -> Unit) {
+    var password by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    fun submit() {
+        if (busy || password.isEmpty()) return
+        busy = true
+        error = null
+        scope.launch {
+            unlockExternalExport(locked, password)
+                .onSuccess(onUnlocked)
+                .onFailure { error = importErrorMessage(it); password = "" }
+            busy = false
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = { if (!busy) onCancel() },
+        title = { Text("Base de datos de KeePass") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Escribe la contraseña maestra de esa base de KeePass. Solo se usa para descifrarla aquí; no se guarda.")
+                PasswordField(
+                    value = password,
+                    onValueChange = { password = it; error = null },
+                    label = "Contraseña de KeePass",
+                    enabled = !busy,
+                    isError = error != null,
+                    supportingText = error,
+                    onDone = ::submit,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = ::submit, enabled = !busy && password.isNotEmpty()) { Text(if (busy) "Descifrando…" else "Abrir") } },
+        dismissButton = { TextButton(onClick = onCancel, enabled = !busy) { Text("Cancelar") } },
+    )
 }

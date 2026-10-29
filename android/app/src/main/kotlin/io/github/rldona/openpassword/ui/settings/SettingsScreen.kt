@@ -82,11 +82,17 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
     var biometricBusy by remember { mutableStateOf(false) }
     var importBytes by remember { mutableStateOf<ByteArray?>(null) }
     var pendingExternal by remember { mutableStateOf<PendingImport?>(null) }
+    var lockedExternal by remember { mutableStateOf<LockedExport?>(null) }
     val externalLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             readExternalExport(context, uri)
-                .onSuccess { pendingExternal = it }
+                .onSuccess { read ->
+                    when (read) {
+                        is LockedExport -> lockedExternal = read
+                        is PendingImport -> pendingExternal = read
+                    }
+                }
                 .onFailure { snackbar.showSnackbar(importErrorMessage(it)) }
         }
     }
@@ -211,7 +217,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
             )
             ListItem(
                 headlineContent = { Text("Importar de otro gestor") },
-                supportingContent = { Text("CSV de Chrome, Google, Firefox, Bitwarden o 1Password, JSON sin cifrar de Bitwarden o .1pux de 1Password.") },
+                supportingContent = { Text("KeePass (.kdbx), 1Password (.1pux), JSON sin cifrar de Bitwarden o CSV de Chrome, Google, Firefox, Bitwarden o 1Password.") },
                 modifier = Modifier.clickable { session.beforeSystemPicker(); externalLauncher.launch(arrayOf("*/*")) },
             )
             ListItem(
@@ -277,6 +283,14 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                 supportingContent = { Text("Software libre bajo GPL-3.0-or-later. github.com/rldona/OpenPassword\nFrases de paso con la lista de palabras de la EFF (CC BY 3.0 US).") },
             )
         }
+    }
+
+    lockedExternal?.let { locked ->
+        KeePassPasswordDialog(
+            locked = locked,
+            onUnlocked = { pendingExternal = it; lockedExternal = null },
+            onCancel = { locked.bytes.fill(0); lockedExternal = null },
+        )
     }
 
     pendingExternal?.let { pending ->
