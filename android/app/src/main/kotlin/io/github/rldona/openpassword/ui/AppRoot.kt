@@ -1,0 +1,80 @@
+package io.github.rldona.openpassword.ui
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.rldona.openpassword.core.ItemKindRecord
+import io.github.rldona.openpassword.security.SensitiveClipboard
+import io.github.rldona.openpassword.session.SessionState
+import io.github.rldona.openpassword.session.VaultEntry
+import io.github.rldona.openpassword.session.VaultSession
+import io.github.rldona.openpassword.ui.onboarding.OnboardingScreen
+import io.github.rldona.openpassword.ui.settings.SettingsScreen
+import io.github.rldona.openpassword.ui.unlock.UnlockScreen
+import io.github.rldona.openpassword.ui.vault.ItemDetailScreen
+import io.github.rldona.openpassword.ui.vault.ItemEditorScreen
+import io.github.rldona.openpassword.ui.vault.VaultListScreen
+
+private sealed interface Screen {
+    data object List : Screen
+    data class Detail(val id: String) : Screen
+    data class Edit(val id: String?, val kind: ItemKindRecord) : Screen
+    data object Settings : Screen
+}
+
+@Composable
+fun AppRoot(session: VaultSession, clipboard: SensitiveClipboard) {
+    val state by session.state.collectAsStateWithLifecycle()
+    when (val s = state) {
+        SessionState.NoVault -> OnboardingScreen(onCreate = session::create)
+        SessionState.Locked -> UnlockScreen(onUnlock = session::unlock)
+        // Leaving this branch on lock discards the whole navigation stack and every decrypted value in it.
+        is SessionState.Unlocked -> UnlockedRoot(s.entries, session, clipboard)
+    }
+}
+
+@Composable
+private fun UnlockedRoot(entries: List<VaultEntry>, session: VaultSession, clipboard: SensitiveClipboard) {
+    var stack by remember { mutableStateOf(listOf<Screen>(Screen.List)) }
+    fun push(screen: Screen) { stack = stack + screen }
+    fun pop() { stack = stack.dropLast(1) }
+    fun replaceTop(screen: Screen) { stack = stack.dropLast(1) + screen }
+    fun find(id: String) = entries.firstOrNull { it.id == id }
+
+    BackHandler(enabled = stack.size > 1) { pop() }
+
+    when (val top = stack.last()) {
+        Screen.List -> VaultListScreen(
+            entries = entries,
+            onOpen = { push(Screen.Detail(it.id)) },
+            onAdd = { push(Screen.Edit(null, it)) },
+            onLock = session::lock,
+            onSettings = { push(Screen.Settings) },
+        )
+        is Screen.Detail -> find(top.id)?.let { entry ->
+            ItemDetailScreen(
+                entry = entry,
+                session = session,
+                clipboard = clipboard,
+                onBack = ::pop,
+                onEdit = { push(Screen.Edit(entry.id, entry.overview.kind)) },
+                onDeleted = ::pop,
+            )
+        } ?: LaunchedEffect(top) { pop() }
+        is Screen.Edit -> ItemEditorScreen(
+            existing = top.id?.let(::find),
+            kind = top.kind,
+            session = session,
+            onSaved = { saved ->
+                if (top.id == null) replaceTop(Screen.Detail(saved.id)) else pop()
+            },
+            onCancel = ::pop,
+        )
+        Screen.Settings -> SettingsScreen(session = session, onBack = ::pop)
+    }
+}

@@ -1,0 +1,30 @@
+[package]
+name = "op-ffi"
+description = "UniFFI bindings of op-core for the Android (and later iOS) apps"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "op_ffi"
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+bindgen = ["uniffi/cli"]
+
+[dependencies]
+hex = "0.4"
+op-core = { path = "../core" }
+serde_json = "1"
+thiserror = "2"
+uniffi = "0.32"
+
+[lints]
+workspace = true

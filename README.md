@@ -2,15 +2,16 @@
 
 Gestor de contraseñas, tarjetas, PINs y secretos, de código abierto, offline y sin servidor. Android primero.
 
-> **Estado: Fase 0.** Hay núcleo criptográfico y especificación; todavía no hay app. No guardes datos reales.
+> **Estado: Fase 1 en curso.** La app Android ya crea, desbloquea y gestiona el baúl, pero no ha pasado ninguna auditoría. No guardes datos reales todavía.
 
 ## Qué hay en el repositorio
 
 | Ruta | Contenido |
 |---|---|
 | [`core/`](core) | `op-core`, el núcleo en Rust: derivación de claves, cifrado por elemento y formato `.opvault` |
+| [`ffi/`](ffi) | `op-ffi`, bindings UniFFI de `op-core` para Kotlin (y en el futuro Swift) |
 | [`cli/`](cli) | `opvault`, herramienta para inspeccionar y descifrar respaldos sin la app |
-| [`android/`](android) | App Android (Fase 1) |
+| [`android/`](android) | App Android: Kotlin + Jetpack Compose. Ver [android/README.md](android/README.md) |
 | [`docs/crypto-spec.md`](docs/crypto-spec.md) | Especificación criptográfica v1 (normativa) |
 | [`docs/opvault-format.md`](docs/opvault-format.md) | Formato del fichero de respaldo |
 | [`docs/threat-model.md`](docs/threat-model.md) | Modelo de amenazas |
