@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<KeePassFile>
+ <Meta><Generator>OpenPassword tests</Generator><RecycleBinEnabled>True</RecycleBinEnabled><RecycleBinUUID>EREREREREREREREREREREQ==</RecycleBinUUID></Meta>
+ <Root>
+  <Group><UUID>AAAAAAAAAAAAAAAAAAAAAQ==</UUID><Name>Raíz</Name>
+   <Entry><UUID>AAAAAAAAAAAAAAAAAAAAAg==</UUID>
+    <String><Key>Title</Key><Value>GitHub</Value></String>
+    <String><Key>UserName</Key><Value>raul</Value></String>
+    <String><Key>Password</Key><Value ProtectInMemory="True">nueva-clave &lt;&amp;&gt;</Value></String>
+    <String><Key>URL</Key><Value>https://github.com</Value></String>
+    <String><Key>Notes</Key><Value>cuenta personal &amp; &lt;trabajo&gt;</Value></String>
+    <String><Key>otp</Key><Value ProtectInMemory="True">otpauth://totp/GitHub:raul?secret=JBSWY3DPEHPK3PXP&amp;period=30&amp;digits=6</Value></String>
+    <String><Key>PIN de recuperación</Key><Value ProtectInMemory="True">8841</Value></String>
+    <History>
+     <Entry><UUID>AAAAAAAAAAAAAAAAAAAAAg==</UUID>
+      <String><Key>Title</Key><Value>GitHub</Value></String>
+      <String><Key>UserName</Key><Value>raul</Value></String>
+      <String><Key>Password</Key><Value ProtectInMemory="True">clave-antigua</Value></String>
+     </Entry>
+    </History>
+   </Entry>
+   <Group><UUID>AAAAAAAAAAAAAAAAAAAAAw==</UUID><Name>Banco</Name>
+    <Entry><UUID>AAAAAAAAAAAAAAAAAAAABA==</UUID>
+     <String><Key>Title</Key><Value>BBVA</Value></String>
+     <String><Key>UserName</Key><Value>12345678Z</Value></String>
+     <String><Key>Password</Key><Value ProtectInMemory="True">bbva-clave</Value></String>
+     <String><Key>URL</Key><Value>https://www.bbva.es</Value></String>
+    </Entry>
+   </Group>
+   <Group><UUID>EREREREREREREREREREREQ==</UUID><Name>Papelera</Name>
+    <Entry><UUID>AAAAAAAAAAAAAAAAAAAABQ==</UUID>
+     <String><Key>Title</Key><Value>Borrado</Value></String>
+     <String><Key>UserName</Key><Value>viejo</Value></String>
+     <String><Key>Password</Key><Value ProtectInMemory="True">no-importar</Value></String>
+    </Entry>
+   </Group>
+   <Entry><UUID>AAAAAAAAAAAAAAAAAAAABw==</UUID>
+    <String><Key>Title</Key><Value>Espacios &amp; Cía</Value></String>
+    <String><Key>UserName</Key><Value>usuario</Value></String>
+    <String><Key>Password</Key><Value ProtectInMemory="True">  con espacios  </Value></String>
+   </Entry>
+   <Entry><UUID>AAAAAAAAAAAAAAAAAAAABg==</UUID>
+    <String><Key>Title</Key><Value>Códigos de recuperación</Value></String>
+    <String><Key>Notes</Key><Value>abcd-efgh
+ijkl-mnop</Value></String>
+   </Entry>
+  </Group>
+ </Root>
+</KeePassFile>

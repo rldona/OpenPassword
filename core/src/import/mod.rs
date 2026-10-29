@@ -2,8 +2,11 @@
 //!
 //! Supported: CSV from Chrome / Google Password Manager, Firefox, Bitwarden and 1Password
 //! (columns are matched by name, so similar CSVs work too), Bitwarden's unencrypted JSON
-//! and 1Password's `.1pux` export (a ZIP with `export.data` in JSON).
+//! 1Password's `.1pux` export (a ZIP with `export.data` in JSON) and password-protected
+//! KeePass databases (KDBX 3.1 and 4.x, see [`kdbx`]).
 //! The input is plaintext secrets: callers should offer to delete the file afterwards.
+
+mod kdbx;
 
 use serde_json::Value;
 
@@ -15,6 +18,7 @@ pub enum ImportFormat {
     Csv,
     BitwardenJson,
     OnePassword1pux,
+    Kdbx,
 }
 
 #[derive(Debug)]
@@ -27,10 +31,26 @@ pub struct Imported {
 
 const MAX_INPUT: usize = 32 * 1024 * 1024;
 
+/// True for formats that are encrypted and need the source manager's password (KeePass).
+pub fn needs_password(bytes: &[u8]) -> bool {
+    kdbx::is_kdbx(bytes)
+}
+
 /// Detects the format and converts every entry. `now` (Unix seconds) stamps the items.
 pub fn parse(bytes: &[u8], now: u64) -> Result<Imported> {
+    parse_with_password(bytes, None, now)
+}
+
+/// Like [`parse`], with the password for encrypted formats (see [`needs_password`]).
+pub fn parse_with_password(bytes: &[u8], password: Option<&str>, now: u64) -> Result<Imported> {
     if bytes.len() > MAX_INPUT {
         return Err(Error::InvalidInput("file too large to import"));
+    }
+    if kdbx::is_kdbx(bytes) {
+        let password = password.ok_or(Error::InvalidInput(
+            "this KeePass database needs its password",
+        ))?;
+        return kdbx::parse(bytes, password, now);
     }
     if bytes.starts_with(b"PK\x03\x04") {
         return parse_1pux(bytes, now);
@@ -90,9 +110,18 @@ fn default_title(kind: ItemKind) -> &'static str {
     }
 }
 
+/// Secrets are kept byte for byte: a password may start or end with spaces. Other values
+/// (usernames, names, dates) are trimmed. Blank values are dropped.
 fn field(label: &str, kind: FieldKind, value: &str) -> Option<Field> {
-    let v = value.trim();
-    (!v.is_empty()).then(|| Field::new(label, kind, v))
+    if value.trim().is_empty() {
+        return None;
+    }
+    let keep_exact = matches!(kind, FieldKind::Concealed | FieldKind::Pin);
+    Some(Field::new(
+        label,
+        kind,
+        if keep_exact { value } else { value.trim() },
+    ))
 }
 
 fn login_item(l: Login<'_>, now: u64) -> Option<Item> {
@@ -643,6 +672,18 @@ mod tests {
         assert_eq!(value(b, "Contraseña"), "con,coma \"y comillas\"");
         assert_eq!(b.details.notes, "línea 1\nlínea 2");
         assert_eq!(b.details.fields[0].kind, FieldKind::Text);
+    }
+
+    #[test]
+    fn passwords_keep_their_spaces() {
+        let csv = "name,url,username,password\nX,https://x.com,  raul  ,\"  con espacios  \"\n";
+        let out = parse(csv.as_bytes(), 0).unwrap();
+        assert_eq!(value(&out.items[0], "Contraseña"), "  con espacios  ");
+        assert_eq!(
+            value(&out.items[0], "Usuario"),
+            "raul",
+            "usernames are trimmed"
+        );
     }
 
     #[test]

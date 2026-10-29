@@ -397,21 +397,30 @@ pub struct ImportedItemRecord {
 
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct ImportResult {
-    /// "csv", "bitwarden-json" or "1password-1pux".
+    /// "csv", "bitwarden-json", "1password-1pux" or "keepass-kdbx".
     pub format: String,
     pub items: Vec<ImportedItemRecord>,
     pub skipped: u32,
 }
 
-/// Parses another manager's plaintext export. Nothing is stored: the app encrypts the items.
+/// True if the file is encrypted and [`parse_import`] needs its password (KeePass).
 #[uniffi::export]
-pub fn parse_import(bytes: Vec<u8>, now: u64) -> Result<ImportResult> {
-    let imported = op_core::import::parse(&bytes, now)?;
+pub fn import_needs_password(bytes: Vec<u8>) -> bool {
+    op_core::import::needs_password(&bytes)
+}
+
+/// Parses another manager's export. Nothing is stored: the app encrypts the items.
+/// `password` is only used for encrypted formats (KeePass). Runs a KDF for those: call it
+/// off the main thread.
+#[uniffi::export]
+pub fn parse_import(bytes: Vec<u8>, password: Option<String>, now: u64) -> Result<ImportResult> {
+    let imported = op_core::import::parse_with_password(&bytes, password.as_deref(), now)?;
     Ok(ImportResult {
         format: match imported.format {
             op_core::import::ImportFormat::Csv => "csv",
             op_core::import::ImportFormat::BitwardenJson => "bitwarden-json",
             op_core::import::ImportFormat::OnePassword1pux => "1password-1pux",
+            op_core::import::ImportFormat::Kdbx => "keepass-kdbx",
         }
         .into(),
         items: imported
@@ -559,6 +568,7 @@ mod tests {
     fn import_then_encrypt() {
         let result = parse_import(
             b"name,url,username,password\nGitHub,https://github.com,raul,pw\n".to_vec(),
+            None,
             5,
         )
         .unwrap();
