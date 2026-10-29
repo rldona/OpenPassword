@@ -9,6 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import io.github.rldona.openpassword.security.excludeFromAutofill
 import io.github.rldona.openpassword.ui.AppRoot
 import io.github.rldona.openpassword.ui.theme.OpenPasswordTheme
 import kotlinx.coroutines.delay
@@ -38,6 +39,7 @@ class MainActivity : ComponentActivity() {
                 AppRoot(session = app.session, clipboard = app.clipboard)
             }
         }
+        excludeFromAutofill(this)
     }
 
     override fun onUserInteraction() {
