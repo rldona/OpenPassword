@@ -32,6 +32,7 @@ Qué protege OpenPassword, frente a quién y qué queda fuera. Se revisa antes d
 | A9 | Cadena de suministro | Dependencia o build manipulada | Pocas dependencias, `Cargo.lock` versionado, `cargo audit`, builds reproducibles | Mitigado |
 | A12 | Web o app de *phishing* | Pide al autorrelleno las credenciales de otro sitio | Coincidencia estricta: host guardado o subdominio en webs; nombre de paquete exacto (verificado por Android) en apps; aviso al elegir a mano | Mitigado |
 | A13 | Baúl olvidado abierto | El autorrelleno ofrece logins mientras la app está en segundo plano | Bloqueo a los 30 s de salir de la app y al apagar la pantalla, para todo el proceso | Protegido |
+| A14 | Otro servicio de autorrelleno (p. ej. el de Google) | Lee los campos de la app u ofrece guardarlos en su nube | Ventanas excluidas de todo autorrelleno (`IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS`) | Protegido |
 | A10 | Malware con root, keylogger | Lee memoria y pulsaciones | Ninguna; aviso si se detecta root | Fuera de alcance |
 | A11 | Coacción | Obliga a desbloquear | Ninguna en v1 | Fuera de alcance |
 

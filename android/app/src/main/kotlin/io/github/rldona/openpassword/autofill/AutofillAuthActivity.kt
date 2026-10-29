@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.rldona.openpassword.OpenPasswordApp
 import io.github.rldona.openpassword.core.ItemKindRecord
+import io.github.rldona.openpassword.security.excludeFromAutofill
 import io.github.rldona.openpassword.security.strongBiometricsAvailable
 import io.github.rldona.openpassword.session.SessionState
 import io.github.rldona.openpassword.session.VaultEntry
@@ -110,6 +111,7 @@ class AutofillAuthActivity : ComponentActivity() {
                 }
             }
         }
+        excludeFromAutofill(this)
     }
 
     private fun finishWith(usernameId: AutofillId?, passwordId: AutofillId?, entry: VaultEntry, credentials: Credentials) {
