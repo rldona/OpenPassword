@@ -211,7 +211,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
             )
             ListItem(
                 headlineContent = { Text("Importar de otro gestor") },
-                supportingContent = { Text("CSV de Chrome, Google, Firefox, Bitwarden o 1Password, o el JSON sin cifrar de Bitwarden.") },
+                supportingContent = { Text("CSV de Chrome, Google, Firefox, Bitwarden o 1Password, JSON sin cifrar de Bitwarden o .1pux de 1Password.") },
                 modifier = Modifier.clickable { session.beforeSystemPicker(); externalLauncher.launch(arrayOf("*/*")) },
             )
             ListItem(

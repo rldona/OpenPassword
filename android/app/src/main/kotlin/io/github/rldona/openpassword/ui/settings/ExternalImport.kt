@@ -42,13 +42,20 @@ fun importErrorMessage(e: Throwable): String = when {
     e is OpException.InvalidInput && "encrypted Bitwarden" in e.reason ->
         "Es una exportación cifrada de Bitwarden. Vuelve a exportar eligiendo el formato «.json» sin cifrar."
     e is OpException.InvalidInput && ("no password column" in e.reason || "no items" in e.reason) ->
-        "No reconozco este fichero. Usa el CSV de Chrome, Google, Firefox, Bitwarden o 1Password, o el JSON sin cifrar de Bitwarden."
+        "No reconozco este fichero. Usa el CSV de Chrome, Google, Firefox, Bitwarden o 1Password, el JSON sin cifrar de Bitwarden o el .1pux de 1Password."
     e is OpException.InvalidInput && "unclosed quote" in e.reason -> "El CSV está incompleto o dañado."
+    e is OpException.InvalidInput && ("ZIP" in e.reason || "export.data" in e.reason || "no accounts" in e.reason) ->
+        "Este ZIP no es una exportación .1pux de 1Password o está dañado."
+    e is OpException.InvalidInput && "too large" in e.reason -> "El fichero es demasiado grande para importarlo."
     e is OpException.InvalidInput && "UTF-8" in e.reason -> "El fichero no es de texto. Elige la exportación en CSV o JSON."
     else -> "No se pudo leer ese fichero."
 }
 
-private fun formatName(format: String) = if (format == "bitwarden-json") "Bitwarden (JSON)" else "CSV"
+private fun formatName(format: String) = when (format) {
+    "bitwarden-json" -> "Bitwarden (JSON)"
+    "1password-1pux" -> "1Password (.1pux)"
+    else -> "CSV"
+}
 
 /** Confirms, imports, and then offers to delete the plaintext export. */
 @Composable
