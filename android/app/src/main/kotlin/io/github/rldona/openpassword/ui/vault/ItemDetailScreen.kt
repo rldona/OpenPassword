@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.rldona.openpassword.autofill.LoginMatcher
 import io.github.rldona.openpassword.core.FieldRecord
 import io.github.rldona.openpassword.core.ItemDetailsRecord
 import io.github.rldona.openpassword.security.SensitiveClipboard
@@ -120,9 +121,14 @@ fun ItemDetailScreen(
                         }
                     }
                 }
-                if (o.urls.isNotEmpty()) {
+                val (apps, sites) = o.urls.partition { it.startsWith(LoginMatcher.APP_SCHEME) }
+                if (sites.isNotEmpty()) {
                     SectionLabel("Sitio web")
-                    o.urls.forEach { Text(it, style = MaterialTheme.typography.bodyLarge) }
+                    sites.forEach { Text(it, style = MaterialTheme.typography.bodyLarge) }
+                }
+                if (apps.isNotEmpty()) {
+                    SectionLabel("Apps donde se rellena")
+                    apps.forEach { Text(it.removePrefix(LoginMatcher.APP_SCHEME), style = MaterialTheme.typography.bodyLarge) }
                 }
                 if (d.notes.isNotBlank()) {
                     SectionLabel("Notas")

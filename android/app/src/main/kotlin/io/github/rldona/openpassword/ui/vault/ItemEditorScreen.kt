@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import io.github.rldona.openpassword.autofill.LoginMatcher
 import io.github.rldona.openpassword.core.FieldKindRecord
 import io.github.rldona.openpassword.core.FieldRecord
 import io.github.rldona.openpassword.core.ItemDetailsRecord
@@ -64,7 +65,8 @@ fun ItemEditorScreen(
 ) {
     // Plain `remember`: field values are secrets and must not reach saved instance state.
     var title by remember { mutableStateOf(existing?.overview?.title ?: "") }
-    var url by remember { mutableStateOf(existing?.overview?.urls?.firstOrNull() ?: "") }
+    var url by remember { mutableStateOf(existing?.overview?.urls?.firstOrNull { !it.startsWith(LoginMatcher.APP_SCHEME) } ?: "") }
+    val appLinks = remember { existing?.overview?.urls?.filter { it.startsWith(LoginMatcher.APP_SCHEME) }.orEmpty() }
     var favorite by remember { mutableStateOf(existing?.overview?.favorite ?: false) }
     var notes by remember { mutableStateOf("") }
     val fields = remember { mutableStateListOf<FieldRecord>() }
@@ -99,7 +101,7 @@ fun ItemEditorScreen(
                     kind = kind,
                     title = title.trim().ifEmpty { kind.label() },
                     subtitle = kind.subtitleFor(kept),
-                    urls = listOf(url.trim()).filter(String::isNotEmpty),
+                    urls = listOf(url.trim()).filter(String::isNotEmpty) + appLinks,
                     tags = existing?.overview?.tags ?: emptyList(),
                     favorite = favorite,
                     createdAt = existing?.overview?.createdAt ?: now,

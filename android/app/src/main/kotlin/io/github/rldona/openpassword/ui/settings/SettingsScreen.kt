@@ -1,5 +1,8 @@
 package io.github.rldona.openpassword.ui.settings
 
+import android.content.Intent
+import android.net.Uri
+import android.view.autofill.AutofillManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -73,6 +76,11 @@ fun SettingsScreen(session: VaultSession, onBack: () -> Unit) {
     var biometricOn by remember { mutableStateOf(session.isBiometricEnabled()) }
     var biometricBusy by remember { mutableStateOf(false) }
     var importBytes by remember { mutableStateOf<ByteArray?>(null) }
+    val autofillManager = remember { context.getSystemService(AutofillManager::class.java) }
+    var autofillOn by remember { mutableStateOf(autofillManager?.hasEnabledAutofillServices() == true) }
+    val autofillLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        autofillOn = autofillManager?.hasEnabledAutofillServices() == true
+    }
 
     // Only reachable from the secret key dialog, i.e. after confirming the master password.
     val kitLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
@@ -147,6 +155,24 @@ fun SettingsScreen(session: VaultSession, onBack: () -> Unit) {
             )
             HorizontalDivider()
             SectionLabel("Seguridad", Modifier.padding(start = 16.dp, top = 16.dp))
+            ListItem(
+                headlineContent = { Text("Autorrelleno") },
+                supportingContent = {
+                    Text(
+                        if (autofillOn) {
+                            "Activado: OpenPassword te ofrece tus logins en otras apps y en el navegador."
+                        } else {
+                            "Desactivado. Toca para elegir OpenPassword como servicio de autorrelleno."
+                        },
+                    )
+                },
+                modifier = Modifier.clickable {
+                    // Android shows its own dialog: the user makes the choice, not the app.
+                    val intent = Intent(android.provider.Settings.ACTION_REQUEST_SET_AUTOFILL_SERVICE)
+                        .setData(Uri.parse("package:${context.packageName}"))
+                    runCatching { autofillLauncher.launch(intent) }
+                },
+            )
             if (biometricsAvailable) {
                 ListItem(
                     headlineContent = { Text("Desbloquear con huella") },
