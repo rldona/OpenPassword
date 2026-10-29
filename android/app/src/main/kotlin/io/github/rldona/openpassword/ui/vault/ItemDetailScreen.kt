@@ -1,6 +1,8 @@
 package io.github.rldona.openpassword.ui.vault
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -39,6 +42,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.rldona.openpassword.autofill.LoginMatcher
@@ -46,6 +50,8 @@ import io.github.rldona.openpassword.core.FieldKindRecord
 import io.github.rldona.openpassword.core.FieldRecord
 import io.github.rldona.openpassword.core.totpCode
 import io.github.rldona.openpassword.core.ItemDetailsRecord
+import io.github.rldona.openpassword.core.ItemKindRecord
+import io.github.rldona.openpassword.qr.WifiQr
 import io.github.rldona.openpassword.security.SensitiveClipboard
 import io.github.rldona.openpassword.session.VaultEntry
 import io.github.rldona.openpassword.session.VaultSession
@@ -71,6 +77,7 @@ fun ItemDetailScreen(
     val details by produceState<ItemDetailsRecord?>(null, entry.record.revision) { value = session.details(entry) }
     val revealed = remember { mutableStateMapOf<Int, Boolean>() }
     var confirmDelete by remember { mutableStateOf(false) }
+    var wifiQr by remember { mutableStateOf<String?>(null) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val o = entry.overview
@@ -133,6 +140,13 @@ fun ItemDetailScreen(
                         }
                     }
                 }
+                if (o.kind == ItemKindRecord.WIFI) {
+                    val ssid = d.fields.firstOrNull { it.label == WIFI_SSID_LABEL }?.value.orEmpty()
+                    val password = d.fields.firstOrNull { it.kind == FieldKindRecord.CONCEALED }?.value.orEmpty()
+                    if (ssid.isNotEmpty()) {
+                        OutlinedButton(onClick = { wifiQr = WifiQr.payload(ssid, password) }) { Text("Mostrar QR para conectarse") }
+                    }
+                }
                 val (apps, sites) = o.urls.partition { it.startsWith(LoginMatcher.APP_SCHEME) }
                 if (sites.isNotEmpty()) {
                     SectionLabel("Sitio web")
@@ -156,6 +170,21 @@ fun ItemDetailScreen(
                 modifier = Modifier.padding(bottom = 24.dp),
             )
         }
+    }
+
+    wifiQr?.let { payload ->
+        val qr = remember(payload) { WifiQr.bitmap(payload, 720).asImageBitmap() }
+        AlertDialog(
+            onDismissRequest = { wifiQr = null },
+            title = { Text(o.title) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Image(qr, contentDescription = "Código QR de la red", modifier = Modifier.fillMaxWidth().aspectRatio(1f))
+                    Text("Escanéalo con la cámara del otro teléfono. Quien vea este código puede conectarse a la red.")
+                }
+            },
+            confirmButton = { TextButton(onClick = { wifiQr = null }) { Text("Cerrar") } },
+        )
     }
 
     if (confirmDelete) {

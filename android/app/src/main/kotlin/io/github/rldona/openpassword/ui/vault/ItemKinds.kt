@@ -14,8 +14,14 @@ import io.github.rldona.openpassword.core.ItemKindRecord.SECURE_NOTE
 import io.github.rldona.openpassword.core.ItemKindRecord.WIFI
 import java.text.Normalizer
 
-/** Item types the MVP lets you create. The others can still be read from imports. */
-val CreatableKinds = listOf(LOGIN, CARD, PIN, SECRET, SECURE_NOTE)
+/** Item types offered by "+", in menu order. */
+val CreatableKinds = listOf(LOGIN, CARD, BANK_ACCOUNT, PIN, IDENTITY, WIFI, SECRET, SECURE_NOTE)
+
+/** Field labels other code looks up. */
+const val IBAN_LABEL = "IBAN"
+const val DOCUMENT_EXPIRY_LABEL = "Caducidad (DD/MM/AAAA)"
+const val DOCUMENT_TYPE_LABEL = "Tipo (DNI, pasaporte, carné…)"
+const val WIFI_SSID_LABEL = "Red (SSID)"
 
 fun ItemKindRecord.label(): String = when (this) {
     LOGIN -> "Login"
@@ -64,20 +70,37 @@ fun ItemKindRecord.template(): List<FieldRecord> = when (this) {
     PIN -> listOf(f("Código", FieldKindRecord.PIN))
     SECRET -> listOf(f("Secreto", FieldKindRecord.CONCEALED), f("Servicio", FieldKindRecord.TEXT))
     SECURE_NOTE -> emptyList()
-    BANK_ACCOUNT -> listOf(f("Titular", FieldKindRecord.TEXT), f("IBAN", FieldKindRecord.TEXT), f("BIC", FieldKindRecord.TEXT))
-    IDENTITY -> listOf(f("Número", FieldKindRecord.TEXT), f("Caducidad", FieldKindRecord.DATE))
-    WIFI -> listOf(f("Red (SSID)", FieldKindRecord.TEXT), f("Contraseña", FieldKindRecord.CONCEALED))
+    BANK_ACCOUNT -> listOf(
+        f("Banco", FieldKindRecord.TEXT),
+        f("Titular", FieldKindRecord.TEXT),
+        f(IBAN_LABEL, FieldKindRecord.TEXT),
+        f("BIC / SWIFT", FieldKindRecord.TEXT),
+    )
+    IDENTITY -> listOf(
+        f(DOCUMENT_TYPE_LABEL, FieldKindRecord.TEXT),
+        f("Número", FieldKindRecord.TEXT),
+        f("Nombre completo", FieldKindRecord.TEXT),
+        f("Expedición (DD/MM/AAAA)", FieldKindRecord.DATE),
+        f(DOCUMENT_EXPIRY_LABEL, FieldKindRecord.DATE),
+    )
+    WIFI -> listOf(f(WIFI_SSID_LABEL, FieldKindRecord.TEXT), f("Contraseña", FieldKindRecord.CONCEALED))
 }
 
 /** The line under the title in the list. Never contains a secret. */
 fun ItemKindRecord.subtitleFor(fields: List<FieldRecord>): String? {
     fun value(kind: FieldKindRecord) = fields.firstOrNull { it.kind == kind && it.value.isNotBlank() }?.value
+    fun labelled(label: String) = fields.firstOrNull { it.label == label && it.value.isNotBlank() }?.value
     return when (this) {
         LOGIN -> value(FieldKindRecord.EMAIL) ?: value(FieldKindRecord.TEXT)
         CARD -> value(FieldKindRecord.CARD_NUMBER)?.filter(Char::isDigit)?.takeLast(4)?.let { "•••• $it" }
         PIN -> value(FieldKindRecord.PIN)?.let { "${it.length} dígitos" }
-        SECRET -> fields.firstOrNull { it.label == "Servicio" }?.value?.takeIf(String::isNotBlank)
+        SECRET -> labelled("Servicio")
         WIFI -> value(FieldKindRecord.TEXT)
+        BANK_ACCOUNT -> listOfNotNull(
+            labelled("Banco"),
+            labelled(IBAN_LABEL)?.let(Iban::normalize)?.takeIf { it.length > 4 }?.let { "•••• ${it.takeLast(4)}" },
+        ).joinToString(" · ").ifEmpty { null }
+        IDENTITY -> labelled(DOCUMENT_TYPE_LABEL)
         else -> null
     }
 }
