@@ -92,7 +92,9 @@ fun ItemKindRecord.subtitleFor(fields: List<FieldRecord>): String? {
     fun labelled(label: String) = fields.firstOrNull { it.label == label && it.value.isNotBlank() }?.value
     return when (this) {
         LOGIN -> value(FieldKindRecord.EMAIL) ?: value(FieldKindRecord.TEXT)
-        CARD -> value(FieldKindRecord.CARD_NUMBER)?.filter(Char::isDigit)?.takeLast(4)?.let { "•••• $it" }
+        CARD -> value(FieldKindRecord.CARD_NUMBER)?.let { number ->
+            listOfNotNull(CardNumber.network(number), "•••• " + CardNumber.digits(number).takeLast(4)).joinToString(" ")
+        }
         PIN -> value(FieldKindRecord.PIN)?.let { "${it.length} dígitos" }
         SECRET -> labelled("Servicio")
         WIFI -> value(FieldKindRecord.TEXT)

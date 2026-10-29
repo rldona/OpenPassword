@@ -8,6 +8,8 @@ Kotlin, Jetpack Compose y Material 3. Toda la criptografía la hace `op-core` (R
 - Desbloqueo con contraseña maestra; espera creciente tras 4 intentos fallidos.
 - Desbloqueo con huella (biometría fuerte). La contraseña maestra se pide cada 14 días y tras cada reinicio.
 - Baúl: lista, búsqueda sin acentos, filtros por tipo y favoritos.
+- Tarjetas: el número se valida con Luhn y se muestra la red (Visa, Mastercard, American Express…).
+- Historial de contraseñas en logins, Wi-Fi y secretos: las 10 anteriores, con la fecha del cambio, para verlas o copiarlas.
 - Logins, tarjetas, cuentas bancarias, PINs, documentos, redes Wi-Fi, secretos y notas seguras: crear, ver, editar y borrar.
 - Cuentas bancarias: el IBAN se valida (longitud del país y dígitos de control) y se guarda agrupado de cuatro en cuatro; la lista solo muestra el banco y los cuatro últimos dígitos.
 - Documentos (DNI, pasaporte, carné…): las fechas se guardan como DD/MM/AAAA aunque se escriban sin barras.

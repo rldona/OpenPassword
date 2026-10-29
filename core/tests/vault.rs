@@ -214,3 +214,46 @@ fn debug_output_is_redacted() {
     assert!(!shown.contains("Visa") && !shown.contains("4821"));
     assert!(shown.contains("<redacted>"));
 }
+
+#[test]
+fn update_records_previous_passwords() {
+    let vault = new_vault();
+    let v1 = vault.encrypt_item(&login()).unwrap();
+
+    let mut edited = login();
+    edited.overview.updated_at += 60;
+    edited.details.fields[1].value = "nueva-contraseña-larga".into();
+    let v2 = vault.update_item(&v1, &edited).unwrap();
+    let history = vault.decrypt_details(&v2).unwrap().history.clone();
+    assert_eq!(history.len(), 1);
+    assert_eq!(history[0].label, "Contraseña");
+    assert_eq!(history[0].value, "v9#Qe!2mZp7&Lk4x");
+    assert_eq!(history[0].changed_at, edited.overview.updated_at);
+
+    // An edit that keeps the password adds nothing, and a caller cannot drop the history.
+    let mut retitled = edited.clone();
+    retitled.overview.title = "Google (personal)".into();
+    retitled.details.history.clear();
+    let v3 = vault.update_item(&v2, &retitled).unwrap();
+    assert_eq!(vault.decrypt_details(&v3).unwrap().history, history);
+}
+
+#[test]
+fn history_is_capped_and_skips_cards() {
+    let vault = new_vault();
+    let mut current = vault.encrypt_item(&login()).unwrap();
+    let mut item = login();
+    for i in 0..15 {
+        item.details.fields[1].value = format!("contraseña número {i}");
+        current = vault.update_item(&current, &item).unwrap();
+    }
+    let history = vault.decrypt_details(&current).unwrap().history.clone();
+    assert_eq!(history.len(), op_core::ItemDetails::MAX_HISTORY);
+    assert_eq!(history[0].value, "contraseña número 13");
+
+    let v1 = vault.encrypt_item(&card()).unwrap();
+    let mut new_cvv = card();
+    new_cvv.details.fields[3].value = "999".into();
+    let v2 = vault.update_item(&v1, &new_cvv).unwrap();
+    assert!(vault.decrypt_details(&v2).unwrap().history.is_empty());
+}

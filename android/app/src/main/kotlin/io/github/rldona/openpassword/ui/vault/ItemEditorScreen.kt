@@ -108,6 +108,8 @@ fun ItemEditorScreen(
                 val invalid = when {
                     kept.any { it.kind == FieldKindRecord.TOTP && !isValidTotp(it.value) } ->
                         "El código TOTP no es válido. Pega el enlace otpauth:// o el secreto que te dio el servicio."
+                    kept.any { it.kind == FieldKindRecord.CARD_NUMBER && !CardNumber.isValid(it.value) } ->
+                        "El número de tarjeta no es válido: revisa que no falte ni sobre ningún dígito."
                     kind == ItemKindRecord.BANK_ACCOUNT && kept.any { it.label == IBAN_LABEL && !Iban.isValid(it.value) } ->
                         "El IBAN no es válido: revisa el país, la longitud y los dígitos."
                     else -> null

@@ -6,6 +6,7 @@ import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.health.HealthInput
 import io.github.rldona.openpassword.health.VaultHealth
 import io.github.rldona.openpassword.qr.WifiQr
+import io.github.rldona.openpassword.ui.vault.CardNumber
 import io.github.rldona.openpassword.ui.vault.IBAN_LABEL
 import io.github.rldona.openpassword.ui.vault.Iban
 import io.github.rldona.openpassword.ui.vault.subtitleFor
@@ -73,5 +74,29 @@ class NewKindsTest {
         assertEquals(listOf("ayer"), report.expiredDocuments)
         assertEquals(listOf("hoy", "enero"), report.expiringDocuments)
         assertEquals(3, report.affected)
+    }
+
+    @Test
+    fun luhn() {
+        for (n in listOf("4940 1923 5567 4821", "4111-1111-1111-1111", "5555555555554444", "378282246310005", "6011111111111117")) {
+            assertTrue(n, CardNumber.isValid(n))
+        }
+        for (n in listOf("4940 1923 5567 4822", "4111 1111 111", "4111a111111111111", "")) {
+            assertFalse(n, CardNumber.isValid(n))
+        }
+    }
+
+    @Test
+    fun cardNetworks() {
+        assertEquals("Visa", CardNumber.network("4111 1111 1111 1111"))
+        assertEquals("Mastercard", CardNumber.network("5555 5555 5555 4444"))
+        assertEquals("Mastercard", CardNumber.network("2221 0000 0000 0009"))
+        assertEquals("American Express", CardNumber.network("3782 822463 10005"))
+        assertEquals("Discover", CardNumber.network("6011 1111 1111 1117"))
+        assertEquals("JCB", CardNumber.network("3530 1113 3330 0000"))
+        assertEquals("Diners Club", CardNumber.network("3056 9309 0259 04"))
+        assertEquals("UnionPay", CardNumber.network("6200 0000 0000 0005"))
+        assertEquals("Maestro", CardNumber.network("6759 6498 2643 8453"))
+        assertNull(CardNumber.network("9999 9999 9999 9995"))
     }
 }

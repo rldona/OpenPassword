@@ -56,6 +56,53 @@ pub struct ItemDetails {
     pub fields: Vec<Field>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub notes: String,
+    /// Previous passwords, newest first. Filled by [`ItemDetails::record_changes`] on update.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub history: Vec<PasswordChange>,
+}
+
+/// A password an item used to have, kept so a change can be undone (spec 7).
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
+pub struct PasswordChange {
+    pub label: String,
+    pub value: String,
+    /// Unix seconds when it stopped being the current value.
+    pub changed_at: u64,
+}
+
+impl ItemDetails {
+    /// Previous passwords kept per item; older ones are dropped.
+    pub const MAX_HISTORY: usize = 10;
+
+    /// Sets `self.history` to `previous.history` plus every concealed value of `previous`
+    /// that `self` no longer has under the same label. Only for kinds whose concealed fields
+    /// are passwords (logins, Wi-Fi, secrets): old CVVs are not worth keeping around.
+    pub fn record_changes(&mut self, previous: &ItemDetails, kind: ItemKind, now: u64) {
+        let mut history = previous.history.clone();
+        if matches!(kind, ItemKind::Login | ItemKind::Wifi | ItemKind::Secret) {
+            for old in previous
+                .fields
+                .iter()
+                .filter(|f| f.kind == FieldKind::Concealed && !f.value.is_empty())
+            {
+                let kept = self.fields.iter().any(|f| {
+                    f.kind == FieldKind::Concealed && f.label == old.label && f.value == old.value
+                });
+                if !kept {
+                    history.insert(
+                        0,
+                        PasswordChange {
+                            label: old.label.clone(),
+                            value: old.value.clone(),
+                            changed_at: now,
+                        },
+                    );
+                }
+            }
+        }
+        history.truncate(Self::MAX_HISTORY);
+        self.history = history;
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
@@ -92,4 +139,4 @@ macro_rules! redacted_debug {
         }
     )*};
 }
-redacted_debug!(ItemOverview, ItemDetails, Field, Item);
+redacted_debug!(ItemOverview, ItemDetails, Field, PasswordChange, Item);

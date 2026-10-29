@@ -196,6 +196,7 @@ fn sample_items(now: u64) -> Vec<Item> {
         details: ItemDetails {
             fields,
             notes: String::new(),
+            history: Vec::new(),
         },
     };
     vec![

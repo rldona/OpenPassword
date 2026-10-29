@@ -7,7 +7,7 @@ use core::fmt;
 
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
-pub use item::{Field, FieldKind, Item, ItemDetails, ItemKind, ItemOverview};
+pub use item::{Field, FieldKind, Item, ItemDetails, ItemKind, ItemOverview, PasswordChange};
 
 use crate::crypto::{
     self, DOMAIN_ITEM, DOMAIN_WRAP, KdfParams, Key, SecretKey, aad, derive_kek, random_array,
@@ -168,8 +168,17 @@ impl UnlockedVault {
     }
 
     /// Re-encrypts an edited item: same id and item key, next revision.
+    ///
+    /// The password history is computed here from the previous revision, not taken from
+    /// `item`, so a caller that forgets it cannot erase it. Changes are dated `updated_at`.
     pub fn update_item(&self, existing: &EncryptedItem, item: &Item) -> Result<EncryptedItem> {
         let item_key = self.item_key(existing)?;
+        let previous: ItemDetails =
+            self.open_part(&item_key, b"details", existing, &existing.details)?;
+        let mut item = item.clone();
+        item.details
+            .record_changes(&previous, item.overview.kind, item.overview.updated_at);
+        let item = &item;
         let revision = existing
             .revision
             .checked_add(1)

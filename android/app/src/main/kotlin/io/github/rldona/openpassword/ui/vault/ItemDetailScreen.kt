@@ -156,6 +156,24 @@ fun ItemDetailScreen(
                     SectionLabel("Apps donde se rellena")
                     apps.forEach { Text(it.removePrefix(LoginMatcher.APP_SCHEME), style = MaterialTheme.typography.bodyLarge) }
                 }
+                if (d.history.isNotEmpty()) {
+                    SectionLabel("Contraseñas anteriores")
+                    val dateFmt = remember { DateFormat.getDateInstance(DateFormat.MEDIUM) }
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    ) {
+                        d.history.forEachIndexed { i, change ->
+                            if (i > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            val old = FieldRecord("${change.label} · hasta el ${dateFmt.format(Date(change.changedAt.toLong() * 1000))}", FieldKindRecord.CONCEALED, change.value)
+                            // Negative keys so they never clash with the field indexes above.
+                            FieldRow(old, revealed = revealed[-1 - i] == true, onToggle = { revealed[-1 - i] = revealed[-1 - i] != true }, onCopy = {
+                                clipboard.copy(change.value)
+                                scope.launch { snackbar.showSnackbar("Contraseña anterior copiada. Se borrará del portapapeles en 30 s.") }
+                            })
+                        }
+                    }
+                }
                 if (d.notes.isNotBlank()) {
                     SectionLabel("Notas")
                     Text(d.notes, style = MaterialTheme.typography.bodyLarge)
@@ -241,7 +259,8 @@ private fun FieldRow(field: FieldRecord, revealed: Boolean, onToggle: () -> Unit
     val secret = field.kind.isSecret
     Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(field.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val network = if (field.kind == FieldKindRecord.CARD_NUMBER) CardNumber.network(field.value) else null
+            Text(listOfNotNull(field.label, network).joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
                 if (secret && !revealed) field.masked() else field.formatted(),
                 style = if (secret) SecretText else MaterialTheme.typography.bodyLarge,
