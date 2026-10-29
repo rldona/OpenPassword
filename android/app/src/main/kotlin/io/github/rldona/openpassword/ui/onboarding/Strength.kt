@@ -5,7 +5,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import kotlin.math.log2
 
-/** Rough guidance only: length dominates, character variety helps a little. */
+/**
+ * Rough guidance only, with no dictionary: a common word with an accent still looks
+ * "random" by bits alone, so length gates each level. "Aceptable" needs 12 characters
+ * and "Fuerte" 16, which favours passphrases.
+ */
 data class Strength(val fraction: Float, val label: String, private val level: Int) {
     @Composable
     fun color(): Color = when (level) {
@@ -23,9 +27,10 @@ fun strengthOf(password: String): Strength {
         password.any { !it.isLetterOrDigit() } to 20,
     ).filter { it.first }.sumOf { it.second }.coerceAtLeast(1)
     val bits = password.length * log2(pool.toDouble())
+    val fraction = (bits / 100).toFloat().coerceIn(0f, 1f)
     return when {
-        bits < 45 -> Strength((bits / 100).toFloat(), "Débil", 0)
-        bits < 70 -> Strength((bits / 100).toFloat(), "Aceptable", 1)
-        else -> Strength((bits / 100).toFloat().coerceAtMost(1f), "Fuerte", 2)
+        password.length >= 16 && bits >= 75 -> Strength(fraction, "Fuerte", 2)
+        password.length >= 12 && bits >= 50 -> Strength(fraction.coerceAtMost(0.74f), "Aceptable", 1)
+        else -> Strength(fraction.coerceAtMost(0.44f), "Débil", 0)
     }
 }

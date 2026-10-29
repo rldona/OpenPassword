@@ -44,12 +44,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.rldona.openpassword.BuildConfigInfo
 import io.github.rldona.openpassword.core.OpException
+import io.github.rldona.openpassword.security.EmergencyKit
 import io.github.rldona.openpassword.security.strongBiometricsAvailable
 import io.github.rldona.openpassword.session.VaultSession
 import io.github.rldona.openpassword.session.toUserMessage
 import io.github.rldona.openpassword.ui.PasswordField
 import io.github.rldona.openpassword.ui.SecretKeyField
+import io.github.rldona.openpassword.ui.EMERGENCY_KIT_FILE_NAME
 import io.github.rldona.openpassword.ui.readBackupFile
+import io.github.rldona.openpassword.ui.writeDocument
 import io.github.rldona.openpassword.ui.SectionLabel
 import io.github.rldona.openpassword.ui.theme.SecretFont
 import io.github.rldona.openpassword.ui.unlock.enableBiometricUnlock
@@ -70,6 +73,22 @@ fun SettingsScreen(session: VaultSession, onBack: () -> Unit) {
     var biometricOn by remember { mutableStateOf(session.isBiometricEnabled()) }
     var biometricBusy by remember { mutableStateOf(false) }
     var importBytes by remember { mutableStateOf<ByteArray?>(null) }
+
+    // Only reachable from the secret key dialog, i.e. after confirming the master password.
+    val kitLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        val key = shownSecretKey
+        if (uri == null || key == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val message = try {
+                writeDocument(context, uri, EmergencyKit.pdf(key))
+                "Kit guardado. Imprímelo y después borra el PDF del teléfono."
+            } catch (_: Exception) {
+                "No se pudo guardar el kit en esa ubicación."
+            }
+            shownSecretKey = null
+            snackbar.showSnackbar(message)
+        }
+    }
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -163,7 +182,7 @@ fun SettingsScreen(session: VaultSession, onBack: () -> Unit) {
             HorizontalDivider()
             ListItem(
                 headlineContent = { Text("OpenPassword ${BuildConfigInfo.versionName(context)}") },
-                supportingContent = { Text("Software libre bajo GPL-3.0-or-later. github.com/rldona/OpenPassword") },
+                supportingContent = { Text("Software libre bajo GPL-3.0-or-later. github.com/rldona/OpenPassword\nFrases de paso con la lista de palabras de la EFF (CC BY 3.0 US).") },
             )
         }
     }
@@ -213,6 +232,7 @@ fun SettingsScreen(session: VaultSession, onBack: () -> Unit) {
                 }
             },
             confirmButton = { TextButton(onClick = { shownSecretKey = null }) { Text("Hecho") } },
+            dismissButton = { TextButton(onClick = { kitLauncher.launch(EMERGENCY_KIT_FILE_NAME) }) { Text("Guardar kit PDF") } },
         )
     }
 }

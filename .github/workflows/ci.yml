@@ -52,5 +52,5 @@ jobs:
           "$SDKMANAGER" --install "ndk;30.0.16248370" "platforms;android-37.0"
       - run: cargo install cargo-ndk --locked
       # Also runs verifyDebugManifest / verifyReleaseManifest (no network permission, no backup).
-      - run: ./gradlew :app:assembleDebug :app:assembleRelease --console=plain
+      - run: ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --console=plain
         working-directory: android

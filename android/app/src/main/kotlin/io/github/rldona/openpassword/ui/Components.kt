@@ -154,3 +154,12 @@ suspend fun readBackupFile(context: android.content.Context, uri: android.net.Ur
     }
 
 private const val MAX_BACKUP_BYTES = 64 * 1024 * 1024
+
+/** Writes [bytes] to a document the user picked with the system "save as" dialog. */
+suspend fun writeDocument(context: android.content.Context, uri: android.net.Uri, bytes: ByteArray) =
+    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(bytes) } ?: error("cannot open")
+    }
+
+/** File name for the emergency kit, so it is easy to find and delete after printing. */
+const val EMERGENCY_KIT_FILE_NAME = "openpassword-kit-de-emergencia.pdf"
