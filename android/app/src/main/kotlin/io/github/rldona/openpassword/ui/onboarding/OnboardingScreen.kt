@@ -24,6 +24,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,24 +51,29 @@ import io.github.rldona.openpassword.ui.theme.SecretFont
 import kotlinx.coroutines.launch
 
 private const val MIN_PASSWORD = 10
+private const val RESTORE = -1
 
 @Composable
-fun OnboardingScreen(onCreate: suspend (password: String, secretKey: String) -> Unit) {
+fun OnboardingScreen(
+    onCreate: suspend (password: String, secretKey: String) -> Unit,
+    onRestore: suspend (backup: ByteArray, password: String, secretKey: String) -> Unit,
+) {
     var step by remember { mutableIntStateOf(0) }
     // Deliberately `remember`, not `rememberSaveable`: secrets never go to saved state.
     var password by remember { mutableStateOf("") }
     val secretKey = remember { generateSecretKey() }
 
-    BackHandler(enabled = step > 0) { step-- }
+    BackHandler(enabled = step != 0) { step = if (step == RESTORE) 0 else step - 1 }
 
     Surface(Modifier.fillMaxSize()) {
         Column(
             Modifier.safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            if (step > 0) SectionLabel("Paso $step de 2")
+            if (step in 1..2) SectionLabel("Paso $step de 2")
             when (step) {
-                0 -> Welcome(onNext = { step = 1 })
+                0 -> Welcome(onNext = { step = 1 }, onRestore = { step = RESTORE })
+                RESTORE -> RestoreStep(onRestore = onRestore, onBack = { step = 0 })
                 1 -> ChoosePassword(password, { password = it }, onNext = { step = 2 })
                 else -> SecretKeyStep(secretKey, onCreate = { onCreate(password, secretKey) })
             }
@@ -76,7 +82,7 @@ fun OnboardingScreen(onCreate: suspend (password: String, secretKey: String) -> 
 }
 
 @Composable
-private fun Welcome(onNext: () -> Unit) {
+private fun Welcome(onNext: () -> Unit, onRestore: () -> Unit) {
     Spacer(Modifier.height(32.dp))
     Text("OpenPassword", style = MaterialTheme.typography.headlineMedium)
     Text(
@@ -91,6 +97,7 @@ private fun Welcome(onNext: () -> Unit) {
     }
     Spacer(Modifier.height(8.dp))
     Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text("Crear mi baúl") }
+    OutlinedButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) { Text("Restaurar una copia de seguridad") }
 }
 
 @Composable

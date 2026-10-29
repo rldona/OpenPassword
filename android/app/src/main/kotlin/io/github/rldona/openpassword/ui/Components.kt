@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -94,3 +95,62 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
 }
 
 fun initialOf(title: String): String = title.trim().firstOrNull()?.uppercase() ?: "#"
+
+/**
+ * Secret key input: shown in clear so it can be checked against the paper copy, but with
+ * a password keyboard so the IME neither learns nor suggests it.
+ */
+@Composable
+fun SecretKeyField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    isError: Boolean = false,
+    supportingText: String? = null,
+    enabled: Boolean = true,
+    imeAction: ImeAction = ImeAction.Next,
+) {
+    OutlinedTextField(
+        value = value,
+        // Never rewrite the text here (e.g. uppercase()): it fights the IME's composing text
+        // and drops characters on some keyboards. op-core already ignores case and dashes.
+        onValueChange = onValueChange,
+        label = { Text("Clave secreta") },
+        placeholder = { Text("OP1-XXXXXX-…") },
+        modifier = modifier,
+        singleLine = true,
+        enabled = enabled,
+        isError = isError,
+        textStyle = SecretText,
+        supportingText = supportingText?.let { { Text(it) } },
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Characters,
+            keyboardType = KeyboardType.Password,
+            imeAction = imeAction,
+            autoCorrectEnabled = false,
+        ),
+    )
+}
+
+/** The name the user sees for a picked document, e.g. "openpassword-2026-10-29.opvault". */
+fun displayNameOf(context: android.content.Context, uri: android.net.Uri): String? =
+    context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+        ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+
+/** Reads a document chosen with the system picker, refusing anything implausibly large for a backup. */
+suspend fun readBackupFile(context: android.content.Context, uri: android.net.Uri): ByteArray =
+    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            val out = java.io.ByteArrayOutputStream()
+            val buffer = ByteArray(64 * 1024)
+            while (true) {
+                val n = input.read(buffer)
+                if (n < 0) break
+                out.write(buffer, 0, n)
+                require(out.size() <= MAX_BACKUP_BYTES) { "too large" }
+            }
+            out.toByteArray()
+        } ?: error("cannot open")
+    }
+
+private const val MAX_BACKUP_BYTES = 64 * 1024 * 1024

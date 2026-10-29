@@ -66,6 +66,10 @@ class ItemDatabase(context: Context) : SQLiteOpenHelper(context, NAME, null, VER
         writableDatabase.delete("items", "id = ?", arrayOf(id))
     }
 
+    fun clear() {
+        writableDatabase.delete("items", null, null)
+    }
+
     private companion object {
         const val NAME = "items.db"
         const val VERSION = 1
