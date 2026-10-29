@@ -4,6 +4,7 @@ import io.github.rldona.openpassword.ui.onboarding.strengthOf
 import java.security.MessageDigest
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 
 /** What the health check needs from one item. Built from decrypted details, then dropped. */
 data class HealthInput(
@@ -14,6 +15,8 @@ data class HealthInput(
     val cardExpiry: String?,
     /** Unix seconds of the last edit of the item. */
     val updatedAt: Long,
+    /** Expiry date of an ID document (DNI, passport…), as typed. */
+    val documentExpiry: String? = null,
 )
 
 data class HealthReport(
@@ -23,10 +26,12 @@ data class HealthReport(
     val old: List<String>,
     val expiredCards: List<String>,
     val expiringCards: List<String>,
+    val expiredDocuments: List<String> = emptyList(),
+    val expiringDocuments: List<String> = emptyList(),
 ) {
     val reusedIds: Set<String> get() = reused.flatten().toSet()
     /** Number of items with at least one problem. */
-    val affected: Int get() = (weak + reusedIds + old + expiredCards + expiringCards).toSet().size
+    val affected: Int get() = (weak + reusedIds + old + expiredCards + expiringCards + expiredDocuments + expiringDocuments).toSet().size
     val isClean: Boolean get() = affected == 0
 
     companion object {
@@ -37,6 +42,9 @@ data class HealthReport(
 object VaultHealth {
     const val OLD_AFTER_DAYS = 365L
     const val EXPIRING_MONTHS = 2L
+    /** Renewing a passport or ID card can take weeks, so documents are flagged earlier than cards. */
+    const val DOCUMENT_EXPIRING_MONTHS = 3L
+    val DOCUMENT_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/uuuu")
 
     fun analyze(items: List<HealthInput>, today: LocalDate): HealthReport {
         val logins = items.filter { it.isLogin && it.passwords.isNotEmpty() }
@@ -60,7 +68,25 @@ object VaultHealth {
         val expired = cards.filter { (_, expiry) -> expiry < thisMonth }.map { it.first }
         val expiring = cards.filter { (_, expiry) -> expiry >= thisMonth && expiry <= thisMonth.plusMonths(EXPIRING_MONTHS) }.map { it.first }
 
-        return HealthReport(weak, reused, old, expired, expiring)
+        val documents = items.mapNotNull { item -> parseDocumentDate(item.documentExpiry)?.let { item.id to it } }
+        val expiredDocs = documents.filter { (_, date) -> date < today }.map { it.first }
+        val expiringDocs = documents.filter { (_, date) -> date >= today && date <= today.plusMonths(DOCUMENT_EXPIRING_MONTHS) }.map { it.first }
+
+        return HealthReport(weak, reused, old, expired, expiring, expiredDocs, expiringDocs)
+    }
+
+    /** "15/08/2029", "15-08-2029", "15.08.2029", "15082029", "2029-08-15"; "08/2029" → 31/08/2029. Null if unreadable. */
+    fun parseDocumentDate(raw: String?): LocalDate? {
+        val s = raw?.trim()?.replace(" ", "") ?: return null
+        val parts = when {
+            Regex("""\d{4}-\d{1,2}-\d{1,2}""").matches(s) -> s.split('-').let { Triple(it[2].toInt(), it[1].toInt(), it[0].toInt()) }
+            Regex("""\d{1,2}[/.-]\d{1,2}[/.-]\d{4}""").matches(s) -> s.split('/', '.', '-').let { Triple(it[0].toInt(), it[1].toInt(), it[2].toInt()) }
+            Regex("""\d{8}""").matches(s) -> Triple(s.take(2).toInt(), s.substring(2, 4).toInt(), s.takeLast(4).toInt())
+            Regex("""\d{1,2}[/.-]\d{4}""").matches(s) ->
+                return s.split('/', '.', '-').let { (m, y) -> runCatching { YearMonth.of(y.toInt(), m.toInt()).atEndOfMonth() }.getOrNull() }
+            else -> return null
+        }
+        return runCatching { LocalDate.of(parts.third, parts.second, parts.first) }.getOrNull()
     }
 
     /** "08/29", "0829", "8/29", "08/2029", "08-29", "2029-08" → August 2029. Null if unreadable. */

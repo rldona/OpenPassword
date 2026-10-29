@@ -58,6 +58,9 @@ private fun summary(r: HealthReport): String = listOfNotNull(
     (r.expiredCards.size + r.expiringCards.size).takeIf { it > 0 }?.let {
         if (it == 1) "1 tarjeta caducada o a punto" else "$it tarjetas caducadas o a punto"
     },
+    (r.expiredDocuments.size + r.expiringDocuments.size).takeIf { it > 0 }?.let {
+        if (it == 1) "1 documento caducado o a punto" else "$it documentos caducados o a punto"
+    },
     r.old.size.takeIf { it > 0 }?.let { "$it sin cambios en un año" },
 ).joinToString(" · ")
 
@@ -86,7 +89,7 @@ fun HealthScreen(report: HealthReport, entries: List<VaultEntry>, onOpen: (Vault
                 item {
                     Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Todo en orden", style = MaterialTheme.typography.titleMedium)
-                        Text("No hay contraseñas débiles ni repetidas, ni tarjetas a punto de caducar.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("No hay contraseñas débiles ni repetidas, ni tarjetas o documentos a punto de caducar.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -108,6 +111,14 @@ fun HealthScreen(report: HealthReport, entries: List<VaultEntry>, onOpen: (Vault
             if (report.expiringCards.isNotEmpty()) {
                 section("Tarjetas que caducan pronto", "Caducan este mes o en los próximos ${VaultHealth.EXPIRING_MONTHS} meses.")
                 items(report.expiringCards.mapNotNull(byId::get), key = { "s" + it.id }) { EntryRow(it, onOpen) }
+            }
+            if (report.expiredDocuments.isNotEmpty()) {
+                section("Documentos caducados", "Renuévalos y actualiza el número y las fechas.")
+                items(report.expiredDocuments.mapNotNull(byId::get), key = { "dx" + it.id }) { EntryRow(it, onOpen) }
+            }
+            if (report.expiringDocuments.isNotEmpty()) {
+                section("Documentos que caducan pronto", "Caducan en los próximos ${VaultHealth.DOCUMENT_EXPIRING_MONTHS} meses: pide cita para renovarlos con tiempo.")
+                items(report.expiringDocuments.mapNotNull(byId::get), key = { "ds" + it.id }) { EntryRow(it, onOpen) }
             }
             if (report.old.isNotEmpty()) {
                 section("Sin cambios desde hace más de un año", "No se han modificado en ${VaultHealth.OLD_AFTER_DAYS} días. Si son cuentas importantes, plantéate cambiar la contraseña.")

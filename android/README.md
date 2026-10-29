@@ -8,13 +8,16 @@ Kotlin, Jetpack Compose y Material 3. Toda la criptografía la hace `op-core` (R
 - Desbloqueo con contraseña maestra; espera creciente tras 4 intentos fallidos.
 - Desbloqueo con huella (biometría fuerte). La contraseña maestra se pide cada 14 días y tras cada reinicio.
 - Baúl: lista, búsqueda sin acentos, filtros por tipo y favoritos.
-- Logins, tarjetas, PINs, secretos y notas seguras: crear, ver, editar y borrar.
+- Logins, tarjetas, cuentas bancarias, PINs, documentos, redes Wi-Fi, secretos y notas seguras: crear, ver, editar y borrar.
+- Cuentas bancarias: el IBAN se valida (longitud del país y dígitos de control) y se guarda agrupado de cuatro en cuatro; la lista solo muestra el banco y los cuatro últimos dígitos.
+- Documentos (DNI, pasaporte, carné…): las fechas se guardan como DD/MM/AAAA aunque se escriban sin barras.
+- Wi-Fi: el detalle muestra un QR estándar (`WIFI:T:WPA;…`) para que otro teléfono se conecte con la cámara. Sin contraseña se trata como red abierta.
 - Revelar campo a campo y copiar al portapapeles marcado como sensible, que se borra a los 30 s.
 - Generador de contraseñas, PINs y frases de paso (lista larga de la EFF, 7776 palabras). En el alta puede sugerir una frase de 6 palabras como contraseña maestra.
 - Kit de emergencia en PDF para imprimir, con la clave secreta y cómo restaurar. Se ofrece en el alta y en Ajustes, tras confirmar la contraseña.
 - Exportar una copia cifrada `.opvault` donde elija el usuario. Se abre con `opvault decrypt`.
 - Copia automática a una carpeta elegida por el usuario (de su nube, Syncthing o tarjeta SD): unos segundos después de cada cambio y al desbloquear si la última tiene más de un día. Guarda las 10 últimas y solo borra sus propias copias (`openpassword-auto-…opvault`). Como cifrar exige el baúl abierto, con el baúl bloqueado no se hacen copias: las pendientes se hacen al desbloquear.
-- Salud del baúl, sin conexión: contraseñas débiles, contraseñas repetidas entre logins, logins sin modificar en más de un año y tarjetas caducadas o que caducan en los próximos 2 meses. Aparece un aviso encima de la lista solo cuando hay algo que corregir.
+- Salud del baúl, sin conexión: contraseñas débiles, contraseñas repetidas entre logins, logins sin modificar en más de un año tarjetas caducadas o que caducan en los próximos 2 meses y documentos caducados o que caducan en los próximos 3. Aparece un aviso encima de la lista solo cuando hay algo que corregir.
 - Importar de otro gestor: KeePass (`.kdbx` 3.1 y 4.x con contraseña, archivo de clave o ambos; sin papelera ni historial), `.1pux` de 1Password (logins con TOTP y campos extra, contraseñas sueltas, tarjetas y notas), JSON sin cifrar de Bitwarden y CSV de Chrome / Google, Firefox, Bitwarden y 1Password (las columnas se reconocen por su nombre). La lectura de KDBX 4 aún no se ha probado con un fichero real. No duplica lo que ya existe y, como la exportación tiene las contraseñas en claro, ofrece borrar el fichero al terminar.
 - Restaurar una copia en un teléfono nuevo desde la bienvenida, con la clave secreta del kit y la contraseña maestra.
 - Importar una copia en el baúl actual: si es del mismo baúl se fusiona por revisión; si es de otro, sus elementos se vuelven a cifrar con las claves de este.

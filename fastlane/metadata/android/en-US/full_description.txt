@@ -11,11 +11,11 @@ OpenPassword keeps your passwords, cards, PINs, two-factor codes and secrets enc
 
 <b>Features</b>
 <ul>
-<li>Logins, cards, PINs, secrets and secure notes, with search and favourites.</li>
+<li>Logins, cards, bank accounts (with IBAN validation), PINs, ID documents, Wi-Fi networks (share them with a QR), secrets and secure notes, with search and favourites.</li>
 <li>Autofill in other apps and browsers, with strict matching against look-alike sites, and saving of new logins.</li>
 <li>Built-in TOTP codes: scan the QR with the camera or read it from a screenshot.</li>
 <li>Password, PIN and passphrase generator (EFF word list).</li>
-<li>Vault health: weak or reused passwords and expiring cards.</li>
+<li>Vault health: weak or reused passwords and expiring cards or ID documents.</li>
 <li>Automatic encrypted backup to a folder you pick (your cloud, Syncthing, SD card) and a printable emergency kit.</li>
 <li>Import from KeePass (.kdbx, key files included), 1Password (.1pux), Bitwarden and Chrome or Firefox CSV.</li>
 </ul>

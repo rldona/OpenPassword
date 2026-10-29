@@ -50,6 +50,7 @@ import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.core.ItemOverviewRecord
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.core.totpCode
+import io.github.rldona.openpassword.health.VaultHealth
 import io.github.rldona.openpassword.qr.QrScanScreen
 import io.github.rldona.openpassword.qr.TotpScan
 import io.github.rldona.openpassword.qr.decodeQrImage
@@ -103,9 +104,16 @@ fun ItemEditorScreen(
         scope.launch {
             try {
                 val now = (System.currentTimeMillis() / 1000).toULong()
-                val kept = fields.filter { it.value.isNotBlank() }
-                kept.firstOrNull { it.kind == FieldKindRecord.TOTP && !isValidTotp(it.value) }?.let {
-                    error = "El código TOTP no es válido. Pega el enlace otpauth:// o el secreto que te dio el servicio."
+                val kept = fields.filter { it.value.isNotBlank() }.map { normalized(kind, it) }
+                val invalid = when {
+                    kept.any { it.kind == FieldKindRecord.TOTP && !isValidTotp(it.value) } ->
+                        "El código TOTP no es válido. Pega el enlace otpauth:// o el secreto que te dio el servicio."
+                    kind == ItemKindRecord.BANK_ACCOUNT && kept.any { it.label == IBAN_LABEL && !Iban.isValid(it.value) } ->
+                        "El IBAN no es válido: revisa el país, la longitud y los dígitos."
+                    else -> null
+                }
+                if (invalid != null) {
+                    error = invalid
                     saving = false
                     return@launch
                 }
@@ -299,7 +307,17 @@ private fun placeholderTitle(kind: ItemKindRecord) = when (kind) {
     ItemKindRecord.PIN -> "Alarma de casa, SIM, caja fuerte…"
     ItemKindRecord.SECRET -> "Clave API de producción"
     ItemKindRecord.SECURE_NOTE -> "Códigos de recuperación"
-    else -> ""
+    ItemKindRecord.BANK_ACCOUNT -> "Cuenta nómina"
+    ItemKindRecord.IDENTITY -> "DNI, pasaporte, carné de conducir…"
+    ItemKindRecord.WIFI -> "Wi-Fi de casa"
+}
+
+/** Stores IBANs grouped by four and document dates as DD/MM/AAAA, whatever was typed. */
+private fun normalized(kind: ItemKindRecord, field: FieldRecord): FieldRecord = when {
+    kind == ItemKindRecord.BANK_ACCOUNT && field.label == IBAN_LABEL && Iban.isValid(field.value) -> field.copy(value = Iban.format(field.value))
+    kind == ItemKindRecord.IDENTITY && field.kind == FieldKindRecord.DATE ->
+        VaultHealth.parseDocumentDate(field.value)?.let { field.copy(value = it.format(VaultHealth.DOCUMENT_DATE)) } ?: field
+    else -> field
 }
 
 private fun isValidTotp(value: String): Boolean = runCatching { totpCode(value, 0uL) }.isSuccess

@@ -335,7 +335,7 @@ class VaultSession(
         val entries = (_state.value as? SessionState.Unlocked)?.entries.orEmpty()
         val inputs = entries.mapNotNull { entry ->
             val kind = entry.overview.kind
-            if (kind != ItemKindRecord.LOGIN && kind != ItemKindRecord.CARD) return@mapNotNull null
+            if (kind != ItemKindRecord.LOGIN && kind != ItemKindRecord.CARD && kind != ItemKindRecord.IDENTITY) return@mapNotNull null
             val details = runCatching { v.decryptDetails(entry.record) }.getOrNull() ?: return@mapNotNull null
             HealthInput(
                 id = entry.id,
@@ -344,6 +344,11 @@ class VaultSession(
                 passwords = details.fields.filter { it.kind == FieldKindRecord.CONCEALED && it.value.isNotBlank() }.map { it.value },
                 cardExpiry = details.fields.firstOrNull { it.kind == FieldKindRecord.DATE }?.value,
                 updatedAt = entry.overview.updatedAt.toLong(),
+                documentExpiry = if (kind != ItemKindRecord.IDENTITY) null else details.fields.let { fields ->
+                    // Imported documents may name the field differently; then the last date is the likeliest.
+                    fields.firstOrNull { it.kind == FieldKindRecord.DATE && it.label.startsWith("Caducidad") }
+                        ?: fields.lastOrNull { it.kind == FieldKindRecord.DATE }
+                }?.value,
             )
         }
         VaultHealth.analyze(inputs, java.time.LocalDate.now())
