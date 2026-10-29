@@ -13,7 +13,7 @@ OpenPassword keeps your passwords, cards, PINs, two-factor codes and secrets enc
 <ul>
 <li>Logins, cards, PINs, secrets and secure notes, with search and favourites.</li>
 <li>Autofill in other apps and browsers, with strict matching against look-alike sites, and saving of new logins.</li>
-<li>Built-in TOTP codes.</li>
+<li>Built-in TOTP codes: scan the QR with the camera or read it from a screenshot.</li>
 <li>Password, PIN and passphrase generator (EFF word list).</li>
 <li>Vault health: weak or reused passwords and expiring cards.</li>
 <li>Automatic encrypted backup to a folder you pick (your cloud, Syncthing, SD card) and a printable emergency kit.</li>

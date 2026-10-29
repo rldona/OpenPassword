@@ -1,5 +1,8 @@
 package io.github.rldona.openpassword.ui.vault
 
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -47,6 +50,9 @@ import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.core.ItemOverviewRecord
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.core.totpCode
+import io.github.rldona.openpassword.qr.QrScanScreen
+import io.github.rldona.openpassword.qr.TotpScan
+import io.github.rldona.openpassword.qr.decodeQrImage
 import io.github.rldona.openpassword.security.PasswordGenerator
 import io.github.rldona.openpassword.security.Wordlist
 import io.github.rldona.openpassword.session.VaultEntry
@@ -121,6 +127,42 @@ fun ItemEditorScreen(
         }
     }
 
+    // TOTP QR: which field the scanner or the picked image fills.
+    var scanningField by remember { mutableStateOf<Int?>(null) }
+    var imageField by remember { mutableStateOf<Int?>(null) }
+    var qrMessage by remember { mutableStateOf<String?>(null) }
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val index = imageField ?: return@rememberLauncherForActivityResult
+        imageField = null
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            qrMessage = when (val scan = decodeQrImage(context, uri)) {
+                is TotpScan.Valid -> { fields[index] = fields[index].copy(value = scan.value); scanningField = null; "Código QR leído." }
+                TotpScan.NotTotp -> "Ese QR no es de verificación en dos pasos."
+                null -> "No se encontró ningún código QR en esa imagen."
+            }
+        }
+    }
+    fun pickQrImage(index: Int) {
+        imageField = index
+        session.beforeSystemPicker()
+        imagePicker.launch(arrayOf("image/*"))
+    }
+
+    scanningField?.let { index ->
+        BackHandler { scanningField = null }
+        QrScanScreen(
+            onResult = { value ->
+                fields[index] = fields[index].copy(value = value)
+                scanningField = null
+                qrMessage = "Código QR leído."
+            },
+            onCancel = { scanningField = null },
+            onPickImage = { pickQrImage(index) },
+        )
+        return
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -158,7 +200,14 @@ fun ItemEditorScreen(
                 )
             }
             fields.forEachIndexed { i, field ->
-                FieldEditor(field, onChange = { fields[i] = field.copy(value = it) }, generators = generatorsFor(kind, field, context))
+                FieldEditor(
+                    field,
+                    onChange = { fields[i] = field.copy(value = it) },
+                    generators = generatorsFor(kind, field, context),
+                    onScanQr = if (field.kind == FieldKindRecord.TOTP) ({ qrMessage = null; scanningField = i }) else null,
+                    onQrImage = if (field.kind == FieldKindRecord.TOTP) ({ pickQrImage(i) }) else null,
+                    qrMessage = if (field.kind == FieldKindRecord.TOTP) qrMessage else null,
+                )
             }
             OutlinedTextField(
                 value = notes,
@@ -177,7 +226,14 @@ fun ItemEditorScreen(
 }
 
 @Composable
-private fun FieldEditor(field: FieldRecord, onChange: (String) -> Unit, generators: List<Pair<String, () -> String>>) {
+private fun FieldEditor(
+    field: FieldRecord,
+    onChange: (String) -> Unit,
+    generators: List<Pair<String, () -> String>>,
+    onScanQr: (() -> Unit)? = null,
+    onQrImage: (() -> Unit)? = null,
+    qrMessage: String? = null,
+) {
     if (field.kind.isSecret) {
         Column {
             PasswordField(
@@ -197,6 +253,13 @@ private fun FieldEditor(field: FieldRecord, onChange: (String) -> Unit, generato
                         TextButton(onClick = { onChange(generate()) }) { Text(label) }
                     }
                 }
+            }
+            if (onScanQr != null && onQrImage != null) {
+                Row {
+                    TextButton(onClick = onScanQr) { Text("Escanear QR") }
+                    TextButton(onClick = onQrImage) { Text("Desde una imagen") }
+                }
+                qrMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 12.dp)) }
             }
         }
     } else {

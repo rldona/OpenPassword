@@ -34,6 +34,7 @@ Qué protege OpenPassword, frente a quién y qué queda fuera. Se revisa antes d
 | A13 | Baúl olvidado abierto | El autorrelleno ofrece logins mientras la app está en segundo plano | Bloqueo a los 30 s de salir de la app (3 min, una vez, si se sale a un selector del sistema que pidió el usuario) y al apagar la pantalla, para todo el proceso | Protegido |
 | A14 | Otro servicio de autorrelleno (p. ej. el de Google) | Lee los campos de la app u ofrece guardarlos en su nube | Ventanas excluidas de todo autorrelleno (`IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS`) | Protegido |
 | A15 | Quien encuentra la exportación de otro gestor | Lee las contraseñas en claro del CSV o JSON importado | Tras importar, la app ofrece borrar el fichero; los bytes leídos se borran de memoria al analizarlos | Mitigado |
+| A16 | QR malicioso o fotogramas de la cámara | Un QR que no es de TOTP, o que la app guarde imágenes del entorno | Solo se aceptan enlaces `otpauth://totp/` y el secreto se valida en el núcleo; los fotogramas se analizan en memoria, no se guardan y la app no tiene red; la cámara se pide solo al escanear | Mitigado |
 | A10 | Malware con root, keylogger | Lee memoria y pulsaciones | Ninguna; aviso si se detecta root | Fuera de alcance |
 | A11 | Coacción | Obliga a desbloquear | Ninguna en v1 | Fuera de alcance |
 
