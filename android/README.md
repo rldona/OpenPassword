@@ -21,9 +21,10 @@ Kotlin, Jetpack Compose y Material 3. Toda la criptografía la hace `op-core` (R
 - Ver la clave secreta de nuevo, tras volver a pedir la contraseña maestra.
 - Bloqueo automático: 5 min sin uso, 30 s después de salir de la app (aunque no vuelvas) o al apagar la pantalla. Mientras está abierto un selector de ficheros o carpetas que el usuario ha pedido (exportar, importar, kit, carpeta de copias), el margen es de 3 minutos, solo para esa vez.
 - Códigos TOTP (verificación en dos pasos): se pega el enlace `otpauth://` o el secreto y el detalle muestra el código actual con su cuenta atrás. Se copia el código, nunca el secreto.
+- Guardar logins nuevos desde el autorrelleno: al enviar un formulario con contraseña, Android ofrece «Guardar en OpenPassword». Si ya existe un login de ese sitio con el mismo usuario, se ofrece actualizar su contraseña. La contraseña tecleada se queda en la memoria de la app; la ventana de confirmación solo recibe un token, y nada se guarda sin confirmar.
 - Autorrelleno en otras apps y en el navegador (Chrome: *Ajustes → Servicios de autocompletar → Autocompletar con otro servicio*).
 
-Pendiente (Fase 2): guardar logins nuevos desde el autorrelleno, escanear QR de TOTP, importar KeePass (KDBX) y 1Password (1PUX), y publicar en F-Droid.
+Pendiente (Fase 2): escanear QR de TOTP, importar KeePass (KDBX) y 1Password (1PUX), y publicar en F-Droid.
 
 ## Seguridad que impone la build
 
