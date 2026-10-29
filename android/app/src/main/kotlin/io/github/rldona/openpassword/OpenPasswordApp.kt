@@ -3,11 +3,13 @@ package io.github.rldona.openpassword
 import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
+import android.provider.Settings
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import io.github.rldona.openpassword.core.KdfProfile
 import io.github.rldona.openpassword.data.VaultStorage
+import io.github.rldona.openpassword.security.BiometricKeyStore
 import io.github.rldona.openpassword.security.SensitiveClipboard
 import io.github.rldona.openpassword.session.VaultSession
 
@@ -24,6 +26,8 @@ class OpenPasswordApp : Application() {
             storage = VaultStorage(this),
             prefs = getSharedPreferences("security", MODE_PRIVATE),
             kdfProfile = kdfProfileFor(this),
+            biometricKeys = BiometricKeyStore(),
+            bootCount = { Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT, 0) },
         )
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) = session.onAppForegrounded()

@@ -9,12 +9,14 @@ import java.io.File
  * Everything the app persists, all under `noBackupFilesDir` or the app database:
  * - the vault header (no user data),
  * - the secret key, sealed with Android Keystore,
+ * - optionally, the vault key sealed with a biometric-bound Keystore key,
  * - the encrypted items.
  */
 class VaultStorage(context: Context) {
     private val dir = context.noBackupFilesDir
     private val headerFile = File(dir, "vault-header.json")
     private val secretKeyFile = File(dir, "secret-key.bin")
+    private val biometricKeyFile = File(dir, "vault-key.biometric")
     private val deviceKeys = DeviceKeyStore()
     private val db = ItemDatabase(context)
 
@@ -33,6 +35,17 @@ class VaultStorage(context: Context) {
         } finally {
             bytes.fill(0)
         }
+    }
+
+    fun hasBiometricVaultKey(): Boolean = biometricKeyFile.exists()
+
+    /** Format: `version (1) ‖ iv (12) ‖ ciphertext ‖ tag`, sealed by [io.github.rldona.openpassword.security.BiometricKeyStore]. */
+    fun readBiometricVaultKey(): ByteArray = biometricKeyFile.readBytes()
+
+    fun writeBiometricVaultKey(sealed: ByteArray) = atomicWrite(biometricKeyFile, sealed)
+
+    fun deleteBiometricVaultKey() {
+        biometricKeyFile.delete()
     }
 
     fun items(): List<EncryptedItemRecord> = db.all()

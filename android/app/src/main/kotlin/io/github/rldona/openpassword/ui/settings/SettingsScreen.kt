@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -24,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -35,16 +37,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.rldona.openpassword.BuildConfigInfo
 import io.github.rldona.openpassword.core.OpException
+import io.github.rldona.openpassword.security.strongBiometricsAvailable
 import io.github.rldona.openpassword.session.VaultSession
 import io.github.rldona.openpassword.session.toUserMessage
 import io.github.rldona.openpassword.ui.PasswordField
 import io.github.rldona.openpassword.ui.SectionLabel
 import io.github.rldona.openpassword.ui.theme.SecretFont
+import io.github.rldona.openpassword.ui.unlock.enableBiometricUnlock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -58,6 +63,9 @@ fun SettingsScreen(session: VaultSession, onBack: () -> Unit) {
     val snackbar = remember { SnackbarHostState() }
     var askingPassword by remember { mutableStateOf(false) }
     var shownSecretKey by remember { mutableStateOf<String?>(null) }
+    val biometricsAvailable = remember { strongBiometricsAvailable(context) }
+    var biometricOn by remember { mutableStateOf(session.isBiometricEnabled()) }
+    var biometricBusy by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -100,6 +108,26 @@ fun SettingsScreen(session: VaultSession, onBack: () -> Unit) {
             )
             HorizontalDivider()
             SectionLabel("Seguridad", Modifier.padding(start = 16.dp, top = 16.dp))
+            if (biometricsAvailable) {
+                ListItem(
+                    headlineContent = { Text("Desbloquear con huella") },
+                    supportingContent = { Text("Te pediremos la contraseña maestra cada 14 días y tras reiniciar el teléfono.") },
+                    trailingContent = { Switch(checked = biometricOn, onCheckedChange = null, enabled = !biometricBusy) },
+                    modifier = Modifier.toggleable(value = biometricOn, enabled = !biometricBusy, role = Role.Switch) { on ->
+                        if (on) {
+                            biometricBusy = true
+                            scope.launch {
+                                enableBiometricUnlock(context, session)?.let { snackbar.showSnackbar(it) }
+                                biometricOn = session.isBiometricEnabled()
+                                biometricBusy = false
+                            }
+                        } else {
+                            session.disableBiometric()
+                            biometricOn = false
+                        }
+                    },
+                )
+            }
             ListItem(
                 headlineContent = { Text("Bloquear ahora") },
                 modifier = Modifier.clickable { session.lock() },

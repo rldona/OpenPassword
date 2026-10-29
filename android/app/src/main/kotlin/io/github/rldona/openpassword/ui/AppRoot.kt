@@ -7,15 +7,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.security.SensitiveClipboard
+import io.github.rldona.openpassword.security.strongBiometricsAvailable
 import io.github.rldona.openpassword.session.SessionState
 import io.github.rldona.openpassword.session.VaultEntry
 import io.github.rldona.openpassword.session.VaultSession
 import io.github.rldona.openpassword.ui.onboarding.OnboardingScreen
 import io.github.rldona.openpassword.ui.settings.SettingsScreen
 import io.github.rldona.openpassword.ui.unlock.UnlockScreen
+import io.github.rldona.openpassword.ui.unlock.biometricUnlock
 import io.github.rldona.openpassword.ui.vault.ItemDetailScreen
 import io.github.rldona.openpassword.ui.vault.ItemEditorScreen
 import io.github.rldona.openpassword.ui.vault.VaultListScreen
@@ -32,7 +35,16 @@ fun AppRoot(session: VaultSession, clipboard: SensitiveClipboard) {
     val state by session.state.collectAsStateWithLifecycle()
     when (val s = state) {
         SessionState.NoVault -> OnboardingScreen(onCreate = session::create)
-        SessionState.Locked -> UnlockScreen(onUnlock = session::unlock)
+        SessionState.Locked -> {
+            val context = LocalContext.current
+            // Re-evaluated every time the vault locks.
+            val biometric = remember { session.canUseBiometricNow() && strongBiometricsAvailable(context) }
+            UnlockScreen(
+                onUnlock = session::unlock,
+                onBiometric = if (biometric) ({ biometricUnlock(context, session) }) else null,
+                notice = remember { session.passwordRequiredReason() },
+            )
+        }
         // Leaving this branch on lock discards the whole navigation stack and every decrypted value in it.
         is SessionState.Unlocked -> UnlockedRoot(s.entries, session, clipboard)
     }

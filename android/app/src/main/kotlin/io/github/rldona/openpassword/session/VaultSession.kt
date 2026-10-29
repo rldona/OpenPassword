@@ -2,6 +2,7 @@ package io.github.rldona.openpassword.session
 
 import android.content.SharedPreferences
 import android.os.SystemClock
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import io.github.rldona.openpassword.core.EncryptedItemRecord
 import io.github.rldona.openpassword.core.ItemDetailsRecord
 import io.github.rldona.openpassword.core.ItemOverviewRecord
@@ -9,6 +10,7 @@ import io.github.rldona.openpassword.core.KdfProfile
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.core.Vault
 import io.github.rldona.openpassword.data.VaultStorage
+import io.github.rldona.openpassword.security.BiometricKeyStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +18,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.security.GeneralSecurityException
+import javax.crypto.Cipher
 import kotlin.math.min
 
 /** An item with its overview already decrypted, for the list and search. */
@@ -44,6 +48,9 @@ class VaultSession(
     private val storage: VaultStorage,
     private val prefs: SharedPreferences,
     private val kdfProfile: KdfProfile,
+    private val biometricKeys: BiometricKeyStore,
+    /** Device boot counter, to require the master password after every reboot. */
+    private val bootCount: () -> Int,
 ) {
     private val mutex = Mutex()
     private var vault: Vault? = null
@@ -60,6 +67,7 @@ class VaultSession(
             val created = Vault.create(password, secretKey, kdfProfile)
             storage.saveSecretKey(secretKey)
             storage.writeHeader(created.headerJson())
+            recordPasswordUnlock()
             replaceVault(created, emptyList())
         }
     }
@@ -71,6 +79,7 @@ class VaultSession(
                 val unlocked = Vault.unlock(storage.readHeader(), password, storage.loadSecretKey())
                 val entries = storage.items().map { VaultEntry(it, unlocked.decryptOverview(it)) }
                 prefs.edit().putInt(KEY_FAILURES, 0).apply()
+                recordPasswordUnlock()
                 replaceVault(unlocked, entries)
                 UnlockResult.Success
             } catch (_: OpException.WrongCredentials) {
@@ -94,6 +103,90 @@ class VaultSession(
     }
 
     fun secretKey(): String = storage.loadSecretKey()
+
+    // ---- Biometric unlock (crypto-spec section 9) ----
+
+    fun isBiometricEnabled(): Boolean = storage.hasBiometricVaultKey()
+
+    /** Why the master password is required even though biometric unlock is on, or null if it is not. */
+    fun passwordRequiredReason(): String? {
+        if (!isBiometricEnabled()) return null
+        val last = prefs.getLong(KEY_LAST_PASSWORD_UNLOCK, 0)
+        return when {
+            prefs.getInt(KEY_BOOT_COUNT, -1) != bootCount() -> "El teléfono se ha reiniciado: introduce tu contraseña maestra."
+            System.currentTimeMillis() - last >= PASSWORD_EVERY_MS ->
+                "Han pasado 14 días: introduce tu contraseña maestra para no olvidarla."
+            else -> null
+        }
+    }
+
+    fun canUseBiometricNow(): Boolean = isBiometricEnabled() && passwordRequiredReason() == null
+
+    /** Step 1 of enabling: a new biometric key and a cipher to authorize with the prompt. */
+    fun biometricEnableCipher(): Cipher = biometricKeys.newEncryptCipher()
+
+    /** Step 2 of enabling: seals the vault key with the cipher the prompt authorized. */
+    suspend fun enableBiometric(authorized: Cipher) = withVault { v ->
+        val key = v.vaultKeyBytes()
+        try {
+            storage.writeBiometricVaultKey(byteArrayOf(BIO_VERSION) + authorized.iv + authorized.doFinal(key))
+        } finally {
+            key.fill(0)
+        }
+    }
+
+    fun disableBiometric() {
+        storage.deleteBiometricVaultKey()
+        biometricKeys.delete()
+    }
+
+    /**
+     * Step 1 of unlocking: a cipher to authorize with the prompt.
+     * Returns null, and turns biometric unlock off, if Android invalidated the key
+     * because biometrics changed.
+     */
+    fun biometricUnlockCipher(): Cipher? {
+        val sealed = storage.readBiometricVaultKey()
+        if (sealed.size <= 1 + BIO_IV_LEN || sealed[0] != BIO_VERSION) {
+            disableBiometric()
+            return null
+        }
+        return try {
+            biometricKeys.decryptCipher(sealed.copyOfRange(1, 1 + BIO_IV_LEN))
+        } catch (_: KeyPermanentlyInvalidatedException) {
+            disableBiometric()
+            null
+        }
+    }
+
+    /** Step 2 of unlocking: opens the vault with the key the authorized cipher releases. */
+    suspend fun unlockWithBiometric(authorized: Cipher): UnlockResult = mutex.withLock {
+        withContext(Dispatchers.Default) {
+            val sealed = storage.readBiometricVaultKey()
+            val key = try {
+                authorized.doFinal(sealed, 1 + BIO_IV_LEN, sealed.size - 1 - BIO_IV_LEN)
+            } catch (_: GeneralSecurityException) {
+                return@withContext UnlockResult.Failed("No se pudo usar la huella. Introduce tu contraseña maestra.")
+            }
+            try {
+                val unlocked = Vault.unlockWithVaultKey(storage.readHeader(), key)
+                val entries = storage.items().map { VaultEntry(it, unlocked.decryptOverview(it)) }
+                replaceVault(unlocked, entries)
+                UnlockResult.Success
+            } catch (e: OpException) {
+                UnlockResult.Failed(e.toUserMessage())
+            } finally {
+                key.fill(0)
+            }
+        }
+    }
+
+    private fun recordPasswordUnlock() {
+        prefs.edit()
+            .putLong(KEY_LAST_PASSWORD_UNLOCK, System.currentTimeMillis())
+            .putInt(KEY_BOOT_COUNT, bootCount())
+            .apply()
+    }
 
     fun lock() {
         vault?.let {
@@ -187,6 +280,11 @@ class VaultSession(
         private const val FREE_ATTEMPTS = 4
         private const val KEY_FAILURES = "unlock_failures"
         private const val KEY_LAST_FAILURE = "unlock_last_failure"
+        private const val KEY_LAST_PASSWORD_UNLOCK = "last_password_unlock"
+        private const val KEY_BOOT_COUNT = "boot_count_at_password_unlock"
+        private const val PASSWORD_EVERY_MS = 14L * 24 * 3600 * 1000
+        private const val BIO_VERSION: Byte = 1
+        private const val BIO_IV_LEN = 12
     }
 }
 
