@@ -1,0 +1,25 @@
+OpenPassword keeps your passwords, cards, PINs, two-factor codes and secrets encrypted on your phone. <b>It has no Internet permission</b>: no account, no server, no cloud of its own. Your data only leaves the phone in the encrypted backups you choose to save.
+
+<b>Security</b>
+<ul>
+<li>Everything is encrypted before it is stored, titles and websites included: XChaCha20-Poly1305 with one key per item.</li>
+<li>Your master password is combined with a 128-bit secret key (Argon2id), so a stolen backup cannot be brute-forced.</li>
+<li>Fingerprint unlock with the key held in the phone's secure chip (StrongBox when available).</li>
+<li>Auto-lock, blocked screenshots and a clipboard that clears itself.</li>
+<li>No other autofill service can read what you type in the app.</li>
+</ul>
+
+<b>Features</b>
+<ul>
+<li>Logins, cards, PINs, secrets and secure notes, with search and favourites.</li>
+<li>Autofill in other apps and browsers, with strict matching against look-alike sites, and saving of new logins.</li>
+<li>Built-in TOTP codes.</li>
+<li>Password, PIN and passphrase generator (EFF word list).</li>
+<li>Vault health: weak or reused passwords and expiring cards.</li>
+<li>Automatic encrypted backup to a folder you pick (your cloud, Syncthing, SD card) and a printable emergency kit.</li>
+<li>Import from KeePass (.kdbx, key files included), 1Password (.1pux), Bitwarden and Chrome or Firefox CSV.</li>
+</ul>
+
+Backups can be opened without the app with the opvault command-line tool from the same project. Free software under GPL-3.0-or-later.
+
+<b>Note</b>: this is an early version that has not had an external security audit yet. The app is in Spanish.

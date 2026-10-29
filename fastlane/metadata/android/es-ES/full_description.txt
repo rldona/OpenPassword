@@ -1,0 +1,25 @@
+OpenPassword guarda tus contraseñas, tarjetas, PINs, códigos de verificación en dos pasos y secretos cifrados en tu teléfono. <b>No tiene permiso de Internet</b>: no hay cuenta, ni servidor, ni nube propia. Tus datos solo salen del teléfono en las copias cifradas que tú decides guardar.
+
+<b>Seguridad</b>
+<ul>
+<li>Todo se cifra antes de guardarse, también los títulos y las webs: XChaCha20-Poly1305 con una clave por elemento.</li>
+<li>Tu contraseña maestra se combina con una clave secreta de 128 bits (Argon2id): una copia robada no se puede atacar por fuerza bruta.</li>
+<li>Desbloqueo con huella con la clave en el chip seguro del teléfono (StrongBox cuando existe).</li>
+<li>Bloqueo automático, capturas de pantalla bloqueadas y portapapeles que se borra solo.</li>
+<li>Ningún otro servicio de autorrelleno puede leer lo que escribes en la app.</li>
+</ul>
+
+<b>Funciones</b>
+<ul>
+<li>Logins, tarjetas, PINs, secretos y notas seguras, con búsqueda y favoritos.</li>
+<li>Autorrelleno en otras apps y en el navegador, con coincidencia estricta para evitar webs falsas, y guardado de logins nuevos.</li>
+<li>Códigos TOTP integrados.</li>
+<li>Generador de contraseñas, PINs y frases de paso (lista de palabras de la EFF).</li>
+<li>Salud del baúl: contraseñas débiles o repetidas y tarjetas que caducan.</li>
+<li>Copia cifrada automática en la carpeta que elijas (tu nube, Syncthing, tarjeta SD) y kit de emergencia en PDF.</li>
+<li>Importa desde KeePass (.kdbx, con archivo de clave), 1Password (.1pux), Bitwarden y CSV de Chrome o Firefox.</li>
+</ul>
+
+Las copias se pueden abrir sin la app con la herramienta de línea de comandos opvault, del mismo proyecto. Software libre bajo GPL-3.0-or-later.
+
+<b>Aviso</b>: es una versión temprana que aún no ha pasado una auditoría de seguridad externa.

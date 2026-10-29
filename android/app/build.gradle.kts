@@ -102,6 +102,7 @@ abstract class CargoNdkBuild : DefaultTask() {
     abstract val rustSources: ConfigurableFileCollection
     @get:Input abstract val abis: ListProperty<String>
     @get:Input abstract val cargo: Property<String>
+    @get:Internal abstract val cargoHome: Property<String>
     @get:Internal abstract val workspace: DirectoryProperty
     @get:Internal abstract val ndkDir: DirectoryProperty
     @get:OutputDirectory abstract val outputDir: DirectoryProperty
@@ -113,6 +114,15 @@ abstract class CargoNdkBuild : DefaultTask() {
         execOps.exec {
             workingDir = workspace.get().asFile
             environment("ANDROID_NDK_HOME", ndkDir.get().asFile.absolutePath)
+            // Reproducible, private builds: dependency sources live under the builder's home
+            // (~/.cargo/registry/...), and those paths end up in panic messages. Remap them to a
+            // fixed prefix so the library is the same on any machine and leaks no username.
+            // RUSTFLAGS replaces .cargo/config.toml, so hardware AES (see there) is set here too;
+            // the cfg only has an effect on aarch64.
+            environment(
+                "CARGO_ENCODED_RUSTFLAGS",
+                listOf("--remap-path-prefix=${cargoHome.get()}=/cargo", "--cfg", "aes_armv8").joinToString("\u001f"),
+            )
             // Always release: Argon2id is unusably slow unoptimized.
             commandLine(
                 listOf(cargo.get(), "ndk") + abis.get().flatMap { listOf("-t", it) } +
@@ -167,6 +177,7 @@ val cargoBuild = tasks.register<CargoNdkBuild>("cargoBuild") {
     )
     abis.set(rustAbis)
     cargo.set(cargoBin)
+    cargoHome.set(providers.environmentVariable("CARGO_HOME").orElse("${System.getProperty("user.home")}/.cargo"))
     workspace.set(workspaceRoot)
     ndkDir.set(androidComponents.sdkComponents.ndkDirectory)
     outputDir.set(layout.buildDirectory.dir("rust/jniLibs"))
