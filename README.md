@@ -48,4 +48,4 @@ SK=$(./target/release/opvault new-secret-key)
 
 ## Licencia
 
-Pendiente de decidir (propuesta: GPL-3.0-or-later).
+OpenPassword es software libre bajo la [GNU General Public License v3.0 o posterior](LICENSE) (`GPL-3.0-or-later`). Puedes usarlo, estudiarlo, modificarlo y redistribuirlo, pero cualquier versión modificada que distribuyas debe publicarse con la misma licencia y su código fuente. Así nadie puede cerrar un fork de un gestor de contraseñas que debe poder auditarse.
