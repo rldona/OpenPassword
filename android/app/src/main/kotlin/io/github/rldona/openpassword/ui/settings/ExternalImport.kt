@@ -3,6 +3,8 @@ package io.github.rldona.openpassword.ui.settings
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.AlertDialog
@@ -17,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import io.github.rldona.openpassword.core.ImportResult
 import io.github.rldona.openpassword.core.OpException
@@ -24,6 +27,7 @@ import io.github.rldona.openpassword.core.importNeedsPassword
 import io.github.rldona.openpassword.core.parseImport
 import io.github.rldona.openpassword.session.VaultSession
 import io.github.rldona.openpassword.ui.PasswordField
+import io.github.rldona.openpassword.ui.displayNameOf
 import io.github.rldona.openpassword.ui.readBackupFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -45,26 +49,27 @@ suspend fun readExternalExport(context: Context, uri: Uri): Result<Any> = runCat
     val bytes = readBackupFile(context, uri)
     if (importNeedsPassword(bytes)) return@runCatching LockedExport(uri, bytes)
     try {
-        withContext(Dispatchers.Default) { PendingImport(uri, parseImport(bytes, null, now())) }
+        withContext(Dispatchers.Default) { PendingImport(uri, parseImport(bytes, null, null, now())) }
     } finally {
         bytes.fill(0)
     }
 }
 
 /** Decrypts a KeePass database. On a wrong password the bytes are kept so the user can retry. */
-suspend fun unlockExternalExport(locked: LockedExport, password: String): Result<PendingImport> = runCatching {
-    withContext(Dispatchers.Default) { PendingImport(locked.uri, parseImport(locked.bytes, password, now())) }
+suspend fun unlockExternalExport(locked: LockedExport, password: String, keyFile: ByteArray?): Result<PendingImport> = runCatching {
+    withContext(Dispatchers.Default) { PendingImport(locked.uri, parseImport(locked.bytes, password, keyFile, now())) }
 }.onSuccess { locked.bytes.fill(0) }
 
 fun importErrorMessage(e: Throwable): String = when {
     e is OpException.WrongCredentials ->
-        "Contraseña incorrecta. Si tu base de KeePass usa un archivo de clave, OpenPassword aún no lo admite."
+        "Contraseña o archivo de clave incorrectos. Si tu base de KeePass usa un archivo de clave, añádelo."
     e is OpException.InvalidInput && "KeePass version" in e.reason ->
         "Esta versión de KeePass no está admitida. Guarda la base como KDBX 4 en KeePass o KeePassXC."
     e is OpException.InvalidInput && "KeePass cipher" in e.reason ->
         "Esta base de KeePass usa Twofish. Cámbiala a AES-256 o ChaCha20 en la configuración de la base."
     e is OpException.InvalidInput && "too costly" in e.reason ->
         "La protección de esta base de KeePass es demasiado costosa para un teléfono. Bájala en la configuración de la base."
+    e is OpException.InvalidInput && "key file is damaged" in e.reason -> "El archivo de clave está dañado o no es de KeePass."
     e is OpException.InvalidInput && "KeePass" in e.reason -> "Esta base de KeePass usa una opción que OpenPassword aún no admite."
     e is OpException.Corrupted -> "El fichero está dañado o incompleto."
     e is OpException.InvalidInput && "encrypted Bitwarden" in e.reason ->
@@ -159,28 +164,55 @@ fun ExternalImportDialogs(
     }
 }
 
-/** Asks for the KeePass database password. Decrypting can take a few seconds. */
+/** Asks for the KeePass database password and, if it uses one, its key file. */
 @Composable
-fun KeePassPasswordDialog(locked: LockedExport, onUnlocked: (PendingImport) -> Unit, onCancel: () -> Unit) {
+fun KeePassPasswordDialog(
+    locked: LockedExport,
+    onUnlocked: (PendingImport) -> Unit,
+    onCancel: () -> Unit,
+    /** Called before opening the key file picker, so the vault does not lock meanwhile. */
+    beforePicker: () -> Unit,
+) {
+    val context = LocalContext.current
     var password by remember { mutableStateOf("") }
+    var keyFile by remember { mutableStateOf<ByteArray?>(null) }
+    var keyFileName by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val keyFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            runCatching { readBackupFile(context, uri) }
+                .onSuccess { bytes ->
+                    keyFile?.fill(0)
+                    keyFile = bytes
+                    keyFileName = displayNameOf(context, uri) ?: "archivo de clave"
+                    error = null
+                }
+                .onFailure { error = "No se pudo leer ese archivo de clave." }
+        }
+    }
+
+    fun close(then: () -> Unit) {
+        keyFile?.fill(0)
+        then()
+    }
 
     fun submit() {
-        if (busy || password.isEmpty()) return
+        if (busy || (password.isEmpty() && keyFile == null)) return
         busy = true
         error = null
         scope.launch {
-            unlockExternalExport(locked, password)
-                .onSuccess(onUnlocked)
+            unlockExternalExport(locked, password, keyFile)
+                .onSuccess { close { onUnlocked(it) } }
                 .onFailure { error = importErrorMessage(it); password = "" }
             busy = false
         }
     }
 
     AlertDialog(
-        onDismissRequest = { if (!busy) onCancel() },
+        onDismissRequest = { if (!busy) close(onCancel) },
         title = { Text("Base de datos de KeePass") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -195,9 +227,19 @@ fun KeePassPasswordDialog(locked: LockedExport, onUnlocked: (PendingImport) -> U
                     onDone = ::submit,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                TextButton(onClick = { beforePicker(); keyFileLauncher.launch(arrayOf("*/*")) }, enabled = !busy) {
+                    Text(keyFileName?.let { "Archivo de clave: $it" } ?: "Añadir archivo de clave")
+                }
+                if (keyFile != null) {
+                    Text("Si la base solo usa archivo de clave, deja la contraseña vacía.", style = MaterialTheme.typography.bodySmall)
+                }
             }
         },
-        confirmButton = { TextButton(onClick = ::submit, enabled = !busy && password.isNotEmpty()) { Text(if (busy) "Descifrando…" else "Abrir") } },
-        dismissButton = { TextButton(onClick = onCancel, enabled = !busy) { Text("Cancelar") } },
+        confirmButton = {
+            TextButton(onClick = ::submit, enabled = !busy && (password.isNotEmpty() || keyFile != null)) {
+                Text(if (busy) "Descifrando…" else "Abrir")
+            }
+        },
+        dismissButton = { TextButton(onClick = { close(onCancel) }, enabled = !busy) { Text("Cancelar") } },
     )
 }

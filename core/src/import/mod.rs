@@ -43,14 +43,31 @@ pub fn parse(bytes: &[u8], now: u64) -> Result<Imported> {
 
 /// Like [`parse`], with the password for encrypted formats (see [`needs_password`]).
 pub fn parse_with_password(bytes: &[u8], password: Option<&str>, now: u64) -> Result<Imported> {
+    parse_with_credentials(bytes, password, None, now)
+}
+
+/// Like [`parse_with_password`], also with a KeePass key file. With a key file an empty
+/// password means "no password", as in KeePass.
+pub fn parse_with_credentials(
+    bytes: &[u8],
+    password: Option<&str>,
+    key_file: Option<&[u8]>,
+    now: u64,
+) -> Result<Imported> {
     if bytes.len() > MAX_INPUT {
         return Err(Error::InvalidInput("file too large to import"));
     }
     if kdbx::is_kdbx(bytes) {
-        let password = password.ok_or(Error::InvalidInput(
-            "this KeePass database needs its password",
-        ))?;
-        return kdbx::parse(bytes, password, now);
+        let password = match (password, key_file) {
+            (Some(""), Some(_)) => None,
+            (p, _) => p,
+        };
+        if password.is_none() && key_file.is_none() {
+            return Err(Error::InvalidInput(
+                "this KeePass database needs its password",
+            ));
+        }
+        return kdbx::parse(bytes, password, key_file, now);
     }
     if bytes.starts_with(b"PK\x03\x04") {
         return parse_1pux(bytes, now);

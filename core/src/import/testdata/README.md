@@ -17,6 +17,16 @@ valores sin proteger y una contraseña con espacios al principio y al final.
 
 Si cambia `fixture.xml`, regenera el `.kdbx` con el comando de arriba y revisa los tests de `kdbx.rs`.
 
+## `keepassxc-keyfile.kdbx`, `keepassxc-keyfile-only.kdbx` y `prueba.keyx`
+
+El mismo `fixture.xml`, protegido con contraseña y archivo de clave, y solo con archivo de clave.
+`prueba.keyx` es el archivo de clave XML v2.0 que generó KeePassXC:
+
+```sh
+keepassxc-cli import -p --set-key-file prueba.keyx -t 100 fixture.xml keepassxc-keyfile.kdbx
+keepassxc-cli import --set-key-file prueba.keyx -t 100 fixture.xml keepassxc-keyfile-only.kdbx
+```
+
 ## Pendiente
 
 `keepassxc-cli` solo crea KDBX 3.1. Falta un KDBX 4 real (ChaCha20 + Argon2id) creado desde la
