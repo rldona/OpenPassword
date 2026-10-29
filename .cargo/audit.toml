@@ -1,0 +1,8 @@
+[advisories]
+ignore = [
+    # basic-toml is unmaintained (no known vulnerability). It is only pulled in by
+    # uniffi_bindgen -> askama, the host tool that generates the Kotlin bindings at
+    # build time; it is not linked into libop_ffi.so or any shipped binary.
+    # Revisit when uniffi drops it.
+    "RUSTSEC-2026-0374",
+]
