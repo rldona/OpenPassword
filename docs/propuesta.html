@@ -1,0 +1,775 @@
+<title>OpenPassword · Propuesta</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;700;800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: columna de lectura de ~72ch con bandas a ancho completo para los prototipos; el "acero" del baúl como neutro, verde caja-fuerte como acento */
+:root {
+  --bg: #F2F4F3;
+  --surface: #FFFFFF;
+  --ink: #15201D;
+  --muted: #5A6763;
+  --line: #D5DCD9;
+  --accent: #0E6B5C;
+  --accent-soft: #DCEFEA;
+  --warn: #A15C00;
+  --warn-soft: #FBEBD3;
+  --bad: #B3261E;
+  --bad-soft: #F9DEDC;
+  --good: #1E7A3C;
+  --phone: #0F1715;
+  --app-bg: #F7F9F8;
+  --app-card: #FFFFFF;
+  --app-ink: #15201D;
+  --app-muted: #66736F;
+  --display: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0E1413; --surface: #151D1B; --ink: #E4ECE9; --muted: #98A6A1; --line: #2A3532;
+  --accent: #4FC2A9; --accent-soft: #143B33; --warn: #E6A64B; --warn-soft: #3A2A12;
+  --bad: #F2867E; --bad-soft: #3D1A18; --good: #6BCB8B; --phone: #000000;
+  --app-bg: #101716; --app-card: #18211F; --app-ink: #E4ECE9; --app-muted: #8F9E99;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0E1413; --surface: #151D1B; --ink: #E4ECE9; --muted: #98A6A1; --line: #2A3532;
+  --accent: #4FC2A9; --accent-soft: #143B33; --warn: #E6A64B; --warn-soft: #3A2A12;
+  --bad: #F2867E; --bad-soft: #3D1A18; --good: #6BCB8B; --phone: #000000;
+  --app-bg: #101716; --app-card: #18211F; --app-ink: #E4ECE9; --app-muted: #8F9E99;
+  color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.6; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.read { max-width: 72ch; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.01em; }
+h3 { font-size: 1.15rem; font-weight: 700; }
+p { margin: 0; }
+a { color: var(--accent); }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+.label { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+header.top { padding-block: 56px 40px; border-bottom: 1px solid var(--line); }
+header.top .stack { display: grid; gap: 18px; }
+.lede { font-size: 1.15rem; color: var(--muted); max-width: 62ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-family: var(--mono); font-size: 0.78rem; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 18px; padding-block: 16px; font-size: 0.9rem; border-bottom: 1px solid var(--line); }
+nav.toc a { color: var(--muted); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); text-decoration: underline; }
+
+section.block { padding-block: 56px; border-bottom: 1px solid var(--line); }
+section.block > .wrap { display: grid; gap: 24px; }
+.sec-head { display: grid; gap: 8px; }
+.sec-head .label { color: var(--accent); }
+
+.principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+.principle { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 6px; align-content: start; }
+.principle p { color: var(--muted); font-size: 0.95rem; }
+
+.table-x { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.93rem; min-width: 620px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+th { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td.k { font-weight: 600; white-space: nowrap; }
+
+.pill { display: inline-block; font-family: var(--mono); font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.p-mvp { background: var(--accent-soft); color: var(--accent); }
+.p-v1 { background: var(--warn-soft); color: var(--warn); }
+.p-v2 { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+.p-good { background: var(--accent-soft); color: var(--good); }
+.p-mid { background: var(--warn-soft); color: var(--warn); }
+.p-bad { background: var(--bad-soft); color: var(--bad); }
+
+.callout { border-left: 3px solid var(--accent); background: var(--surface); padding: 16px 18px; border-radius: 0 10px 10px 0; display: grid; gap: 8px; }
+.callout.warn { border-left-color: var(--warn); }
+
+ul.clean { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+ul.clean li::marker { color: var(--accent); }
+
+pre.code { margin: 0; overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; font-family: var(--mono); font-size: 0.82rem; line-height: 1.55; color: var(--ink); }
+pre.code .c { color: var(--muted); }
+pre.mermaid { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; overflow-x: auto; margin: 0; }
+
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+.two > * { min-width: 0; }
+
+/* Prototipos */
+.proto-band { background: var(--surface); }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 32px 24px; justify-items: center; }
+figure.shot { margin: 0; display: grid; gap: 12px; justify-items: center; width: 100%; max-width: 270px; }
+figure.shot figcaption { font-size: 0.88rem; color: var(--muted); text-align: center; display: grid; gap: 2px; }
+figure.shot figcaption b { color: var(--ink); font-family: var(--display); font-size: 0.95rem; }
+.phone { width: 100%; max-width: 260px; aspect-ratio: 9 / 18.5; background: var(--phone); border-radius: 34px; padding: 9px; box-shadow: 0 18px 40px -22px rgba(0,0,0,.45); }
+.screen { height: 100%; border-radius: 26px; background: var(--app-bg); color: var(--app-ink); overflow: hidden; display: flex; flex-direction: column; font-size: 12px; line-height: 1.4; position: relative; }
+.sb { display: flex; justify-content: space-between; padding: 10px 18px 4px; font-family: var(--mono); font-size: 10px; color: var(--app-muted); }
+.appbar { display: flex; align-items: center; justify-content: space-between; padding: 6px 14px 8px; }
+.appbar h4 { margin: 0; font-family: var(--display); font-size: 17px; font-weight: 700; }
+.ic { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--app-muted); }
+.ic svg { width: 16px; height: 16px; }
+.content { padding: 4px 14px 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; }
+.search { background: var(--app-card); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; color: var(--app-muted); display: flex; gap: 6px; align-items: center; }
+.cats { display: flex; gap: 5px; overflow: hidden; }
+.cat { font-size: 10px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--app-muted); white-space: nowrap; }
+.cat.on { background: var(--accent); color: var(--app-bg); border-color: var(--accent); }
+.list { background: var(--app-card); border-radius: 12px; border: 1px solid var(--line); overflow: hidden; }
+.row { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.row:last-child { border-bottom: 0; }
+.av { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 12px; flex: none; color: #fff; }
+.row .t { display: grid; min-width: 0; }
+.row .t b { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .t span { color: var(--app-muted); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grp { font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--app-muted); padding: 2px 2px 0; }
+.fab { position: absolute; right: 14px; bottom: 54px; width: 42px; height: 42px; border-radius: 14px; background: var(--accent); color: var(--app-bg); display: grid; place-items: center; font-size: 22px; box-shadow: 0 6px 14px -6px rgba(0,0,0,.4); }
+.botnav { display: flex; justify-content: space-around; padding: 8px 6px 12px; border-top: 1px solid var(--line); background: var(--app-card); font-size: 9.5px; color: var(--app-muted); }
+.botnav span { display: grid; justify-items: center; gap: 2px; }
+.botnav span.on { color: var(--accent); font-weight: 600; }
+.botnav svg { width: 16px; height: 16px; }
+
+.lock { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 18px; text-align: center; }
+.seal { width: 64px; height: 64px; border-radius: 20px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+.seal svg { width: 30px; height: 30px; }
+.field { width: 100%; background: var(--app-card); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; text-align: left; display: grid; gap: 1px; }
+.field small { font-size: 9.5px; color: var(--app-muted); }
+.field .v { font-family: var(--mono); font-size: 12px; letter-spacing: .04em; overflow-wrap: anywhere; }
+.btn { width: 100%; border: 0; border-radius: 10px; padding: 9px; font: 600 12px var(--body); background: var(--accent); color: var(--app-bg); cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+.fine { font-size: 10px; color: var(--app-muted); }
+
+.card-visual { border-radius: 14px; padding: 14px; color: #EAF4F1; background: linear-gradient(135deg, #0E6B5C, #123F38 70%); display: grid; gap: 14px; aspect-ratio: 1.586; max-width: 100%; }
+.card-visual .num { font-family: var(--mono); font-size: 13px; letter-spacing: .1em; }
+.card-visual .meta { display: flex; justify-content: space-between; font-size: 10px; opacity: .9; }
+.kv { background: var(--app-card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.kv .r { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+.kv .r:last-child { border-bottom: 0; }
+.kv .r small { display: block; font-size: 9.5px; color: var(--app-muted); }
+.kv .r .v { font-family: var(--mono); font-size: 12px; }
+.mini { border: 0; background: transparent; color: var(--accent); font: 600 10.5px var(--body); cursor: pointer; padding: 3px 4px; border-radius: 6px; }
+.mini:focus-visible, .btn:focus-visible, .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.genout { background: var(--app-card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 12px; font-family: var(--mono); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; min-height: 74px; }
+.genout .d { color: var(--accent); }
+.genout .s { color: var(--warn); }
+.seg { display: flex; background: var(--app-card); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 3px; }
+.seg button { flex: 1; border: 0; background: transparent; font: 500 11px var(--body); color: var(--app-muted); padding: 5px; border-radius: 7px; cursor: pointer; }
+.seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.slider { display: grid; gap: 4px; }
+.slider .lab { display: flex; justify-content: space-between; font-size: 11px; }
+.slider input { width: 100%; accent-color: var(--accent); }
+.strength { display: flex; gap: 3px; }
+.strength i { flex: 1; height: 4px; border-radius: 2px; background: var(--line); }
+.strength i.f { background: var(--good); }
+.toggle-row { display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; }
+.sw { width: 28px; height: 16px; border-radius: 999px; background: var(--accent); position: relative; }
+.sw::after { content: ""; position: absolute; right: 2px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--app-bg); }
+.sw.off { background: var(--line); }
+.sw.off::after { left: 2px; right: auto; }
+
+.health { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.hcell { background: var(--app-card); border: 1px solid var(--line); border-radius: 10px; padding: 8px; display: grid; gap: 1px; }
+.hcell b { font-family: var(--display); font-size: 18px; font-variant-numeric: tabular-nums; }
+.hcell span { font-size: 10px; color: var(--app-muted); }
+.status { display: flex; align-items: center; gap: 8px; background: var(--accent-soft); color: var(--accent); border-radius: 10px; padding: 8px 10px; font-size: 11px; }
+
+.toast { position: absolute; left: 14px; right: 14px; bottom: 60px; background: var(--app-ink); color: var(--app-bg); padding: 8px 10px; border-radius: 10px; font-size: 11px; opacity: 0; transform: translateY(6px); transition: opacity .2s, transform .2s; pointer-events: none; }
+.toast.show { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+.kit { width: 100%; border: 1px dashed var(--app-muted); border-radius: 12px; padding: 10px; display: grid; gap: 6px; text-align: left; }
+.qr { width: 52px; height: 52px; background:
+  conic-gradient(from 90deg at 30% 30%, var(--app-ink) 25%, transparent 0) 0 0/13px 13px,
+  repeating-linear-gradient(45deg, var(--app-ink) 0 3px, transparent 3px 7px); border-radius: 4px; flex: none; }
+
+.roadmap { display: grid; gap: 0; border-left: 2px solid var(--line); margin-left: 6px; }
+.phase { position: relative; padding: 0 0 26px 22px; display: grid; gap: 6px; }
+.phase::before { content: ""; position: absolute; left: -7px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--bg); border: 2px solid var(--accent); }
+.phase.now::before { background: var(--accent); }
+.phase .when { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
+.phase p { color: var(--muted); max-width: 72ch; }
+
+footer { padding-block: 40px 60px; color: var(--muted); font-size: 0.9rem; }
+</style>
+
+<header class="top">
+  <div class="wrap stack">
+    <span class="label">Propuesta v0.1 · 29 oct 2026 · Android primero</span>
+    <h1>OpenPassword</h1>
+    <p class="lede">Gestor de contraseñas, tarjetas, PINs y secretos, de código abierto y sin servidor. Todo se cifra en el teléfono antes de tocar el disco. La app no tiene permiso de Internet: el respaldo sale cifrado y es el usuario quien decide dónde guardarlo.</p>
+    <div class="chips">
+      <span class="chip">conocimiento cero</span>
+      <span class="chip">sin permiso INTERNET</span>
+      <span class="chip">Argon2id + clave secreta</span>
+      <span class="chip">XChaCha20-Poly1305</span>
+      <span class="chip">Kotlin + Compose + núcleo Rust</span>
+      <span class="chip">GPL-3.0</span>
+    </div>
+  </div>
+</header>
+
+<nav class="toc wrap" aria-label="Contenido">
+  <a href="#principios">Principios</a>
+  <a href="#funcional">Propuesta funcional</a>
+  <a href="#prototipos">Prototipos</a>
+  <a href="#seguridad">Seguridad</a>
+  <a href="#respaldo">Respaldo</a>
+  <a href="#tecnica">Arquitectura técnica</a>
+  <a href="#roadmap">Hoja de ruta</a>
+  <a href="#decisiones">Decisiones abiertas</a>
+</nav>
+
+<section class="block" id="principios">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="label">1 · Principios</span>
+      <h2>Cinco reglas que mandan sobre cualquier funcionalidad</h2>
+    </div>
+    <div class="principles">
+      <div class="principle"><h3>Conocimiento cero</h3><p>Nadie salvo el usuario puede descifrar el baúl: ni nosotros, ni Google, ni el proveedor donde viva el respaldo.</p></div>
+      <div class="principle"><h3>Offline por diseño</h3><p>La build principal no declara <code>INTERNET</code>. Si no puede conectarse, no puede filtrar nada, y cualquiera puede comprobarlo en el manifiesto.</p></div>
+      <div class="principle"><h3>Todo cifrado, también los metadatos</h3><p>Títulos, URLs, categorías y fechas de cada elemento van cifrados. En disco solo hay identificadores y blobs opacos.</p></div>
+      <div class="principle"><h3>Criptografía aburrida</h3><p>Primitivas estándar y bibliotecas auditadas. Nada inventado. Un único núcleo criptográfico para todas las plataformas.</p></div>
+      <div class="principle"><h3>Auditable y reproducible</h3><p>Código abierto, builds reproducibles, distribución por F-Droid y GitHub, formato de fichero documentado y auditoría externa antes de la 1.0.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="funcional">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="label">2 · Propuesta funcional</span>
+      <h2>Qué guarda y qué hace</h2>
+    </div>
+    <p class="read">Cada elemento tiene un tipo con campos propios, porque copiar el CVV de una tarjeta no es lo mismo que copiar una contraseña. Todos admiten notas, etiquetas, favorito y campos personalizados (texto, oculto, fecha, TOTP).</p>
+    <div class="table-x">
+      <table>
+        <thead><tr><th>Tipo</th><th>Campos principales</th><th>Detalles propios</th><th>Fase</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Login</td><td>Usuario, contraseña, URLs, TOTP</td><td>Autorrelleno por dominio o paquete Android; historial de contraseñas</td><td><span class="pill p-mvp">MVP</span></td></tr>
+          <tr><td class="k">Tarjeta</td><td>Titular, número, caducidad, CVV, PIN, emisor, tipo (crédito/débito)</td><td>Validación Luhn, detección de red (Visa, Mastercard…), aviso de caducidad, número enmascarado <code>•••• 4821</code></td><td><span class="pill p-mvp">MVP</span></td></tr>
+          <tr><td class="k">PIN / código</td><td>Código, para qué es, notas</td><td>SIM y PUK, alarma, caja fuerte, candado. Teclado numérico y PIN oculto por defecto</td><td><span class="pill p-mvp">MVP</span></td></tr>
+          <tr><td class="k">Nota segura</td><td>Título, texto</td><td>Texto largo cifrado</td><td><span class="pill p-mvp">MVP</span></td></tr>
+          <tr><td class="k">Secreto / API key</td><td>Clave, servicio, entorno, caducidad</td><td>Frases semilla de wallets, claves SSH, tokens. Aviso de rotación</td><td><span class="pill p-mvp">MVP</span></td></tr>
+          <tr><td class="k">Cuenta bancaria</td><td>Banco, IBAN, BIC, titular</td><td>Validación de IBAN</td><td><span class="pill p-v1">v1</span></td></tr>
+          <tr><td class="k">Identidad / documento</td><td>DNI, pasaporte, carné, fechas</td><td>Aviso de caducidad</td><td><span class="pill p-v1">v1</span></td></tr>
+          <tr><td class="k">Wi-Fi</td><td>SSID, contraseña, seguridad</td><td>Compartir por QR en pantalla</td><td><span class="pill p-v1">v1</span></td></tr>
+          <tr><td class="k">Adjuntos</td><td>Fichero cifrado (foto del DNI, PDF)</td><td>Cifrado por bloques; nunca pasa por la galería</td><td><span class="pill p-v2">v2</span></td></tr>
+          <tr><td class="k">Passkeys</td><td>Credenciales FIDO2</td><td>Proveedor de Credential Manager (Android 14+)</td><td><span class="pill p-v2">v2</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="two">
+      <div style="display:grid;gap:12px">
+        <h3>Funcionalidades del MVP</h3>
+        <ul class="clean">
+          <li>Alta guiada: contraseña maestra, generación de la clave secreta y kit de emergencia.</li>
+          <li>Desbloqueo con contraseña maestra o biometría fuerte (clase 3).</li>
+          <li>Lista con búsqueda instantánea, categorías, favoritos y etiquetas.</li>
+          <li>Detalle con revelar, copiar y borrado automático del portapapeles a los 30 s.</li>
+          <li>Generador de contraseñas aleatorias, frases de paso (lista EFF en español e inglés) y PINs.</li>
+          <li>Bloqueo automático por tiempo, al apagar pantalla y al salir a segundo plano.</li>
+          <li>Exportar e importar respaldo cifrado (<code>.opvault</code>).</li>
+        </ul>
+      </div>
+      <div style="display:grid;gap:12px">
+        <h3>Después del MVP</h3>
+        <ul class="clean">
+          <li><span class="pill p-v1">v1</span> Servicio de autorrelleno de Android y TOTP integrado.</li>
+          <li><span class="pill p-v1">v1</span> Respaldo automático a una carpeta elegida por el usuario.</li>
+          <li><span class="pill p-v1">v1</span> Salud del baúl offline: contraseñas débiles, repetidas y antiguas; tarjetas a punto de caducar.</li>
+          <li><span class="pill p-v1">v1</span> Importar desde Bitwarden, KeePass (KDBX), 1Password (1PUX) y CSV.</li>
+          <li><span class="pill p-v2">v2</span> Varios baúles (personal, familia) y sincronización entre dispositivos.</li>
+          <li><span class="pill p-v2">v2</span> Passkeys y adjuntos.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block proto-band" id="prototipos">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="label">3 · Prototipos</span>
+      <h2>Seis pantallas del flujo principal</h2>
+      <p class="read" style="color:var(--muted)">Material 3 con identidad propia. Los datos son de ejemplo. Las pantallas del detalle de tarjeta y del generador responden: prueba a revelar, copiar o regenerar.</p>
+    </div>
+
+    <div class="gallery">
+
+      <!-- 1. Alta: clave secreta -->
+      <figure class="shot">
+        <div class="phone"><div class="screen">
+          <div class="sb"><span>9:41</span><span>●●● 82%</span></div>
+          <div class="lock" style="justify-content:flex-start;padding-top:8px">
+            <span class="fine" style="font-family:var(--mono)">PASO 2 DE 3</span>
+            <h4 style="margin:0;font-family:var(--display);font-size:17px">Tu clave secreta</h4>
+            <p class="fine" style="font-size:11px">Se combina con tu contraseña maestra. Sin ella nadie puede abrir un respaldo, aunque adivine la contraseña.</p>
+            <div class="field"><small>Clave secreta</small><span class="v">OP1-H7K2Q9-XW4R8T-M3NV6P-2JDL5C-9FBZ7Y</span></div>
+            <div class="kit">
+              <div style="display:flex;gap:10px;align-items:center">
+                <div class="qr" aria-hidden="true"></div>
+                <div style="display:grid;gap:2px"><b style="font-size:12px">Kit de emergencia</b><span class="fine">PDF con la clave y un QR. Imprímelo y guárdalo en papel.</span></div>
+              </div>
+            </div>
+            <button class="btn" type="button">Guardar kit de emergencia</button>
+            <button class="btn ghost" type="button">Ya lo he guardado</button>
+          </div>
+        </div></div>
+        <figcaption><b>Alta: clave secreta</b><span>El único momento en que se muestra completa</span></figcaption>
+      </figure>
+
+      <!-- 2. Desbloqueo -->
+      <figure class="shot">
+        <div class="phone"><div class="screen">
+          <div class="sb"><span>9:41</span><span>●●● 82%</span></div>
+          <div class="lock">
+            <div class="seal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15.5" r="1.5" fill="currentColor"/></svg></div>
+            <h4 style="margin:0;font-family:var(--display);font-size:18px">Baúl bloqueado</h4>
+            <div class="field"><small>Contraseña maestra</small><span class="v">••••••••••••••</span></div>
+            <button class="btn" type="button">Desbloquear</button>
+            <button class="btn ghost" type="button">Usar huella</button>
+            <p class="fine">Pediremos la contraseña maestra cada 14 días para que no la olvides.</p>
+          </div>
+        </div></div>
+        <figcaption><b>Desbloqueo</b><span>Biometría opcional, nunca sustituye a la contraseña</span></figcaption>
+      </figure>
+
+      <!-- 3. Baúl -->
+      <figure class="shot">
+        <div class="phone"><div class="screen">
+          <div class="sb"><span>9:41</span><span>●●● 82%</span></div>
+          <div class="appbar"><h4>Personal</h4><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span></div>
+          <div class="content">
+            <div class="search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Buscar en 214 elementos</div>
+            <div class="cats"><span class="cat on">Todo</span><span class="cat">Logins</span><span class="cat">Tarjetas</span><span class="cat">PINs</span><span class="cat">Notas</span></div>
+            <span class="grp">Favoritos</span>
+            <div class="list">
+              <div class="row"><span class="av" style="background:#0E6B5C">B</span><span class="t"><b>Visa BBVA</b><span>Débito · •••• 4821</span></span></div>
+              <div class="row"><span class="av" style="background:#3D5A80">G</span><span class="t"><b>Google</b><span>raul@ejemplo.com</span></span></div>
+              <div class="row"><span class="av" style="background:#A15C00">#</span><span class="t"><b>Alarma casa</b><span>PIN · 6 dígitos</span></span></div>
+            </div>
+            <span class="grp">Recientes</span>
+            <div class="list">
+              <div class="row"><span class="av" style="background:#6B4E9B">S</span><span class="t"><b>SIM Movistar</b><span>PIN y PUK</span></span></div>
+              <div class="row"><span class="av" style="background:#2F6F3E">A</span><span class="t"><b>AWS producción</b><span>Secreto · caduca en 12 días</span></span></div>
+            </div>
+          </div>
+          <span class="fab" aria-hidden="true">+</span>
+          <div class="botnav">
+            <span class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>Baúl</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h16M12 4v16"/><circle cx="12" cy="12" r="9"/></svg>Generar</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/></svg>Salud</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></svg>Ajustes</span>
+          </div>
+        </div></div>
+        <figcaption><b>Baúl</b><span>Búsqueda en memoria tras desbloquear</span></figcaption>
+      </figure>
+
+      <!-- 4. Detalle tarjeta (interactivo) -->
+      <figure class="shot">
+        <div class="phone"><div class="screen" id="card-screen">
+          <div class="sb"><span>9:41</span><span>●●● 82%</span></div>
+          <div class="appbar"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg></span><h4 style="font-size:15px">Visa BBVA</h4><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></span></div>
+          <div class="content">
+            <div class="card-visual">
+              <div style="display:flex;justify-content:space-between;font-size:10px"><span>BBVA · Débito</span><b>VISA</b></div>
+              <span class="num" id="cnum">•••• •••• •••• 4821</span>
+              <div class="meta"><span>RAÚL LÓPEZ</span><span>08/29</span></div>
+            </div>
+            <div class="kv">
+              <div class="r"><div><small>Número</small><span class="v" id="cnum2">•••• 4821</span></div><div><button class="mini" type="button" data-reveal="num">Ver</button><button class="mini" type="button" data-copy="Número">Copiar</button></div></div>
+              <div class="r"><div><small>CVV</small><span class="v" id="ccvv">•••</span></div><div><button class="mini" type="button" data-reveal="cvv">Ver</button><button class="mini" type="button" data-copy="CVV">Copiar</button></div></div>
+              <div class="r"><div><small>PIN del cajero</small><span class="v" id="cpin">••••</span></div><div><button class="mini" type="button" data-reveal="pin">Ver</button></div></div>
+              <div class="r"><div><small>Caducidad</small><span class="v">08/2029</span></div></div>
+            </div>
+          </div>
+          <div class="toast" id="card-toast">Copiado. Se borrará del portapapeles en 30 s.</div>
+        </div></div>
+        <figcaption><b>Detalle de tarjeta</b><span>Cada campo sensible se revela por separado</span></figcaption>
+      </figure>
+
+      <!-- 5. Generador (interactivo) -->
+      <figure class="shot">
+        <div class="phone"><div class="screen">
+          <div class="sb"><span>9:41</span><span>●●● 82%</span></div>
+          <div class="appbar"><h4>Generador</h4></div>
+          <div class="content">
+            <div class="seg" role="group" aria-label="Tipo">
+              <button type="button" class="on" data-mode="rand" id="gm-rand">Aleatoria</button>
+              <button type="button" data-mode="words" id="gm-words">Frase</button>
+              <button type="button" data-mode="pin" id="gm-pin">PIN</button>
+            </div>
+            <div class="genout" id="genout" aria-live="polite"></div>
+            <div class="strength" id="gstr"><i></i><i></i><i></i><i></i></div>
+            <span class="fine" id="gbits"></span>
+            <div class="slider"><div class="lab"><span id="glab">Longitud</span><b id="glen">20</b></div><input type="range" id="grange" min="8" max="64" value="20" aria-label="Longitud"></div>
+            <div class="toggle-row"><span>Símbolos</span><span class="sw"></span></div>
+            <div class="toggle-row"><span>Evitar caracteres ambiguos</span><span class="sw off"></span></div>
+            <div style="display:flex;gap:6px;margin-top:auto">
+              <button class="btn ghost" type="button" id="gregen">Otra</button>
+              <button class="btn" type="button" id="gcopy">Copiar</button>
+            </div>
+          </div>
+          <div class="toast" id="gen-toast">Copiado. Se borrará del portapapeles en 30 s.</div>
+        </div></div>
+        <figcaption><b>Generador</b><span>Usa el CSPRNG del sistema; aquí, el del navegador</span></figcaption>
+      </figure>
+
+      <!-- 6. Respaldo y salud -->
+      <figure class="shot">
+        <div class="phone"><div class="screen">
+          <div class="sb"><span>9:41</span><span>●●● 82%</span></div>
+          <div class="appbar"><h4>Respaldo</h4></div>
+          <div class="content">
+            <div class="status"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>Último respaldo hoy, 03:00 · 214 elementos</div>
+            <div class="kv">
+              <div class="r"><div><small>Destino</small><span style="font-size:12px">Nextcloud / Backups / OpenPassword</span></div></div>
+              <div class="r"><div><small>Frecuencia</small><span style="font-size:12px">Diario y tras cada cambio</span></div></div>
+              <div class="r"><div><small>Conservar</small><span style="font-size:12px">Últimas 10 copias</span></div></div>
+            </div>
+            <div class="toggle-row"><span>Respaldo automático</span><span class="sw"></span></div>
+            <span class="grp">Salud del baúl</span>
+            <div class="health">
+              <div class="hcell"><b style="color:var(--bad)">3</b><span>Contraseñas repetidas</span></div>
+              <div class="hcell"><b style="color:var(--warn)">7</b><span>Débiles</span></div>
+              <div class="hcell"><b style="color:var(--warn)">1</b><span>Tarjeta caduca en 30 días</span></div>
+              <div class="hcell"><b style="color:var(--good)">203</b><span>Sin problemas</span></div>
+            </div>
+            <button class="btn ghost" type="button" style="margin-top:auto">Exportar copia ahora</button>
+          </div>
+        </div></div>
+        <figcaption><b>Respaldo y salud</b><span>La app escribe en la carpeta; la nube sincroniza</span></figcaption>
+      </figure>
+
+    </div>
+  </div>
+</section>
+
+<section class="block" id="seguridad">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="label">4 · Arquitectura de seguridad</span>
+      <h2>De qué nos defendemos y cómo</h2>
+    </div>
+
+    <h3>Modelo de amenazas</h3>
+    <div class="table-x">
+      <table>
+        <thead><tr><th>Atacante</th><th>Qué consigue</th><th>Defensa</th><th>Resultado</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Roba el móvil bloqueado</td><td>Acceso físico al almacenamiento</td><td>Cifrado de Android + baúl cifrado con clave que no está en disco en claro</td><td><span class="pill p-good">Protegido</span></td></tr>
+          <tr><td class="k">Roba el móvil desbloqueado, app bloqueada</td><td>Puede abrir la app</td><td>Contraseña maestra o biometría ligada a hardware; límite de intentos con espera creciente</td><td><span class="pill p-good">Protegido</span></td></tr>
+          <tr><td class="k">Obtiene el fichero de respaldo</td><td>Ataque offline de fuerza bruta</td><td>Argon2id + clave secreta de 128 bits: probar contraseñas es inútil sin la clave secreta</td><td><span class="pill p-good">Protegido</span></td></tr>
+          <tr><td class="k">Proveedor de nube (Drive, Nextcloud)</td><td>Ve el fichero y sus versiones</td><td>Solo ve un blob cifrado de tamaño aproximado</td><td><span class="pill p-good">Protegido</span></td></tr>
+          <tr><td class="k">App maliciosa sin root</td><td>Superposiciones, lectura de portapapeles, capturas</td><td><code>FLAG_SECURE</code>, filtrado de toques ocultos, portapapeles marcado como sensible y borrado</td><td><span class="pill p-mid">Mitigado</span></td></tr>
+          <tr><td class="k">Mirón por encima del hombro</td><td>Ve la pantalla</td><td>Campos ocultos por defecto, revelado por campo, ocultar en multitarea</td><td><span class="pill p-mid">Mitigado</span></td></tr>
+          <tr><td class="k">Cadena de suministro</td><td>Dependencia o build manipulada</td><td>Dependencias mínimas y fijadas, verificación de hashes, builds reproducibles, firma de releases</td><td><span class="pill p-mid">Mitigado</span></td></tr>
+          <tr><td class="k">Malware con root o keylogger</td><td>Lee la memoria y lo que tecleas</td><td>Ningún gestor puede defenderse de esto; avisamos si detectamos root</td><td><span class="pill p-bad">Fuera de alcance</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="two">
+      <div style="display:grid;gap:12px;align-content:start">
+        <h3>Jerarquía de claves</h3>
+        <p>Inspirada en la derivación con dos secretos de 1Password. La contraseña maestra nunca cifra datos directamente: solo desbloquea la clave del baúl, así se puede cambiar sin recifrar todo.</p>
+        <ul class="clean">
+          <li><b>Clave secreta (SK):</b> 128 bits aleatorios generados en el alta. Vive en el dispositivo (protegida por Keystore) y en el kit de emergencia en papel.</li>
+          <li><b>KEK:</b> se deriva de la contraseña maestra con Argon2id y se mezcla con la SK mediante HKDF. Nunca se guarda.</li>
+          <li><b>Clave del baúl (VK):</b> 256 bits aleatorios. Se guarda envuelta por la KEK y, si hay biometría, también por una clave del Keystore.</li>
+          <li><b>Clave por elemento (IK):</b> cada elemento tiene la suya, envuelta por la VK. Facilita compartir elementos en el futuro y limita el daño de un fallo.</li>
+        </ul>
+      </div>
+      <pre class="mermaid">
+flowchart TD
+  MP[Contraseña maestra] --> A[Argon2id<br/>256 MiB, t=3, p=4]
+  SK[Clave secreta 128 bits] --> H1[HKDF]
+  A --> X[Combinar con HKDF]
+  H1 --> X
+  X --> KEK[KEK · solo en memoria]
+  KEK -->|envuelve| VK[Clave del baúl VK]
+  KS[Clave Android Keystore<br/>StrongBox + biometría] -.->|envuelve copia| VK
+  VK -->|envuelve| IK[Clave por elemento]
+  IK -->|XChaCha20-Poly1305| D[Datos y metadatos del elemento]
+      </pre>
+    </div>
+
+    <h3>Parámetros criptográficos</h3>
+    <div class="table-x">
+      <table>
+        <thead><tr><th>Uso</th><th>Algoritmo</th><th>Parámetros</th><th>Motivo</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Derivar de la contraseña</td><td>Argon2id</td><td>256 MiB, 3 pasadas, 4 hilos; calibrado a ~1 s en el dispositivo; mínimo 64 MiB en gama baja</td><td>Resistente a GPU y ASIC; ganador de la PHC</td></tr>
+          <tr><td class="k">Combinar secretos</td><td>HKDF-SHA256</td><td>Sal por cuenta, contexto <code>"op/kek/v1"</code></td><td>Separación de dominios</td></tr>
+          <tr><td class="k">Cifrado de datos</td><td>XChaCha20-Poly1305</td><td>Nonce aleatorio de 192 bits; ID y versión del elemento como datos asociados</td><td>Sin riesgo de colisión de nonce; rápido sin AES por hardware</td></tr>
+          <tr><td class="k">Respaldo</td><td>STREAM-BE32 sobre XChaCha20-Poly1305</td><td>Bloques de 64 KiB con marca de final; sin compresión</td><td>Detecta truncado y reordenación; sin compresión no hay fugas por longitud</td></tr>
+          <tr><td class="k">Biometría</td><td>AES-256-GCM en Keystore</td><td>StrongBox si existe, auth biométrica clase 3, se invalida al añadir huellas</td><td>La clave no sale nunca del hardware seguro</td></tr>
+          <tr><td class="k">Aleatoriedad</td><td>CSPRNG del sistema</td><td><code>getrandom</code> / <code>SecureRandom</code></td><td>Sin generadores propios</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Endurecimiento en Android</h3>
+    <div class="two">
+      <ul class="clean">
+        <li>Sin permiso <code>INTERNET</code> en la build principal. Se verifica en CI.</li>
+        <li><code>allowBackup="false"</code> y reglas de extracción vacías: Google no copia el baúl.</li>
+        <li><code>FLAG_SECURE</code> en todas las pantallas: sin capturas ni vista previa en multitarea.</li>
+        <li><code>filterTouchesWhenObscured</code> contra ataques de superposición (tapjacking).</li>
+        <li>Campos con <code>IME_FLAG_NO_PERSONALIZED_LEARNING</code>: el teclado no aprende las contraseñas.</li>
+      </ul>
+      <ul class="clean">
+        <li>Portapapeles con <code>EXTRA_IS_SENSITIVE</code> (Android 13+) y borrado a los 30 s.</li>
+        <li>Secretos como <code>ByteArray</code> en el núcleo Rust, con <code>zeroize</code> al bloquear.</li>
+        <li>Bloqueo automático configurable, al apagar pantalla y al pasar a segundo plano.</li>
+        <li>Intentos fallidos con espera exponencial; borrado tras N intentos como opción.</li>
+        <li>Aviso, sin bloqueo, si el dispositivo está rooteado o con bootloader abierto.</li>
+      </ul>
+    </div>
+    <div class="callout warn">
+      <b>Límite conocido</b>
+      <p>Compose y la JVM manejan el texto como <code>String</code> inmutable, que no se puede borrar de la memoria a voluntad. Mitigación: el texto en claro solo existe mientras se muestra o edita un campo, el núcleo Rust guarda las claves y los datos descifrados, y se pide al recolector de basura al bloquear. Conviene documentarlo y no prometer más de lo que se puede.</p>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="respaldo">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="label">5 · Respaldo</span>
+      <h2>Respaldo sin perder seguridad</h2>
+    </div>
+    <div class="read" style="display:grid;gap:14px">
+      <p>El respaldo no resta seguridad si cumple dos condiciones: sale del teléfono ya cifrado con claves que solo tiene el usuario, y la app no necesita conectarse a nada para hacerlo.</p>
+      <p>Por eso la app no sube nada. Escribe el fichero cifrado en una carpeta que el usuario elige con el selector de Android (Storage Access Framework). Si esa carpeta es de Nextcloud, Google Drive, Syncthing o una tarjeta SD, es la app del proveedor la que lo sincroniza. OpenPassword sigue sin permiso de red y el proveedor solo ve un blob opaco.</p>
+      <p>La clave secreta es lo que hace seguro guardar el respaldo en la nube. Aunque alguien robe el fichero y la contraseña maestra sea floja, sin los 128 bits de la clave secreta la fuerza bruta no es viable.</p>
+    </div>
+
+    <div class="table-x">
+      <table>
+        <thead><tr><th>Nivel</th><th>Cómo funciona</th><th>Red en la app</th><th>Riesgo</th><th>Fase</th></tr></thead>
+        <tbody>
+          <tr><td class="k">1 · Exportación manual</td><td>El usuario pulsa «Exportar» y elige destino</td><td>No</td><td><span class="pill p-good">Mínimo</span></td><td><span class="pill p-mvp">MVP</span></td></tr>
+          <tr><td class="k">2 · Respaldo automático</td><td>WorkManager escribe en la carpeta elegida a diario y tras cambios; rotación de N copias</td><td>No</td><td><span class="pill p-good">Mínimo</span></td><td><span class="pill p-v1">v1</span></td></tr>
+          <tr><td class="k">3 · Sincronización por fichero</td><td>Varios dispositivos leen y escriben la misma carpeta (Syncthing); fusión por elemento con relojes vectoriales</td><td>No</td><td><span class="pill p-mid">Bajo</span> conflictos</td><td><span class="pill p-v2">v2</span></td></tr>
+          <tr><td class="k">4 · Servidor propio</td><td>Variante opcional con red y servidor autoalojado de conocimiento cero (WebDAV o API propia)</td><td>Sí, variante aparte</td><td><span class="pill p-mid">Medio</span> más superficie</td><td><span class="pill p-v2">v2+</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="two">
+      <div style="display:grid;gap:12px;align-content:start">
+        <h3>Formato <code>.opvault</code> v1</h3>
+        <p>Formato abierto y documentado, para que se pueda descifrar con una herramienta de línea de comandos aunque la app desaparezca.</p>
+      </div>
+<pre class="code"><span class="c"># cabecera en claro, autenticada como datos asociados</span>
+magic           "OPVAULT\x01"
+header {
+  format_version  1
+  kdf             argon2id, m=262144, t=3, p=4
+  salt            32 bytes
+  secret_key_id   HKDF(SK)[0..4] <span class="c"># no revela bits de la SK</span>
+  wrapped_vk      XChaCha20-Poly1305(KEK, VK)
+  wrapped_fk      XChaCha20-Poly1305(VK, FK)
+  created_at      1793257200
+}
+<span class="c"># elementos cifrados en bloques; AAD = SHA-256(cabecera)</span>
+body            STREAM-BE32(FK, items)</pre>
+    </div>
+
+    <div class="callout">
+      <b>Recuperación: lo que hay que explicar al usuario el primer día</b>
+      <p>Con la contraseña maestra y el kit de emergencia se recupera todo en un teléfono nuevo. Si pierde ambos, nadie puede recuperar los datos, tampoco nosotros. Es el precio de la seguridad y el alta debe dejarlo claro antes de continuar.</p>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="tecnica">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="label">6 · Arquitectura técnica</span>
+      <h2>Stack y módulos</h2>
+    </div>
+
+    <div class="table-x">
+      <table>
+        <thead><tr><th>Capa</th><th>Elección</th><th>Por qué</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Núcleo criptográfico</td><td>Rust (<code>op-core</code>) con UniFFI; crates <code>argon2</code>, <code>chacha20poly1305</code>, <code>hkdf</code>, <code>zeroize</code> de RustCrypto</td><td>Una sola implementación auditada para Android, iOS y escritorio; control de memoria y borrado de secretos</td></tr>
+          <tr><td class="k">UI</td><td>Kotlin, Jetpack Compose, Material 3</td><td>Estándar actual de Android</td></tr>
+          <tr><td class="k">Arquitectura</td><td>MVVM + UDF, Coroutines y Flow, Hilt</td><td>Estado predecible y testeable</td></tr>
+          <tr><td class="k">Persistencia</td><td>Room (SQLite) con columnas cifradas por elemento</td><td>El cifrado está en la aplicación; no hace falta SQLCipher y el modelo es portable al formato de respaldo</td></tr>
+          <tr><td class="k">Hardware seguro</td><td>Android Keystore (StrongBox), BiometricPrompt</td><td>Claves que no salen del chip</td></tr>
+          <tr><td class="k">Tareas</td><td>WorkManager</td><td>Respaldos programados</td></tr>
+          <tr><td class="k">Integración</td><td>AutofillService, Credential Manager</td><td>Autorrelleno y passkeys</td></tr>
+          <tr><td class="k">Mínimo Android</td><td>API 28 (Android 9)</td><td>BiometricPrompt y StrongBox; cubre más del 90 % de dispositivos</td></tr>
+          <tr><td class="k">Calidad</td><td>Tests de vectores conocidos, fuzzing con <code>cargo-fuzz</code>, Detekt, CodeQL, Renovate</td><td>La criptografía se prueba con vectores, no con confianza</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="two">
+      <div style="display:grid;gap:12px;align-content:start">
+        <h3>Estructura del repositorio</h3>
+<pre class="code">openpassword/
+├─ core/                 <span class="c"># Rust: cripto, modelo, formato</span>
+│  ├─ src/crypto/        <span class="c"># kdf, aead, keywrap</span>
+│  ├─ src/vault/         <span class="c"># items, cifrado por elemento</span>
+│  ├─ src/backup/        <span class="c"># .opvault lectura/escritura</span>
+│  └─ tests/vectors/
+├─ cli/                  <span class="c"># opvault-cli: descifrar respaldos</span>
+├─ android/
+│  ├─ app/               <span class="c"># Compose, navegación</span>
+│  ├─ feature-vault/
+│  ├─ feature-generator/
+│  ├─ feature-backup/
+│  ├─ feature-autofill/
+│  ├─ data/              <span class="c"># Room, repositorios</span>
+│  └─ security/          <span class="c"># Keystore, biometría, bloqueo</span>
+└─ docs/
+   ├─ threat-model.md
+   ├─ crypto-spec.md
+   └─ opvault-format.md</pre>
+      </div>
+      <div style="display:grid;gap:12px;align-content:start">
+        <h3>Modelo de datos en disco</h3>
+<pre class="code"><span class="c">-- Sin títulos, tipos ni URLs en claro</span>
+vault (
+  id            BLOB PRIMARY KEY,
+  wrapped_vk    BLOB,   <span class="c">-- por KEK</span>
+  wrapped_vk_bio BLOB,  <span class="c">-- por Keystore</span>
+  kdf_params    BLOB,
+  salt          BLOB
+)
+item (
+  id            BLOB PRIMARY KEY,
+  vault_id      BLOB,
+  wrapped_ik    BLOB,
+  overview      BLOB,   <span class="c">-- tipo, título, URL</span>
+  details       BLOB,   <span class="c">-- campos secretos</span>
+  revision      INTEGER,
+  deleted       INTEGER
+)</pre>
+        <p style="color:var(--muted)">Al desbloquear se descifran solo los <code>overview</code> para la lista y la búsqueda. Los <code>details</code> se descifran al abrir un elemento y se descartan al cerrarlo.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="roadmap">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="label">7 · Hoja de ruta</span>
+      <h2>De la especificación a la 1.0</h2>
+    </div>
+    <div class="roadmap">
+      <div class="phase now"><span class="when">Fase 0 · 3–4 semanas</span><h3>Fundaciones</h3><p>Modelo de amenazas, especificación criptográfica y del formato <code>.opvault</code>. <code>op-core</code> en Rust con tests de vectores y la CLI de descifrado. CI con builds reproducibles y comprobación de permisos.</p></div>
+      <div class="phase"><span class="when">Fase 1 · 6–8 semanas</span><h3>MVP Android</h3><p>Alta con kit de emergencia, desbloqueo, baúl con los cinco tipos básicos, búsqueda, generador, bloqueo automático, exportar e importar. Beta cerrada.</p></div>
+      <div class="phase"><span class="when">Fase 2 · 6 semanas</span><h3>Uso diario</h3><p>Autorrelleno, TOTP, respaldo automático, salud del baúl, importadores y el resto de tipos. Publicación en F-Droid.</p></div>
+      <div class="phase"><span class="when">Fase 3</span><h3>Auditoría y 1.0</h3><p>Auditoría externa del núcleo y la app (por ejemplo, Cure53, Trail of Bits o vía OSTIF), corrección de hallazgos y programa de divulgación responsable.</p></div>
+      <div class="phase"><span class="when">Fase 4</span><h3>Más allá</h3><p>Sincronización por fichero, passkeys, adjuntos, varios baúles, y apps de escritorio e iOS reutilizando <code>op-core</code>.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="decisiones">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="label">8 · Decisiones abiertas</span>
+      <h2>Lo que conviene cerrar antes de escribir código</h2>
+    </div>
+    <div class="table-x">
+      <table>
+        <thead><tr><th>Decisión</th><th>Recomendación</th><th>Alternativa</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Licencia</td><td>GPL-3.0: impide forks cerrados</td><td>Apache-2.0 si se busca adopción por empresas</td></tr>
+          <tr><td class="k">Núcleo en Rust o solo Kotlin</td><td>Rust desde el principio, por multiplataforma y control de memoria</td><td>Kotlin + libsodium (lazysodium) para un MVP más rápido, migrando después</td></tr>
+          <tr><td class="k">Clave secreta obligatoria</td><td>Sí: es la defensa del respaldo en la nube</td><td>Opcional con aviso, a cambio de peor seguridad del respaldo</td></tr>
+          <tr><td class="k">Compatibilidad con KeePass</td><td>Solo importar y exportar KDBX</td><td>Usar KDBX como formato nativo (más compatibilidad, menos control del diseño)</td></tr>
+          <tr><td class="k">Comprobar filtraciones (HIBP)</td><td>Solo en una variante con red, opcional y con k-anonimato</td><td>No ofrecerlo</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap">OpenPassword · propuesta inicial para discusión. Los prototipos son ilustrativos y usan datos de ejemplo.</footer>
+
+<script>
+(function () {
+  // Detalle de tarjeta: revelar campos y copiar
+  var secrets = { num: "4940 1923 5567 4821", cvv: "317", pin: "2958" };
+  var shown = {};
+  var cardToast = document.getElementById("card-toast");
+  var genToast = document.getElementById("gen-toast");
+  function flash(el) { el.classList.add("show"); clearTimeout(el._t); el._t = setTimeout(function () { el.classList.remove("show"); }, 2200); }
+
+  document.querySelectorAll("[data-reveal]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var k = b.dataset.reveal; shown[k] = !shown[k];
+      b.textContent = shown[k] ? "Ocultar" : "Ver";
+      if (k === "num") {
+        document.getElementById("cnum").textContent = shown[k] ? secrets.num : "•••• •••• •••• 4821";
+        document.getElementById("cnum2").textContent = shown[k] ? secrets.num : "•••• 4821";
+      }
+      if (k === "cvv") document.getElementById("ccvv").textContent = shown[k] ? secrets.cvv : "•••";
+      if (k === "pin") document.getElementById("cpin").textContent = shown[k] ? secrets.pin : "••••";
+    });
+  });
+  document.querySelectorAll("[data-copy]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      cardToast.textContent = b.dataset.copy + " copiado. Se borrará del portapapeles en 30 s.";
+      flash(cardToast);
+    });
+  });
+
+  // Generador con CSPRNG del navegador
+  var WORDS = ["ancla","brújula","cobre","dintel","espiga","faro","granito","hélice","índigo","jarcia","koala","linterna","marea","nogal","ópalo","pizarra","quilla","ribera","salitre","tejado","umbral","velero","xilema","yunque","zafiro","alambre","bisagra","cerrojo","delta","esmeril","fragua","glaciar","halcón","ladrillo","musgo","nácar","orfebre","pértiga","rastrillo","sextante","timón","urdimbre","volcán"];
+  var mode = "rand";
+  var out = document.getElementById("genout"), range = document.getElementById("grange"),
+      lenEl = document.getElementById("glen"), labEl = document.getElementById("glab"),
+      bitsEl = document.getElementById("gbits"), bars = document.querySelectorAll("#gstr i");
+  function rnd(n) { var a = new Uint32Array(1), lim = Math.floor(4294967296 / n) * n; do { crypto.getRandomValues(a); } while (a[0] >= lim); return a[0] % n; }
+  function esc(c) { return c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === "&" ? "&amp;" : c; }
+  var LET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ", DIG = "23456789", SYM = "!#$%&*+-=?@^_~";
+  function gen() {
+    var n = +range.value, html = "", bits = 0;
+    if (mode === "rand") {
+      var all = LET + DIG + SYM;
+      for (var i = 0; i < n; i++) { var c = all[rnd(all.length)]; html += DIG.indexOf(c) >= 0 ? '<span class="d">' + c + "</span>" : SYM.indexOf(c) >= 0 ? '<span class="s">' + esc(c) + "</span>" : c; }
+      bits = n * Math.log2(all.length);
+    } else if (mode === "words") {
+      var w = []; for (var j = 0; j < n; j++) w.push(WORDS[rnd(WORDS.length)]);
+      html = w.join('<span class="d">-</span>');
+      bits = n * Math.log2(7776);
+    } else {
+      for (var k = 0; k < n; k++) html += String(rnd(10));
+      bits = n * Math.log2(10);
+    }
+    out.innerHTML = html;
+    lenEl.textContent = n;
+    var lvl = bits >= 100 ? 4 : bits >= 70 ? 3 : bits >= 40 ? 2 : 1;
+    bars.forEach(function (b, i) { b.classList.toggle("f", i < lvl); });
+    bitsEl.textContent = "≈ " + Math.round(bits) + " bits de entropía" + (mode === "words" ? " (con la lista EFF de 7.776 palabras)" : "");
+  }
+  function setMode(m) {
+    mode = m;
+    document.querySelectorAll(".seg button").forEach(function (b) { b.classList.toggle("on", b.dataset.mode === m); });
+    if (m === "rand") { range.min = 8; range.max = 64; range.value = 20; labEl.textContent = "Longitud"; }
+    if (m === "words") { range.min = 3; range.max = 10; range.value = 5; labEl.textContent = "Palabras"; }
+    if (m === "pin") { range.min = 4; range.max = 12; range.value = 6; labEl.textContent = "Dígitos"; }
+    gen();
+  }
+  document.querySelectorAll(".seg button").forEach(function (b) { b.addEventListener("click", function () { setMode(b.dataset.mode); }); });
+  range.addEventListener("input", gen);
+  document.getElementById("gregen").addEventListener("click", gen);
+  document.getElementById("gcopy").addEventListener("click", function () { flash(genToast); });
+  gen();
+})();
+</script>

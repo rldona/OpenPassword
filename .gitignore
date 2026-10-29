@@ -1,0 +1,6 @@
+/target
+*.opvault
+!core/tests/vectors/*.opvault
+.DS_Store
+.idea/
+local.properties

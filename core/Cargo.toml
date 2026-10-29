@@ -1,0 +1,31 @@
+[package]
+name = "op-core"
+description = "OpenPassword cryptographic core: key derivation, vault and .opvault backup format"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[features]
+# Allows creating vaults with KDF parameters below the security minimum.
+# Only for tests: never enable it in a shipped build.
+insecure-test-params = []
+
+[dependencies]
+argon2 = { version = "0.5", default-features = false, features = ["alloc", "zeroize"] }
+chacha20poly1305 = { version = "0.10", features = ["stream"] }
+getrandom = "0.3"
+hex = "0.4"
+hkdf = "0.12"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
+unicode-normalization = "0.1"
+zeroize = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+op-core = { path = ".", features = ["insecure-test-params"] }
+
+[lints]
+workspace = true
