@@ -136,7 +136,8 @@ Se genera un `salt` nuevo, se deriva la nueva KEK y se vuelve a envolver la VK. 
 1. Se crea en Android Keystore una clave AES-256-GCM con `setUserAuthenticationRequired(true)`, autenticación `BIOMETRIC_STRONG`, `setInvalidatedByBiometricEnrollment(true)`, `setUnlockedDeviceRequired(true)` y StrongBox cuando exista.
 2. La VK se cifra con esa clave tras un desbloqueo con contraseña y se guarda junto al baúl.
 3. Al desbloquear con huella, el Keystore descifra la VK.
-4. La app DEBE pedir la contraseña maestra cada 14 días (configurable) y tras reiniciar el dispositivo.
+4. La app DEBE pedir la contraseña maestra cada 14 días y tras reiniciar el dispositivo. Para detectar el reinicio, guarda `Settings.Global.BOOT_COUNT` en cada desbloqueo con contraseña.
+5. Fichero `vault-key.biometric`: `versión (1) ‖ iv (12) ‖ VK cifrada (32) ‖ tag (16)`. Si Android invalida la clave (`KeyPermanentlyInvalidatedException`), la app borra el fichero y la clave y vuelve a la contraseña.
 
 Esta parte vive en la capa Android, no en `op-core`.
 

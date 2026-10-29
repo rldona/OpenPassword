@@ -18,6 +18,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,8 +41,17 @@ import io.github.rldona.openpassword.ui.PasswordField
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/**
+ * @param onBiometric biometric unlock, or null if it is off or the password is required now.
+ *   Returns null when the user dismissed the prompt.
+ * @param notice why the password is required although biometric unlock is on.
+ */
 @Composable
-fun UnlockScreen(onUnlock: suspend (String) -> UnlockResult) {
+fun UnlockScreen(
+    onUnlock: suspend (String) -> UnlockResult,
+    onBiometric: (suspend () -> UnlockResult?)? = null,
+    notice: String? = null,
+) {
     var password by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
@@ -49,7 +59,22 @@ fun UnlockScreen(onUnlock: suspend (String) -> UnlockResult) {
     val scope = rememberCoroutineScope()
     val focus = remember { FocusRequester() }
 
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    fun biometric() {
+        val run = onBiometric ?: return
+        if (busy) return
+        busy = true
+        message = null
+        scope.launch {
+            when (val result = run()) {
+                is UnlockResult.Failed -> message = result.message
+                else -> Unit
+            }
+            busy = false
+        }
+    }
+
+    // Offer the fingerprint straight away; the password field stays as the fallback.
+    LaunchedEffect(Unit) { if (onBiometric != null) biometric() else focus.requestFocus() }
     LaunchedEffect(waitSeconds) {
         if (waitSeconds > 0) {
             delay(1_000)
@@ -89,6 +114,9 @@ fun UnlockScreen(onUnlock: suspend (String) -> UnlockResult) {
                 Icon(Icons.Filled.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(34.dp))
             }
             Text("Baúl bloqueado", style = MaterialTheme.typography.headlineMedium)
+            notice?.let {
+                Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            }
             PasswordField(
                 value = password,
                 onValueChange = { password = it },
@@ -106,6 +134,11 @@ fun UnlockScreen(onUnlock: suspend (String) -> UnlockResult) {
                     Text("Descifrando…")
                 } else {
                     Text("Desbloquear")
+                }
+            }
+            if (onBiometric != null) {
+                OutlinedButton(onClick = ::biometric, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                    Text("Usar huella")
                 }
             }
             if (waitSeconds > 0) {
