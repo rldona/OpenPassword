@@ -290,6 +290,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
             locked = locked,
             onUnlocked = { pendingExternal = it; lockedExternal = null },
             onCancel = { locked.bytes.fill(0); lockedExternal = null },
+            beforePicker = session::beforeSystemPicker,
         )
     }
 

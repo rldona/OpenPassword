@@ -410,11 +410,21 @@ pub fn import_needs_password(bytes: Vec<u8>) -> bool {
 }
 
 /// Parses another manager's export. Nothing is stored: the app encrypts the items.
-/// `password` is only used for encrypted formats (KeePass). Runs a KDF for those: call it
-/// off the main thread.
+/// `password` and `key_file` are only used for encrypted formats (KeePass). Runs a KDF for
+/// those: call it off the main thread.
 #[uniffi::export]
-pub fn parse_import(bytes: Vec<u8>, password: Option<String>, now: u64) -> Result<ImportResult> {
-    let imported = op_core::import::parse_with_password(&bytes, password.as_deref(), now)?;
+pub fn parse_import(
+    bytes: Vec<u8>,
+    password: Option<String>,
+    key_file: Option<Vec<u8>>,
+    now: u64,
+) -> Result<ImportResult> {
+    let imported = op_core::import::parse_with_credentials(
+        &bytes,
+        password.as_deref(),
+        key_file.as_deref(),
+        now,
+    )?;
     Ok(ImportResult {
         format: match imported.format {
             op_core::import::ImportFormat::Csv => "csv",
@@ -568,6 +578,7 @@ mod tests {
     fn import_then_encrypt() {
         let result = parse_import(
             b"name,url,username,password\nGitHub,https://github.com,raul,pw\n".to_vec(),
+            None,
             None,
             5,
         )

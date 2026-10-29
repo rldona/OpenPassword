@@ -3,7 +3,8 @@
 //! Unlike the other importers this one decrypts: composite key → KDF (AES-KDF or
 //! Argon2d/id) → outer cipher (AES-256-CBC or ChaCha20) → optional gzip → XML, whose
 //! protected values are also XOR-ed with an inner stream (Salsa20 or ChaCha20).
-//! Key files and Twofish are not supported. The recycle bin and entry history are skipped.
+//! Key files are supported in every KeePass format; Twofish is not. The recycle bin and
+//! entry history are skipped.
 
 use std::io::Read;
 
@@ -154,7 +155,12 @@ fn dict_u64(dict: &[(String, Vec<u8>)], key: &str) -> Option<u64> {
 }
 
 /// Decrypts and converts a KDBX database. `now` (Unix seconds) stamps the items.
-pub fn parse(bytes: &[u8], password: &str, now: u64) -> Result<Imported> {
+pub fn parse(
+    bytes: &[u8],
+    password: Option<&str>,
+    key_file: Option<&[u8]>,
+    now: u64,
+) -> Result<Imported> {
     let mut c = Cursor {
         data: bytes,
         pos: 0,
@@ -205,8 +211,15 @@ pub fn parse(bytes: &[u8], password: &str, now: u64) -> Result<Imported> {
         return Err(Error::Malformed("KDBX master seed"));
     }
 
-    // Composite key: password only. (Key files would be hashed in here too.)
-    let composite = Zeroizing::new(Sha256::digest(Sha256::digest(password.as_bytes())).to_vec());
+    // Composite key: SHA-256 of the password hash followed by the key file's key.
+    let mut composite = Sha256::new();
+    if let Some(p) = password {
+        composite.update(Sha256::digest(p.as_bytes()));
+    }
+    if let Some(k) = key_file {
+        composite.update(*key_file_key(k)?);
+    }
+    let composite = Zeroizing::new(composite.finalize().to_vec());
     let transformed = Zeroizing::new(if v4 {
         kdf_v4(&h.kdf, &composite)?
     } else {
@@ -363,6 +376,92 @@ pub fn parse(bytes: &[u8], password: &str, now: u64) -> Result<Imported> {
         items,
         skipped,
     })
+}
+
+/// The 32-byte key a KeePass key file stands for:
+/// XML v2.0 (hex with a check hash), XML v1.0 (base64), 32 raw bytes, 64 hex characters,
+/// or, for any other file, its SHA-256.
+fn key_file_key(data: &[u8]) -> Result<Zeroizing<[u8; 32]>> {
+    let damaged = || bad("the key file is damaged");
+    let to_key = |v: Vec<u8>| -> Result<Zeroizing<[u8; 32]>> {
+        Ok(Zeroizing::new(v.try_into().map_err(|_| damaged())?))
+    };
+
+    if let Some(xml) = std::str::from_utf8(data)
+        .ok()
+        .filter(|t| t.contains("<KeyFile>"))
+    {
+        let (version, data_text, hash) = key_file_xml(xml)?;
+        return if version.starts_with("2.") {
+            let hex: String = data_text.chars().filter(|c| !c.is_whitespace()).collect();
+            let key = to_key(decode_hex(&hex).ok_or_else(damaged)?)?;
+            if let Some(expected) = hash {
+                let actual: String = Sha256::digest(*key)[..4]
+                    .iter()
+                    .map(|b| format!("{b:02X}"))
+                    .collect();
+                if !actual.eq_ignore_ascii_case(expected.trim()) {
+                    return Err(damaged());
+                }
+            }
+            Ok(key)
+        } else {
+            to_key(
+                base64::engine::general_purpose::STANDARD
+                    .decode(data_text.trim())
+                    .map_err(|_| damaged())?,
+            )
+        };
+    }
+    if data.len() == 32 {
+        return to_key(data.to_vec());
+    }
+    if data.len() == 64 {
+        if let Some(key) = std::str::from_utf8(data).ok().and_then(decode_hex) {
+            return to_key(key);
+        }
+    }
+    to_key(Sha256::digest(data).to_vec())
+}
+
+/// (Version, Data text, Data@Hash) of a key file.
+fn key_file_xml(xml: &str) -> Result<(String, String, Option<String>)> {
+    let mut reader = Reader::from_str(xml);
+    let (mut version, mut data, mut hash) = (String::new(), String::new(), None);
+    let mut current = String::new();
+    loop {
+        match reader
+            .read_event()
+            .map_err(|_| bad("the key file is damaged"))?
+        {
+            Event::Start(e) => {
+                current = e.name().as_ref().to_owned();
+                if current == "Data" {
+                    hash = e
+                        .attributes()
+                        .flatten()
+                        .find(|a| a.key.as_ref() == "Hash")
+                        .map(|a| a.value.to_string());
+                }
+            }
+            Event::Text(t) if current == "Version" => version.push_str(t.xml10_content().trim()),
+            Event::Text(t) if current == "Data" => data.push_str(&t.xml10_content()),
+            Event::End(_) => current.clear(),
+            Event::Eof => break,
+            _ => {}
+        }
+    }
+    Ok((version, data, hash))
+}
+
+fn decode_hex(s: &str) -> Option<Vec<u8>> {
+    if s.len() % 2 != 0 {
+        return None;
+    }
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(s.get(i..i + 2)?, 16).ok())
+        .collect()
 }
 
 fn hmac_sha256(key: &[u8]) -> Hmac<Sha256> {
@@ -740,13 +839,13 @@ mod tests {
     #[test]
     fn keepassxc_kdbx31() {
         assert!(is_kdbx(KDBX31));
-        check_fixture(&parse(KDBX31, "prueba-kdbx", 0).unwrap());
+        check_fixture(&parse(KDBX31, Some("prueba-kdbx"), None, 0).unwrap());
     }
 
     #[test]
     fn wrong_password_is_reported_as_such() {
         assert_eq!(
-            parse(KDBX31, "otra", 0).unwrap_err(),
+            parse(KDBX31, Some("otra"), None, 0).unwrap_err(),
             Error::WrongCredentials
         );
     }
@@ -763,7 +862,7 @@ mod tests {
     fn truncated_or_tampered_files_fail_cleanly() {
         for cut in [12, 100, KDBX31.len() / 2, KDBX31.len() - 1] {
             assert!(
-                parse(&KDBX31[..cut], "prueba-kdbx", 0).is_err(),
+                parse(&KDBX31[..cut], Some("prueba-kdbx"), None, 0).is_err(),
                 "cut at {cut}"
             );
         }
@@ -772,8 +871,84 @@ mod tests {
         for pos in (300..KDBX31.len() - 64).step_by(150) {
             let mut tampered = KDBX31.to_vec();
             tampered[pos] ^= 1;
-            assert!(parse(&tampered, "prueba-kdbx", 0).is_err(), "byte {pos}");
+            assert!(
+                parse(&tampered, Some("prueba-kdbx"), None, 0).is_err(),
+                "byte {pos}"
+            );
         }
+    }
+
+    /// Same XML, created with `keepassxc-cli import -p --set-key-file prueba.keyx` (password
+    /// plus key file) and without -p (key file only). prueba.keyx is KeePassXC's XML v2.0.
+    const WITH_KEY_FILE: &[u8] = include_bytes!("testdata/keepassxc-keyfile.kdbx");
+    const KEY_FILE_ONLY: &[u8] = include_bytes!("testdata/keepassxc-keyfile-only.kdbx");
+    const KEY_FILE: &[u8] = include_bytes!("testdata/prueba.keyx");
+
+    #[test]
+    fn keepassxc_password_and_key_file() {
+        check_fixture(&parse(WITH_KEY_FILE, Some("prueba-kdbx"), Some(KEY_FILE), 0).unwrap());
+        assert_eq!(
+            parse(WITH_KEY_FILE, Some("prueba-kdbx"), None, 0).unwrap_err(),
+            Error::WrongCredentials
+        );
+        assert_eq!(
+            parse(WITH_KEY_FILE, None, Some(KEY_FILE), 0).unwrap_err(),
+            Error::WrongCredentials
+        );
+    }
+
+    #[test]
+    fn keepassxc_key_file_only() {
+        check_fixture(&parse(KEY_FILE_ONLY, None, Some(KEY_FILE), 0).unwrap());
+        // From the generic entry point an empty password with a key file means "no password".
+        check_fixture(
+            &super::super::parse_with_credentials(KEY_FILE_ONLY, Some(""), Some(KEY_FILE), 0)
+                .unwrap(),
+        );
+        assert_eq!(
+            parse(KEY_FILE_ONLY, None, Some(b"otro fichero"), 0).unwrap_err(),
+            Error::WrongCredentials
+        );
+    }
+
+    /// Expected keys computed independently (Python's hashlib/base64) from the KeePass formats.
+    #[test]
+    fn key_file_formats() {
+        let raw: Vec<u8> = (0u8..32).collect();
+        assert_eq!(key_file_key(&raw).unwrap().to_vec(), raw, "32 raw bytes");
+        assert_eq!(
+            key_file_key(hex::encode(&raw).as_bytes()).unwrap().to_vec(),
+            raw,
+            "64 hex characters"
+        );
+        let v1 = r#"<?xml version="1.0"?><KeyFile><Meta><Version>1.00</Version></Meta><Key><Data>AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=</Data></Key></KeyFile>"#;
+        assert_eq!(
+            key_file_key(v1.as_bytes()).unwrap().to_vec(),
+            raw,
+            "XML v1.0"
+        );
+        let other = b"cualquier fichero que no sea un formato de clave";
+        assert_eq!(
+            hex::encode(*key_file_key(other).unwrap()),
+            "5ebff97d9a2b92f9568bd36862ead137d15aa0a12afb66ea0be6f46d1b12f984",
+            "any other file: SHA-256",
+        );
+        let v2 = key_file_key(KEY_FILE).unwrap();
+        assert_eq!(
+            hex::encode_upper(*v2),
+            "D9995D963C987AA29E5DE77457997E09466E3EB259CCFF5C03C6D82154E91AD0",
+            "XML v2.0"
+        );
+        let tampered = std::str::from_utf8(KEY_FILE)
+            .unwrap()
+            .replace("A678D36A", "00000000");
+        assert!(
+            key_file_key(tampered.as_bytes())
+                .unwrap_err()
+                .to_string()
+                .contains("damaged"),
+            "v2 hash is checked"
+        );
     }
 
     #[test]
