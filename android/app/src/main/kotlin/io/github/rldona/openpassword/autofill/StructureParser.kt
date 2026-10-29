@@ -10,6 +10,19 @@ data class LoginRequest(val target: FillTarget, val username: AutofillId?, val p
 }
 
 object StructureParser {
+    /** The text currently in the field [id], searching every screen of the request. */
+    fun textValue(structures: List<AssistStructure>, id: AutofillId): String? {
+        fun find(node: AssistStructure.ViewNode): String? {
+            if (node.autofillId == id) return node.autofillValue?.takeIf { it.isText }?.textValue?.toString()
+            for (i in 0 until node.childCount) find(node.getChildAt(i))?.let { return it }
+            return null
+        }
+        for (structure in structures.asReversed()) {
+            for (i in 0 until structure.windowNodeCount) find(structure.getWindowNodeAt(i).rootViewNode)?.let { return it }
+        }
+        return null
+    }
+
     /** Null if there is nothing to fill, or the request comes from OpenPassword itself. */
     fun parse(structure: AssistStructure, ownPackage: String): LoginRequest? {
         val packageName = structure.activityComponent?.packageName ?: return null

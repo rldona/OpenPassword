@@ -38,6 +38,14 @@
             android:taskAffinity=""
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- Opened after "save to OpenPassword" to confirm a login typed into another app. -->
+        <activity
+            android:name=".autofill.SaveLoginActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- Only Android itself can bind to it (BIND_AUTOFILL_SERVICE is a system permission). -->
         <service
             android:name=".autofill.OpAutofillService"

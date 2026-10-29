@@ -1,11 +1,13 @@
 package io.github.rldona.openpassword.autofill
 
+import android.app.PendingIntent
 import android.os.CancellationSignal
 import android.service.autofill.AutofillService
 import android.service.autofill.FillCallback
 import android.service.autofill.FillRequest
 import android.service.autofill.FillResponse
 import android.service.autofill.SaveCallback
+import android.service.autofill.SaveInfo
 import android.service.autofill.SaveRequest
 import io.github.rldona.openpassword.OpenPasswordApp
 import io.github.rldona.openpassword.core.ItemKindRecord
@@ -42,13 +44,41 @@ class OpAutofillService : AutofillService() {
             }
             val openText = if (state is SessionState.Unlocked) "Buscar en OpenPassword" else "Desbloquear OpenPassword"
             response.addDataset(Datasets.openApp(this@OpAutofillService, login, openText))
+            // Ask Android to offer "save to OpenPassword" when the user submits a password.
+            login.password?.let { passwordId ->
+                val types = SaveInfo.SAVE_DATA_TYPE_PASSWORD or (if (login.username != null) SaveInfo.SAVE_DATA_TYPE_USERNAME else 0)
+                val save = SaveInfo.Builder(types, arrayOf(passwordId))
+                    .apply { login.username?.let { setOptionalIds(arrayOf(it)) } }
+                    // Apps often hide the form instead of finishing the activity after login.
+                    .setFlags(SaveInfo.FLAG_SAVE_ON_ALL_VIEWS_INVISIBLE)
+                    .build()
+                response.setSaveInfo(save)
+            }
             callback.onSuccess(response.build())
         }
         cancellationSignal.setOnCancelListener { job.cancel() }
     }
 
-    // Saving new logins from other apps comes later; nothing is offered for now.
-    override fun onSaveRequest(request: SaveRequest, callback: SaveCallback) = callback.onSuccess()
+    /**
+     * The user accepted "save to OpenPassword". The values stay in this process's memory;
+     * the confirmation window gets only a token. Nothing is stored until the user confirms.
+     */
+    override fun onSaveRequest(request: SaveRequest, callback: SaveCallback) {
+        val structures = request.fillContexts.map { it.structure }
+        val login = structures.lastOrNull()?.let { StructureParser.parse(it, packageName) }
+        val password = login?.password?.let { StructureParser.textValue(structures, it) }
+        if (login == null || password.isNullOrEmpty()) return callback.onSuccess()
+        val username = login.username?.let { StructureParser.textValue(structures, it) }.orEmpty()
+
+        val token = PendingSaves.put(PendingSave(login.target, username, password))
+        val pending = PendingIntent.getActivity(
+            this,
+            token.hashCode(),
+            SaveLoginActivity.intent(this, token),
+            PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        callback.onSuccess(pending.intentSender)
+    }
 
     override fun onDestroy() {
         scope.cancel()
