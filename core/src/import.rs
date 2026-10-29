@@ -1,7 +1,8 @@
 //! Import from other password managers' plaintext exports.
 //!
 //! Supported: CSV from Chrome / Google Password Manager, Firefox, Bitwarden and 1Password
-//! (columns are matched by name, so similar CSVs work too) and Bitwarden's unencrypted JSON.
+//! (columns are matched by name, so similar CSVs work too), Bitwarden's unencrypted JSON
+//! and 1Password's `.1pux` export (a ZIP with `export.data` in JSON).
 //! The input is plaintext secrets: callers should offer to delete the file afterwards.
 
 use serde_json::Value;
@@ -13,6 +14,7 @@ use crate::{Error, Result};
 pub enum ImportFormat {
     Csv,
     BitwardenJson,
+    OnePassword1pux,
 }
 
 #[derive(Debug)]
@@ -29,6 +31,9 @@ const MAX_INPUT: usize = 32 * 1024 * 1024;
 pub fn parse(bytes: &[u8], now: u64) -> Result<Imported> {
     if bytes.len() > MAX_INPUT {
         return Err(Error::InvalidInput("file too large to import"));
+    }
+    if bytes.starts_with(b"PK\x03\x04") {
+        return parse_1pux(bytes, now);
     }
     let text = std::str::from_utf8(bytes)
         .map_err(|_| Error::InvalidInput("the file is not UTF-8 text"))?;
@@ -356,23 +361,52 @@ fn parse_bitwarden_json(text: &str, now: u64) -> Result<Imported> {
     })
 }
 
-fn card_item(name: &str, card: &Value, notes: &str, favorite: bool, now: u64) -> Option<Item> {
-    let number: String = s(card, "number")
-        .chars()
-        .filter(char::is_ascii_digit)
-        .collect();
-    let (month, year) = (s(card, "expMonth"), s(card, "expYear"));
+fn card_item(name: &str, bw: &Value, notes: &str, favorite: bool, now: u64) -> Option<Item> {
+    let (month, year) = (s(bw, "expMonth"), s(bw, "expYear"));
     let expiry = match (month.parse::<u32>(), year.trim()) {
         (Ok(m), y) if (1..=12).contains(&m) && y.len() >= 2 => {
             format!("{m:02}/{}", &y[y.len() - 2..])
         }
         _ => String::new(),
     };
+    let title = if name.trim().is_empty() {
+        s(bw, "brand")
+    } else {
+        name
+    };
+    card(
+        Card {
+            title,
+            holder: s(bw, "cardholderName"),
+            number: s(bw, "number"),
+            expiry: &expiry,
+            cvv: s(bw, "code"),
+            pin: "",
+        },
+        notes,
+        favorite,
+        now,
+    )
+}
+
+struct Card<'a> {
+    title: &'a str,
+    holder: &'a str,
+    number: &'a str,
+    /// Already "MM/AA".
+    expiry: &'a str,
+    cvv: &'a str,
+    pin: &'a str,
+}
+
+fn card(c: Card<'_>, notes: &str, favorite: bool, now: u64) -> Option<Item> {
+    let number: String = c.number.chars().filter(char::is_ascii_digit).collect();
     let fields: Vec<Field> = [
-        field("Titular", FieldKind::Text, s(card, "cardholderName")),
+        field("Titular", FieldKind::Text, c.holder),
         field("Número", FieldKind::CardNumber, &number),
-        field("Caducidad (MM/AA)", FieldKind::Date, &expiry),
-        field("CVV", FieldKind::Concealed, s(card, "code")),
+        field("Caducidad (MM/AA)", FieldKind::Date, c.expiry),
+        field("CVV", FieldKind::Concealed, c.cvv),
+        field("PIN", FieldKind::Pin, c.pin),
     ]
     .into_iter()
     .flatten()
@@ -381,17 +415,194 @@ fn card_item(name: &str, card: &Value, notes: &str, favorite: bool, now: u64) ->
         return None;
     }
     let subtitle = (number.len() >= 4).then(|| format!("•••• {}", &number[number.len() - 4..]));
-    let title = if name.trim().is_empty() {
-        s(card, "brand")
-    } else {
-        name
-    };
     Some(Item {
-        overview: overview(ItemKind::Card, title, subtitle, vec![], favorite, now),
+        overview: overview(ItemKind::Card, c.title, subtitle, vec![], favorite, now),
         details: ItemDetails {
             fields,
             notes: notes.trim().to_owned(),
         },
+    })
+}
+
+// ---------------------------------------------------------------- 1Password .1pux
+
+/// A section field's value: 1Password stores it as `{"<kind>": value}`.
+fn onepux_value(v: &Value) -> Option<(&str, String)> {
+    let (kind, inner) = v.as_object()?.iter().next()?;
+    let text = match inner {
+        Value::String(s) => s.clone(),
+        // monthYear: 202908 → "08/29".
+        Value::Number(n) if kind == "monthYear" => {
+            let ym = n.as_u64()?;
+            format!("{:02}/{:02}", ym % 100, (ym / 100) % 100)
+        }
+        Value::Number(n) => n.to_string(),
+        Value::Object(o) => o.values().find_map(Value::as_str)?.to_owned(),
+        _ => return None,
+    };
+    Some((kind.as_str(), text))
+}
+
+fn parse_1pux(bytes: &[u8], now: u64) -> Result<Imported> {
+    use std::io::Read;
+    let damaged = || Error::InvalidInput("the ZIP file is damaged");
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).map_err(|_| damaged())?;
+    let mut data = Vec::new();
+    {
+        let entry = archive
+            .by_name("export.data")
+            .map_err(|_| Error::InvalidInput("not a 1Password export: no export.data"))?;
+        // Bounded read: a crafted ZIP cannot inflate past the import limit.
+        entry
+            .take(MAX_INPUT as u64 + 1)
+            .read_to_end(&mut data)
+            .map_err(|_| damaged())?;
+    }
+    if data.len() > MAX_INPUT {
+        return Err(Error::InvalidInput("file too large to import"));
+    }
+    let root: Value = serde_json::from_slice(&data)
+        .map_err(|_| Error::InvalidInput("the JSON file is not valid"))?;
+    data.fill(0);
+
+    let mut items = Vec::new();
+    let mut skipped = 0;
+    let accounts = root
+        .get("accounts")
+        .and_then(Value::as_array)
+        .ok_or(Error::InvalidInput("not a 1Password export: no accounts"))?;
+    let all = accounts
+        .iter()
+        .flat_map(|a| {
+            a.get("vaults")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+        })
+        .flat_map(|v| {
+            v.get("items")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+        });
+
+    for e in all {
+        if e.get("state")
+            .and_then(Value::as_str)
+            .is_some_and(|st| st != "active")
+        {
+            skipped += 1;
+            continue;
+        }
+        let o = e.get("overview").unwrap_or(&Value::Null);
+        let d = e.get("details").unwrap_or(&Value::Null);
+        let title = s(o, "title");
+        let notes = s(d, "notesPlain");
+        let favorite = e.get("favIndex").and_then(Value::as_u64).unwrap_or(0) > 0;
+        // (id, title, kind, value). Card fields are found by id ("ccnum", "cvv"…); custom
+        // fields have random ids, so their title is what the user named them.
+        let section_fields: Vec<(&str, &str, &str, String)> = d
+            .get("sections")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .flat_map(|sec| {
+                sec.get("fields")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+            })
+            .filter_map(|f| {
+                let (kind, value) = onepux_value(f.get("value")?)?;
+                Some((s(f, "id"), s(f, "title"), kind, value))
+            })
+            .collect();
+        let by_id = |id: &str| {
+            section_fields
+                .iter()
+                .find(|f| f.0 == id)
+                .map(|f| f.3.as_str())
+                .unwrap_or("")
+        };
+
+        let item = match s(e, "categoryUuid") {
+            // Login and standalone Password.
+            "001" | "005" => {
+                let login_fields = d.get("loginFields").and_then(Value::as_array);
+                let designated = |which: &str| {
+                    login_fields
+                        .into_iter()
+                        .flatten()
+                        .find(|f| s(f, "designation") == which)
+                        .map(|f| s(f, "value"))
+                        .unwrap_or("")
+                };
+                let url = if s(o, "url").is_empty() {
+                    o.get("urls")
+                        .and_then(Value::as_array)
+                        .and_then(|u| u.first())
+                        .map(|u| s(u, "url"))
+                        .unwrap_or("")
+                } else {
+                    s(o, "url")
+                };
+                let password = if designated("password").is_empty() {
+                    s(d, "password")
+                } else {
+                    designated("password")
+                };
+                let totp = section_fields
+                    .iter()
+                    .find(|f| f.2 == "totp")
+                    .map(|f| f.3.as_str())
+                    .unwrap_or("");
+                let extra = section_fields
+                    .iter()
+                    .filter(|f| f.2 != "totp")
+                    .map(|f| {
+                        let label = if f.1.trim().is_empty() { "Campo" } else { f.1 };
+                        (label.to_owned(), f.3.clone(), f.2 == "concealed")
+                    })
+                    .collect();
+                login_item(
+                    Login {
+                        title,
+                        url,
+                        username: designated("username"),
+                        password,
+                        totp,
+                        notes,
+                        favorite,
+                        extra,
+                    },
+                    now,
+                )
+            }
+            "002" => card(
+                Card {
+                    title,
+                    holder: by_id("cardholder"),
+                    number: by_id("ccnum"),
+                    expiry: by_id("expiry"),
+                    cvv: by_id("cvv"),
+                    pin: by_id("pin"),
+                },
+                notes,
+                favorite,
+                now,
+            ),
+            "003" => note_item(title, notes, favorite, now),
+            _ => None,
+        };
+        match item {
+            Some(i) => items.push(i),
+            None => skipped += 1,
+        }
+    }
+    Ok(Imported {
+        format: ImportFormat::OnePassword1pux,
+        items,
+        skipped,
     })
 }
 
@@ -514,6 +725,106 @@ mod tests {
         assert_eq!(value(card, "Número"), "4940192355674821");
         assert_eq!(value(card, "Caducidad (MM/AA)"), "08/29");
         assert_eq!(value(card, "CVV"), "317");
+    }
+
+    fn onepux(export_data: &str) -> Vec<u8> {
+        use std::io::Write;
+        let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        let opts = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+        zip.start_file("export.attributes", opts).unwrap();
+        zip.write_all(br#"{"version":3}"#).unwrap();
+        zip.start_file("export.data", opts).unwrap();
+        zip.write_all(export_data.as_bytes()).unwrap();
+        zip.finish().unwrap().into_inner()
+    }
+
+    #[test]
+    fn onepassword_1pux() {
+        let data = r#"{"accounts":[{"attrs":{"name":"Personal"},"vaults":[{"attrs":{"name":"Privado"},"items":[
+          {"uuid":"a","favIndex":1,"state":"active","categoryUuid":"001",
+           "overview":{"title":"GitHub","url":"https://github.com","tags":[]},
+           "details":{"loginFields":[
+              {"value":"raul","name":"login","fieldType":"T","designation":"username"},
+              {"value":"gh-pass","name":"password","fieldType":"P","designation":"password"}],
+            "notesPlain":"cuenta personal",
+            "sections":[{"title":"","fields":[
+              {"title":"one-time password","id":"TOTP_x","value":{"totp":"otpauth://totp/GitHub:raul?secret=JBSWY3DPEHPK3PXP"}},
+              {"title":"PIN de recuperación","id":"k3j4h5g6","value":{"concealed":"8841"}},
+              {"title":"Pregunta","id":"q9w8e7","value":{"string":"Mi perro"}}]}]}},
+          {"uuid":"b","favIndex":0,"state":"active","categoryUuid":"002","overview":{"title":"Visa"},
+           "details":{"sections":[{"title":"","fields":[
+              {"title":"cardholder name","id":"cardholder","value":{"string":"RAUL"}},
+              {"title":"number","id":"ccnum","value":{"creditCardNumber":"4242 4242 4242 4242"}},
+              {"title":"verification number","id":"cvv","value":{"concealed":"123"}},
+              {"title":"expiry date","id":"expiry","value":{"monthYear":202908}},
+              {"title":"PIN","id":"pin","value":{"concealed":"0000"}}]}]}},
+          {"uuid":"c","state":"active","categoryUuid":"003","overview":{"title":"Nota"},"details":{"notesPlain":"texto"}},
+          {"uuid":"d","state":"active","categoryUuid":"005","overview":{"title":"Wi-Fi casa"},"details":{"password":"wifi-pass"}},
+          {"uuid":"e","state":"archived","categoryUuid":"001","overview":{"title":"Vieja"},"details":{"loginFields":[{"designation":"password","value":"x"}]}},
+          {"uuid":"f","state":"active","categoryUuid":"004","overview":{"title":"Identidad"},"details":{}}
+        ]}]}]}"#;
+        let out = parse(&onepux(data), 0).unwrap();
+        assert_eq!(out.format, ImportFormat::OnePassword1pux);
+        assert_eq!(out.items.len(), 4);
+        assert_eq!(out.skipped, 2, "archived item and identity");
+
+        let gh = &out.items[0];
+        assert!(gh.overview.favorite);
+        assert_eq!(gh.overview.urls, vec!["https://github.com"]);
+        assert_eq!(value(gh, "Usuario"), "raul");
+        assert_eq!(value(gh, "Contraseña"), "gh-pass");
+        assert!(value(gh, "Código TOTP").starts_with("otpauth://totp/"));
+        assert_eq!(gh.details.notes, "cuenta personal");
+        let pin = gh
+            .details
+            .fields
+            .iter()
+            .find(|f| f.label == "PIN de recuperación")
+            .expect("labelled by title, not by id");
+        assert_eq!(
+            (pin.kind, pin.value.as_str()),
+            (FieldKind::Concealed, "8841")
+        );
+        assert_eq!(value(gh, "Pregunta"), "Mi perro");
+
+        let visa = &out.items[1];
+        assert_eq!(visa.overview.kind, ItemKind::Card);
+        assert_eq!(value(visa, "Número"), "4242424242424242");
+        assert_eq!(value(visa, "Caducidad (MM/AA)"), "08/29");
+        assert_eq!(value(visa, "CVV"), "123");
+        assert_eq!(value(visa, "PIN"), "0000");
+
+        assert_eq!(out.items[2].overview.kind, ItemKind::SecureNote);
+        assert_eq!(value(&out.items[3], "Contraseña"), "wifi-pass");
+    }
+
+    #[test]
+    fn onepux_errors_and_zip_bombs() {
+        assert!(parse(b"PK\x03\x04 not a zip", 0).is_err());
+        let no_data = {
+            use std::io::Write;
+            let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+            zip.start_file("otra.txt", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            zip.write_all(b"x").unwrap();
+            zip.finish().unwrap().into_inner()
+        };
+        assert!(
+            parse(&no_data, 0)
+                .unwrap_err()
+                .to_string()
+                .contains("export.data")
+        );
+        // 40 MiB of spaces compress to a few KiB: must be refused, not inflated into memory.
+        let bomb = onepux(&" ".repeat(40 * 1024 * 1024));
+        assert!(bomb.len() < 1024 * 1024);
+        assert!(
+            parse(&bomb, 0)
+                .unwrap_err()
+                .to_string()
+                .contains("too large")
+        );
     }
 
     #[test]

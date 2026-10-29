@@ -397,7 +397,7 @@ pub struct ImportedItemRecord {
 
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct ImportResult {
-    /// "csv" or "bitwarden-json".
+    /// "csv", "bitwarden-json" or "1password-1pux".
     pub format: String,
     pub items: Vec<ImportedItemRecord>,
     pub skipped: u32,
@@ -411,6 +411,7 @@ pub fn parse_import(bytes: Vec<u8>, now: u64) -> Result<ImportResult> {
         format: match imported.format {
             op_core::import::ImportFormat::Csv => "csv",
             op_core::import::ImportFormat::BitwardenJson => "bitwarden-json",
+            op_core::import::ImportFormat::OnePassword1pux => "1password-1pux",
         }
         .into(),
         items: imported
