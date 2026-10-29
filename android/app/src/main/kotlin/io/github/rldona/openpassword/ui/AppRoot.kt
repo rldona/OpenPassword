@@ -5,12 +5,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.rldona.openpassword.backup.AutoBackup
 import io.github.rldona.openpassword.core.ItemKindRecord
+import io.github.rldona.openpassword.health.HealthReport
+import io.github.rldona.openpassword.health.HealthScreen
 import io.github.rldona.openpassword.security.SensitiveClipboard
 import io.github.rldona.openpassword.security.strongBiometricsAvailable
 import io.github.rldona.openpassword.session.SessionState
@@ -29,6 +32,7 @@ private sealed interface Screen {
     data class Detail(val id: String) : Screen
     data class Edit(val id: String?, val kind: ItemKindRecord) : Screen
     data object Settings : Screen
+    data object Health : Screen
 }
 
 @Composable
@@ -60,6 +64,8 @@ private fun UnlockedRoot(entries: List<VaultEntry>, session: VaultSession, clipb
     fun find(id: String) = entries.firstOrNull { it.id == id }
 
     BackHandler(enabled = stack.size > 1) { pop() }
+    // Recomputed whenever items change. Offline, and only while unlocked.
+    val health by produceState(HealthReport.EMPTY, entries) { value = runCatching { session.healthReport() }.getOrDefault(HealthReport.EMPTY) }
 
     when (val top = stack.last()) {
         Screen.List -> VaultListScreen(
@@ -68,6 +74,8 @@ private fun UnlockedRoot(entries: List<VaultEntry>, session: VaultSession, clipb
             onAdd = { push(Screen.Edit(null, it)) },
             onLock = session::lock,
             onSettings = { push(Screen.Settings) },
+            health = health,
+            onHealth = { push(Screen.Health) },
         )
         is Screen.Detail -> find(top.id)?.let { entry ->
             ItemDetailScreen(
@@ -88,6 +96,7 @@ private fun UnlockedRoot(entries: List<VaultEntry>, session: VaultSession, clipb
             },
             onCancel = ::pop,
         )
+        Screen.Health -> HealthScreen(health, entries, onOpen = { push(Screen.Detail(it.id)) }, onBack = ::pop)
         Screen.Settings -> SettingsScreen(session = session, autoBackup = autoBackup, onBack = ::pop)
     }
 }

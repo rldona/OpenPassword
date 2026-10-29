@@ -6,6 +6,8 @@ import android.os.Looper
 import android.os.SystemClock
 import android.security.keystore.KeyPermanentlyInvalidatedException
 import io.github.rldona.openpassword.core.EncryptedItemRecord
+import io.github.rldona.openpassword.core.FieldKindRecord
+import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.core.ItemDetailsRecord
 import io.github.rldona.openpassword.core.ItemOverviewRecord
 import io.github.rldona.openpassword.core.KdfProfile
@@ -14,6 +16,9 @@ import io.github.rldona.openpassword.core.Vault
 import io.github.rldona.openpassword.core.normalizeSecretKey
 import io.github.rldona.openpassword.core.openBackup
 import io.github.rldona.openpassword.data.VaultStorage
+import io.github.rldona.openpassword.health.HealthInput
+import io.github.rldona.openpassword.health.HealthReport
+import io.github.rldona.openpassword.health.VaultHealth
 import io.github.rldona.openpassword.security.BiometricKeyStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -297,6 +302,25 @@ class VaultSession(
         storage.delete(entry.id)
         updateEntries { entries -> entries.filterNot { it.id == entry.id } }
     }.also { onChanged() }
+
+    /** Decrypts every item's details to check them, then drops them. Offline: nothing leaves the device. */
+    suspend fun healthReport(): HealthReport = withVault { v ->
+        val entries = (_state.value as? SessionState.Unlocked)?.entries.orEmpty()
+        val inputs = entries.mapNotNull { entry ->
+            val kind = entry.overview.kind
+            if (kind != ItemKindRecord.LOGIN && kind != ItemKindRecord.CARD) return@mapNotNull null
+            val details = runCatching { v.decryptDetails(entry.record) }.getOrNull() ?: return@mapNotNull null
+            HealthInput(
+                id = entry.id,
+                isLogin = kind == ItemKindRecord.LOGIN,
+                isCard = kind == ItemKindRecord.CARD,
+                passwords = details.fields.filter { it.kind == FieldKindRecord.CONCEALED && it.value.isNotBlank() }.map { it.value },
+                cardExpiry = details.fields.firstOrNull { it.kind == FieldKindRecord.DATE }?.value,
+                updatedAt = entry.overview.updatedAt.toLong(),
+            )
+        }
+        VaultHealth.analyze(inputs, java.time.LocalDate.now())
+    }
 
     suspend fun exportBackup(): ByteArray = withVault { v ->
         v.exportBackup(storage.items(), (System.currentTimeMillis() / 1000).toULong())

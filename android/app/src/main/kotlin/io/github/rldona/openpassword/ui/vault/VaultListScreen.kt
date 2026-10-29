@@ -42,6 +42,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.rldona.openpassword.core.ItemKindRecord
+import io.github.rldona.openpassword.health.HealthBanner
+import io.github.rldona.openpassword.health.HealthReport
 import io.github.rldona.openpassword.session.VaultEntry
 import io.github.rldona.openpassword.ui.Avatar
 import io.github.rldona.openpassword.ui.initialOf
@@ -56,6 +58,8 @@ fun VaultListScreen(
     onAdd: (ItemKindRecord) -> Unit,
     onLock: () -> Unit,
     onSettings: () -> Unit,
+    health: HealthReport = HealthReport.EMPTY,
+    onHealth: () -> Unit = {},
 ) {
     // The query is not a secret, but it can reveal what you look for: keep it out of saved state too.
     var query by remember { mutableStateOf("") }
@@ -90,6 +94,7 @@ fun VaultListScreen(
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
+            if (query.isEmpty()) HealthBanner(health, onHealth, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
             if (entries.isNotEmpty()) {
                 OutlinedTextField(
                     value = query,
