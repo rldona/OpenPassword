@@ -7,7 +7,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use op_core::vault::{Field, FieldKind, ItemDetails, ItemKind, ItemOverview};
+use op_core::vault::{Field, FieldKind, ItemDetails, ItemKind, ItemOverview, PasswordChange};
 use op_core::{EncryptedItem, Item, KdfParams, Key, SecretKey, UnlockedVault, VaultHeader, backup};
 
 uniffi::setup_scaffolding!();
@@ -124,6 +124,16 @@ pub struct FieldRecord {
 pub struct ItemDetailsRecord {
     pub fields: Vec<FieldRecord>,
     pub notes: String,
+    /// Previous passwords, newest first. Ignored by `update_item`, which computes it.
+    #[uniffi(default = [])]
+    pub history: Vec<PasswordChangeRecord>,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct PasswordChangeRecord {
+    pub label: String,
+    pub value: String,
+    pub changed_at: u64,
 }
 
 /// An item as stored by the app. Opaque except for `id` and `revision`.
@@ -179,6 +189,15 @@ impl From<&ItemDetails> for ItemDetailsRecord {
                 })
                 .collect(),
             notes: d.notes.clone(),
+            history: d
+                .history
+                .iter()
+                .map(|h| PasswordChangeRecord {
+                    label: h.label.clone(),
+                    value: h.value.clone(),
+                    changed_at: h.changed_at,
+                })
+                .collect(),
         }
     }
 }
@@ -192,6 +211,15 @@ impl From<ItemDetailsRecord> for ItemDetails {
                 .map(|f| Field::new(f.label, f.kind.into(), f.value))
                 .collect(),
             notes: d.notes,
+            history: d
+                .history
+                .into_iter()
+                .map(|h| PasswordChange {
+                    label: h.label,
+                    value: h.value,
+                    changed_at: h.changed_at,
+                })
+                .collect(),
         }
     }
 }
@@ -493,6 +521,7 @@ mod tests {
                 value: "2958".into(),
             }],
             notes: String::new(),
+            history: Vec::new(),
         }
     }
 

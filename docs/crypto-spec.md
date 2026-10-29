@@ -123,9 +123,13 @@ Cada elemento se guarda como:
 | `revision` | u64, empieza en 1 y sube en cada edición |
 | `wrapped_item_key` | IK sellada con la VK |
 | `overview` | Sellado con la IK: tipo, título, subtítulo, URLs, etiquetas, favorito, fechas. Se descifra al desbloquear para la lista y la búsqueda |
-| `details` | Sellado con la IK: campos y notas. Se descifra solo al abrir el elemento |
+| `details` | Sellado con la IK: campos, notas e historial de contraseñas. Se descifra solo al abrir el elemento |
 
 Una edición mantiene la IK, incrementa `revision` y vuelve a sellar `overview` y `details` con nonces nuevos.
+
+### Historial de contraseñas
+
+En logins, Wi-Fi y secretos, al editar, el núcleo descifra los `details` de la revisión anterior y añade a `history` cada campo oculto cuyo valor ya no está con la misma etiqueta: `{label, value, changed_at}`, con `changed_at` igual al `updated_at` de la edición. Se guardan los 10 más recientes, del más nuevo al más antiguo. El historial lo calcula el núcleo, no la app, para que un error de la interfaz no pueda borrarlo. Las tarjetas no guardan historial: un CVV antiguo no aporta nada y es un secreto más. Si `history` está vacío no se serializa, así que los elementos sin historial cifran lo mismo que antes.
 
 ## 8. Cambio de contraseña o de clave secreta
 

@@ -25,7 +25,7 @@ class ItemKindsTest {
     @Test
     fun cardSubtitleShowsOnlyTheLastFourDigits() {
         val subtitle = ItemKindRecord.CARD.subtitleFor(card("4940 1923 5567 4821"))
-        assertEquals("•••• 4821", subtitle)
+        assertEquals("Visa •••• 4821", subtitle)
         assertFalse(subtitle!!.contains("4940"))
     }
 

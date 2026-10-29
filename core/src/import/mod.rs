@@ -184,6 +184,7 @@ fn login_item(l: Login<'_>, now: u64) -> Option<Item> {
         details: ItemDetails {
             fields,
             notes: l.notes.trim().to_owned(),
+            history: Vec::new(),
         },
     })
 }
@@ -197,6 +198,7 @@ fn note_item(title: &str, notes: &str, favorite: bool, now: u64) -> Option<Item>
         details: ItemDetails {
             fields: vec![],
             notes: notes.trim().to_owned(),
+            history: Vec::new(),
         },
     })
 }
@@ -466,6 +468,7 @@ fn card(c: Card<'_>, notes: &str, favorite: bool, now: u64) -> Option<Item> {
         details: ItemDetails {
             fields,
             notes: notes.trim().to_owned(),
+            history: Vec::new(),
         },
     })
 }

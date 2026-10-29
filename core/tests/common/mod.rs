@@ -36,6 +36,7 @@ pub fn card() -> Item {
                 Field::new("PIN", FieldKind::Pin, "2958"),
             ],
             notes: String::new(),
+            history: Vec::new(),
         },
     }
 }
@@ -63,6 +64,7 @@ pub fn login() -> Item {
                 ),
             ],
             notes: "Códigos de recuperación en la caja fuerte.".into(),
+            history: Vec::new(),
         },
     }
 }
