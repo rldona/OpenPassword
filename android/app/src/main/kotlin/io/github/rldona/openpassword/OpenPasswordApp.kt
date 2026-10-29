@@ -2,7 +2,10 @@ package io.github.rldona.openpassword
 
 import android.app.ActivityManager
 import android.app.Application
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.provider.Settings
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -33,6 +36,17 @@ class OpenPasswordApp : Application() {
             override fun onStart(owner: LifecycleOwner) = session.onAppForegrounded()
             override fun onStop(owner: LifecycleOwner) = session.onAppBackgrounded()
         })
+        // For the whole process, not one activity: the vault can also be unlocked from the
+        // autofill window, and must lock when the screen turns off whichever screen did it.
+        registerReceiver(
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context, intent: Intent) {
+                    session.lock()
+                    clipboard.clearIfOurs()
+                }
+            },
+            IntentFilter(Intent.ACTION_SCREEN_OFF),
+        )
     }
 }
 

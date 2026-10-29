@@ -1,6 +1,8 @@
 package io.github.rldona.openpassword.session
 
 import android.content.SharedPreferences
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.security.keystore.KeyPermanentlyInvalidatedException
 import io.github.rldona.openpassword.core.EncryptedItemRecord
@@ -300,15 +302,26 @@ class VaultSession(
         lastInteraction = SystemClock.elapsedRealtime()
     }
 
+    /**
+     * Locks [BACKGROUND_TIMEOUT_MS] after the app leaves the screen, even if it never comes
+     * back: otherwise the key would stay in memory and autofill would keep offering logins.
+     */
     fun onAppBackgrounded() {
         backgroundedAt = SystemClock.elapsedRealtime()
+        mainHandler.removeCallbacks(backgroundLock)
+        mainHandler.postDelayed(backgroundLock, BACKGROUND_TIMEOUT_MS)
     }
 
     fun onAppForegrounded() {
+        mainHandler.removeCallbacks(backgroundLock)
+        // Backup check: delayed callbacks may not run while the device sleeps.
         val since = backgroundedAt?.let { SystemClock.elapsedRealtime() - it } ?: 0
         backgroundedAt = null
         if (since >= BACKGROUND_TIMEOUT_MS) lock()
     }
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val backgroundLock = Runnable { lock() }
 
     /** Called periodically while the app is visible. */
     fun lockIfIdle() {
