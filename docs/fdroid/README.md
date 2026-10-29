@@ -8,8 +8,11 @@ clave. Así los usuarios reciben siempre la misma firma, vengan de F-Droid o de 
 
 - Metadatos de tienda en `fastlane/metadata/android/` (español y inglés): título, descripciones y
   notas de la versión 1. F-Droid los lee directamente del repositorio. El icono se toma del APK.
-- APK reproducible, comprobado en macOS: dos copias del código en carpetas distintas generan el
-  mismo APK byte a byte (`./gradlew :app:assembleRelease -PsigningProperties=/nonexistent`).
+- APK reproducible **en Linux**, que es donde compila F-Droid: dos ejecuciones de la CI en máquinas
+  distintas generan el mismo APK byte a byte. En macOS también es reproducible entre carpetas, pero
+  **no coincide con el de Linux**: el enlazador del NDK guarda su propia ruta de compilación y Cargo
+  mezcla el sistema anfitrión en sus identificadores, y eso cambia `libop_ffi.so`. Por eso **el APK
+  que se publica es el que compila la CI**, firmado después en tu ordenador.
   - Las rutas de las dependencias (`~/.cargo/registry/…`) se reescriben a `/cargo/…`, así que el
     APK no incluye el nombre de usuario de quien compila.
   - El compilador de Rust está fijado en `rust-toolchain.toml` (1.99.1), y el NDK y Gradle están
@@ -31,14 +34,16 @@ clave. Así los usuarios reciben siempre la misma firma, vengan de F-Droid o de 
    git tag -a v0.1.0 -m "OpenPassword 0.1.0"
    git push origin v0.1.0
    ```
-3. **Compila y firma el APK** desde esa etiqueta, en una copia limpia:
+3. **Firma el APK de la CI** cuando termine la ejecución de la etiqueta (búscala con
+   `gh run list -R rldona/OpenPassword --branch v0.1.0`). El script descarga el APK sin firmar,
+   lo firma con tu clave local (v2 + v3, como Gradle) y comprueba el certificado:
    ```sh
-   cd android && ./gradlew :app:assembleRelease
-   cp app/build/outputs/apk/release/app-release.apk openpassword-0.1.0.apk
+   scripts/firmar-release.sh <id-de-la-ejecución> 0.1.0
    ```
+   No compiles el APK de la release en macOS: no coincidiría con el de F-Droid.
 4. **Crea la release en GitHub** con ese APK, con el nombre exacto que espera la receta:
    ```sh
-   gh release create v0.1.0 android/openpassword-0.1.0.apk --title "OpenPassword 0.1.0" --notes-file fastlane/metadata/android/es-ES/changelogs/1.txt
+   gh release create v0.1.0 openpassword-0.1.0.apk --title "OpenPassword 0.1.0" --notes-file fastlane/metadata/android/es-ES/changelogs/1.txt
    ```
 5. **Envía la receta a F-Droid**: haz un fork de https://gitlab.com/fdroid/fdroiddata con tu cuenta de
    GitLab, copia `io.github.rldona.openpassword.yml` a `metadata/` y abre una *merge request*. Su
@@ -49,9 +54,9 @@ clave. Así los usuarios reciben siempre la misma firma, vengan de F-Droid o de 
 - **NDK r30 en el servidor de F-Droid**: si aún no lo ofrecen, habrá que bajar `ndkVersion` (y el
   campo `ndk:`) a la versión más reciente que tengan y volver a comprobar la build.
 - **Versión del *srclib* `rustup`** disponible en fdroiddata (`rustup@1.28.2` es una suposición).
-- **Reproducibilidad entre Linux y macOS**: la CI de GitHub (Linux) imprime el SHA-256 del APK
-  sin firmar. Si coincide con el de una build local en macOS del mismo commit, lo más probable es
-  que el servidor de F-Droid también lo reproduzca.
+- **Que el servidor de F-Droid reproduzca el APK de la CI**: ambos son Linux con el mismo NDK, Rust
+  y Gradle, y dos máquinas de la CI ya coinciden, pero solo se confirma cuando F-Droid lo compile.
+  Su CI lo dirá en la *merge request*.
 - **Capturas de pantalla**: la app bloquea las capturas (`FLAG_SECURE`), así que no hay. Se pueden
   añadir más adelante en `fastlane/metadata/android/<idioma>/images/phoneScreenshots/`, generadas
   con datos de ejemplo.
