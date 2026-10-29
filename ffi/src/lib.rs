@@ -389,6 +389,42 @@ pub fn normalize_secret_key(input: String) -> Result<String> {
     Ok(SecretKey::parse(&input)?.to_display().to_string())
 }
 
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct ImportedItemRecord {
+    pub overview: ItemOverviewRecord,
+    pub details: ItemDetailsRecord,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct ImportResult {
+    /// "csv" or "bitwarden-json".
+    pub format: String,
+    pub items: Vec<ImportedItemRecord>,
+    pub skipped: u32,
+}
+
+/// Parses another manager's plaintext export. Nothing is stored: the app encrypts the items.
+#[uniffi::export]
+pub fn parse_import(bytes: Vec<u8>, now: u64) -> Result<ImportResult> {
+    let imported = op_core::import::parse(&bytes, now)?;
+    Ok(ImportResult {
+        format: match imported.format {
+            op_core::import::ImportFormat::Csv => "csv",
+            op_core::import::ImportFormat::BitwardenJson => "bitwarden-json",
+        }
+        .into(),
+        items: imported
+            .items
+            .iter()
+            .map(|i| ImportedItemRecord {
+                overview: (&i.overview).into(),
+                details: (&i.details).into(),
+            })
+            .collect(),
+        skipped: u32::try_from(imported.skipped).unwrap_or(u32::MAX),
+    })
+}
+
 /// The code to show for a TOTP field right now.
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct TotpCode {
@@ -516,6 +552,22 @@ mod tests {
             totp_code("nope!".into(), 0),
             Err(OpError::InvalidInput { .. })
         ));
+    }
+
+    #[test]
+    fn import_then_encrypt() {
+        let result = parse_import(
+            b"name,url,username,password\nGitHub,https://github.com,raul,pw\n".to_vec(),
+            5,
+        )
+        .unwrap();
+        assert_eq!(result.format, "csv");
+        let sk = generate_secret_key().unwrap();
+        let vault =
+            Vault::create("contraseña larga de prueba".into(), sk, KdfProfile::Minimum).unwrap();
+        let item = result.items[0].clone();
+        let enc = vault.encrypt_item(item.overview, item.details).unwrap();
+        assert_eq!(vault.decrypt_overview(enc).unwrap().title, "GitHub");
     }
 
     #[test]

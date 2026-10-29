@@ -7,6 +7,7 @@ import android.os.SystemClock
 import android.security.keystore.KeyPermanentlyInvalidatedException
 import io.github.rldona.openpassword.core.EncryptedItemRecord
 import io.github.rldona.openpassword.core.FieldKindRecord
+import io.github.rldona.openpassword.core.ImportedItemRecord
 import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.core.ItemDetailsRecord
 import io.github.rldona.openpassword.core.ItemOverviewRecord
@@ -31,6 +32,9 @@ import org.json.JSONObject
 import java.security.GeneralSecurityException
 import javax.crypto.Cipher
 import kotlin.math.min
+
+/** What an import from another password manager did. */
+data class ExternalImportSummary(val added: Int, val duplicates: Int)
 
 /** What an import into the current vault did. */
 data class ImportSummary(val added: Int, val updated: Int, val unchanged: Int)
@@ -302,6 +306,29 @@ class VaultSession(
         storage.delete(entry.id)
         updateEntries { entries -> entries.filterNot { it.id == entry.id } }
     }.also { onChanged() }
+
+    /**
+     * Encrypts items parsed from another manager's export under this vault's keys.
+     * Items already in the vault (same type, name, user and website) are skipped, so
+     * importing the same file twice does not duplicate anything.
+     */
+    suspend fun importExternal(items: List<ImportedItemRecord>): ExternalImportSummary = withVault { v ->
+        fun key(o: ItemOverviewRecord) = listOf(o.kind.name, o.title.trim().lowercase(), o.subtitle.orEmpty().lowercase(), o.urls.sorted().joinToString())
+        val existing = (_state.value as? SessionState.Unlocked)?.entries.orEmpty().map { key(it.overview) }.toMutableSet()
+        val added = mutableListOf<VaultEntry>()
+        var duplicates = 0
+        for (item in items) {
+            if (!existing.add(key(item.overview))) {
+                duplicates++
+                continue
+            }
+            val record = v.encryptItem(item.overview, item.details)
+            storage.upsert(record)
+            added += VaultEntry(record, item.overview)
+        }
+        updateEntries { it + added }
+        ExternalImportSummary(added.size, duplicates)
+    }.also { if (it.added > 0) onChanged() }
 
     /** Decrypts every item's details to check them, then drops them. Offline: nothing leaves the device. */
     suspend fun healthReport(): HealthReport = withVault { v ->

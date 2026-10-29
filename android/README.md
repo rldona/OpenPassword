@@ -15,6 +15,7 @@ Kotlin, Jetpack Compose y Material 3. Toda la criptografía la hace `op-core` (R
 - Exportar una copia cifrada `.opvault` donde elija el usuario. Se abre con `opvault decrypt`.
 - Copia automática a una carpeta elegida por el usuario (de su nube, Syncthing o tarjeta SD): unos segundos después de cada cambio y al desbloquear si la última tiene más de un día. Guarda las 10 últimas y solo borra sus propias copias (`openpassword-auto-…opvault`). Como cifrar exige el baúl abierto, con el baúl bloqueado no se hacen copias: las pendientes se hacen al desbloquear.
 - Salud del baúl, sin conexión: contraseñas débiles, contraseñas repetidas entre logins, logins sin modificar en más de un año y tarjetas caducadas o que caducan en los próximos 2 meses. Aparece un aviso encima de la lista solo cuando hay algo que corregir.
+- Importar de otro gestor: CSV de Chrome / Google, Firefox, Bitwarden y 1Password (las columnas se reconocen por su nombre) y JSON sin cifrar de Bitwarden (logins, tarjetas y notas). No duplica lo que ya existe y, como la exportación tiene las contraseñas en claro, ofrece borrar el fichero al terminar.
 - Restaurar una copia en un teléfono nuevo desde la bienvenida, con la clave secreta del kit y la contraseña maestra.
 - Importar una copia en el baúl actual: si es del mismo baúl se fusiona por revisión; si es de otro, sus elementos se vuelven a cifrar con las claves de este.
 - Ver la clave secreta de nuevo, tras volver a pedir la contraseña maestra.
@@ -22,7 +23,7 @@ Kotlin, Jetpack Compose y Material 3. Toda la criptografía la hace `op-core` (R
 - Códigos TOTP (verificación en dos pasos): se pega el enlace `otpauth://` o el secreto y el detalle muestra el código actual con su cuenta atrás. Se copia el código, nunca el secreto.
 - Autorrelleno en otras apps y en el navegador (Chrome: *Ajustes → Servicios de autocompletar → Autocompletar con otro servicio*).
 
-Pendiente (Fase 2): guardar logins nuevos desde el autorrelleno, escanear QR de TOTP e importadores.
+Pendiente (Fase 2): guardar logins nuevos desde el autorrelleno, escanear QR de TOTP, importar KeePass (KDBX) y 1Password (1PUX), y publicar en F-Droid.
 
 ## Seguridad que impone la build
 

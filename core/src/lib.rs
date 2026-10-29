@@ -9,6 +9,7 @@ pub mod backup;
 pub mod crypto;
 mod encoding;
 mod error;
+pub mod import;
 pub mod totp;
 pub mod vault;
 

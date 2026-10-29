@@ -81,6 +81,15 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
     var biometricOn by remember { mutableStateOf(session.isBiometricEnabled()) }
     var biometricBusy by remember { mutableStateOf(false) }
     var importBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var pendingExternal by remember { mutableStateOf<PendingImport?>(null) }
+    val externalLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            readExternalExport(context, uri)
+                .onSuccess { pendingExternal = it }
+                .onFailure { snackbar.showSnackbar(importErrorMessage(it)) }
+        }
+    }
     val backup by autoBackup.status.collectAsStateWithLifecycle()
     var backingUp by remember { mutableStateOf(false) }
     val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
@@ -201,6 +210,11 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                 modifier = Modifier.clickable { session.beforeSystemPicker(); importLauncher.launch(arrayOf("*/*")) },
             )
             ListItem(
+                headlineContent = { Text("Importar de otro gestor") },
+                supportingContent = { Text("CSV de Chrome, Google, Firefox, Bitwarden o 1Password, o el JSON sin cifrar de Bitwarden.") },
+                modifier = Modifier.clickable { session.beforeSystemPicker(); externalLauncher.launch(arrayOf("*/*")) },
+            )
+            ListItem(
                 headlineContent = { Text("Ver clave secreta") },
                 supportingContent = { Text("Para anotarla de nuevo. Te pediremos la contraseña maestra.") },
                 modifier = Modifier.clickable { askingPassword = true },
@@ -262,6 +276,13 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                 headlineContent = { Text("OpenPassword ${BuildConfigInfo.versionName(context)}") },
                 supportingContent = { Text("Software libre bajo GPL-3.0-or-later. github.com/rldona/OpenPassword\nFrases de paso con la lista de palabras de la EFF (CC BY 3.0 US).") },
             )
+        }
+    }
+
+    pendingExternal?.let { pending ->
+        ExternalImportDialogs(pending, session, context) { message ->
+            pendingExternal = null
+            if (message.isNotEmpty()) scope.launch { snackbar.showSnackbar(message) }
         }
     }
 
