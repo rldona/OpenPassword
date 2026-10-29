@@ -9,6 +9,7 @@ pub mod backup;
 pub mod crypto;
 mod encoding;
 mod error;
+pub mod totp;
 pub mod vault;
 
 pub use crypto::{KdfParams, Key, SecretKey};

@@ -20,6 +20,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -39,8 +40,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.rldona.openpassword.autofill.LoginMatcher
+import io.github.rldona.openpassword.core.FieldKindRecord
 import io.github.rldona.openpassword.core.FieldRecord
+import io.github.rldona.openpassword.core.totpCode
 import io.github.rldona.openpassword.core.ItemDetailsRecord
 import io.github.rldona.openpassword.security.SensitiveClipboard
 import io.github.rldona.openpassword.session.VaultEntry
@@ -49,6 +53,7 @@ import io.github.rldona.openpassword.ui.Avatar
 import io.github.rldona.openpassword.ui.SectionLabel
 import io.github.rldona.openpassword.ui.initialOf
 import io.github.rldona.openpassword.ui.theme.SecretText
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
@@ -112,12 +117,19 @@ fun ItemDetailScreen(
                     ) {
                         fields.forEachIndexed { pos, (index, field) ->
                             if (pos > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            FieldRow(
-                                field = field,
-                                revealed = revealed[index] == true,
-                                onToggle = { revealed[index] = revealed[index] != true },
-                                onCopy = { copy(field) },
-                            )
+                            if (field.kind == FieldKindRecord.TOTP) {
+                                TotpRow(field, onCopy = { code ->
+                                    clipboard.copy(code)
+                                    scope.launch { snackbar.showSnackbar("Código copiado. Se borrará del portapapeles en 30 s.") }
+                                })
+                            } else {
+                                FieldRow(
+                                    field = field,
+                                    revealed = revealed[index] == true,
+                                    onToggle = { revealed[index] = revealed[index] != true },
+                                    onCopy = { copy(field) },
+                                )
+                            }
                         }
                     }
                 }
@@ -162,6 +174,36 @@ fun ItemDetailScreen(
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancelar") } },
         )
+    }
+}
+
+/** Shows the current one-time code, never the secret behind it. */
+@Composable
+private fun TotpRow(field: FieldRecord, onCopy: (String) -> Unit) {
+    val now by produceState(System.currentTimeMillis() / 1000) {
+        while (true) {
+            value = System.currentTimeMillis() / 1000
+            delay(1_000 - System.currentTimeMillis() % 1_000)
+        }
+    }
+    val code = remember(field.value, now) { runCatching { totpCode(field.value, now.toULong()) }.getOrNull() }
+    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(field.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (code == null) {
+                Text("El secreto guardado no es válido. Edita el elemento.", color = MaterialTheme.colorScheme.error)
+            } else {
+                Text(code.code.chunked(3).joinToString(" "), style = SecretText.copy(fontSize = 24.sp))
+                val left = code.secondsRemaining.toFloat() / code.period.toFloat()
+                LinearProgressIndicator(
+                    progress = { left },
+                    color = if (code.secondsRemaining <= 5uL) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.fillMaxWidth(0.6f),
+                )
+                Text("Cambia en ${code.secondsRemaining} s", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (code != null) TextButton(onClick = { onCopy(code.code) }) { Text("Copiar") }
     }
 }
 

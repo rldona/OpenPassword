@@ -389,6 +389,29 @@ pub fn normalize_secret_key(input: String) -> Result<String> {
     Ok(SecretKey::parse(&input)?.to_display().to_string())
 }
 
+/// The code to show for a TOTP field right now.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct TotpCode {
+    pub code: String,
+    pub seconds_remaining: u64,
+    pub period: u64,
+    pub issuer: Option<String>,
+    pub account: Option<String>,
+}
+
+/// Current code for an `otpauth://totp/...` link or a base32 secret.
+#[uniffi::export]
+pub fn totp_code(input: String, unix_time: u64) -> Result<TotpCode> {
+    let totp = op_core::totp::Totp::parse(&input)?;
+    Ok(TotpCode {
+        code: totp.code_at(unix_time),
+        seconds_remaining: totp.seconds_remaining(unix_time),
+        period: totp.period,
+        issuer: totp.issuer.clone(),
+        account: totp.account.clone(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -481,6 +504,18 @@ mod tests {
             normalize_secret_key(sk.replace('-', " ").to_lowercase()).unwrap(),
             sk
         );
+    }
+
+    #[test]
+    fn totp_codes_through_the_ffi() {
+        // RFC 6238 SHA-1 seed "12345678901234567890" in base32.
+        let code = totp_code("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ".into(), 59).unwrap();
+        assert_eq!(code.code, "287082");
+        assert_eq!(code.seconds_remaining, 1);
+        assert!(matches!(
+            totp_code("nope!".into(), 0),
+            Err(OpError::InvalidInput { .. })
+        ));
     }
 
     #[test]

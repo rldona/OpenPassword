@@ -17,9 +17,10 @@ Kotlin, Jetpack Compose y Material 3. Toda la criptografía la hace `op-core` (R
 - Importar una copia en el baúl actual: si es del mismo baúl se fusiona por revisión; si es de otro, sus elementos se vuelven a cifrar con las claves de este.
 - Ver la clave secreta de nuevo, tras volver a pedir la contraseña maestra.
 - Bloqueo automático: 5 min sin uso, 30 s después de salir de la app (aunque no vuelvas) o al apagar la pantalla.
+- Códigos TOTP (verificación en dos pasos): se pega el enlace `otpauth://` o el secreto y el detalle muestra el código actual con su cuenta atrás. Se copia el código, nunca el secreto.
 - Autorrelleno en otras apps y en el navegador (Chrome: *Ajustes → Servicios de autocompletar → Autocompletar con otro servicio*).
 
-Pendiente (Fase 2): guardar logins nuevos desde el autorrelleno, TOTP, respaldo automático, salud del baúl e importadores.
+Pendiente (Fase 2): guardar logins nuevos desde el autorrelleno, escanear QR de TOTP, respaldo automático, salud del baúl e importadores.
 
 ## Seguridad que impone la build
 
@@ -29,6 +30,7 @@ Pendiente (Fase 2): guardar logins nuevos desde el autorrelleno, TOTP, respaldo 
 - Huella: la clave del baúl se sella con otra clave de Keystore que exige una autenticación biométrica fuerte en cada uso, solo funciona con el teléfono desbloqueado y Android la destruye si se añade una huella o cara nueva. El único permiso del manifiesto es `USE_BIOMETRIC`.
 - Los elementos se guardan en SQLite como blobs opacos con `secure_delete`. Se usa SQLite directo en lugar de Room para no depender de procesadores de anotaciones.
 - Nada sensible se guarda en el estado de instancia de Compose (`rememberSaveable`).
+- Las ventanas de la app se excluyen de todos los servicios de autorrelleno, así que ni el de Google ni ningún otro puede leer u ofrecer guardar lo que se escribe en el baúl.
 
 ## Autorrelleno
 
