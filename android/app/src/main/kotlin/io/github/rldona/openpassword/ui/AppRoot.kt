@@ -34,7 +34,7 @@ private sealed interface Screen {
 fun AppRoot(session: VaultSession, clipboard: SensitiveClipboard) {
     val state by session.state.collectAsStateWithLifecycle()
     when (val s = state) {
-        SessionState.NoVault -> OnboardingScreen(onCreate = session::create)
+        SessionState.NoVault -> OnboardingScreen(onCreate = session::create, onRestore = session::restore)
         SessionState.Locked -> {
             val context = LocalContext.current
             // Re-evaluated every time the vault locks.

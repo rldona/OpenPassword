@@ -12,10 +12,12 @@ Kotlin, Jetpack Compose y Material 3. Toda la criptografía la hace `op-core` (R
 - Revelar campo a campo y copiar al portapapeles marcado como sensible, que se borra a los 30 s.
 - Generador de contraseñas y PINs.
 - Exportar una copia cifrada `.opvault` donde elija el usuario. Se abre con `opvault decrypt`.
+- Restaurar una copia en un teléfono nuevo desde la bienvenida, con la clave secreta del kit y la contraseña maestra.
+- Importar una copia en el baúl actual: si es del mismo baúl se fusiona por revisión; si es de otro, sus elementos se vuelven a cifrar con las claves de este.
 - Ver la clave secreta de nuevo, tras volver a pedir la contraseña maestra.
 - Bloqueo automático: 5 min sin uso, 30 s en segundo plano o al apagar la pantalla.
 
-Pendiente para las siguientes iteraciones: importar copias, autorrelleno, TOTP y kit de emergencia en PDF.
+Pendiente para las siguientes iteraciones: autorrelleno, TOTP y kit de emergencia en PDF.
 
 ## Seguridad que impone la build
 
