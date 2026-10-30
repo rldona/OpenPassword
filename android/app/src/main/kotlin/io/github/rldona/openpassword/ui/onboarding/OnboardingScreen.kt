@@ -107,7 +107,7 @@ private fun Welcome(onNext: () -> Unit, onRestore: () -> Unit) {
         Point("Código abierto", "Cualquiera puede revisar cómo funciona.")
     }
     Spacer(Modifier.height(8.dp))
-    Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text("Crear mi baúl") }
+    Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text("Crear mi caja fuerte") }
     OutlinedButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) { Text("Restaurar una copia de seguridad") }
 }
 
@@ -260,9 +260,9 @@ private fun SecretKeyStep(secretKey: String, onCreate: suspend () -> Unit) {
         if (busy) {
             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
             Spacer(Modifier.size(10.dp))
-            Text("Cifrando el baúl…")
+            Text("Cifrando la caja fuerte…")
         } else {
-            Text("Crear baúl")
+            Text("Crear caja fuerte")
         }
     }
 }

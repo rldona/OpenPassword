@@ -71,7 +71,7 @@ fun HealthScreen(report: HealthReport, entries: List<VaultEntry>, onOpen: (Vault
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Salud del baúl") },
+                title = { Text("Salud de la caja fuerte") },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver") } },
             )
         },

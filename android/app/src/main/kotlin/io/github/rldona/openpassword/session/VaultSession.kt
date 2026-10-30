@@ -521,7 +521,7 @@ private fun vaultIdOf(headerJson: String): String = JSONObject(headerJson).getSt
 
 fun OpException.toUserMessage(): String = when (this) {
     is OpException.WrongCredentials -> "Contraseña maestra incorrecta."
-    is OpException.WrongSecretKey -> "La clave secreta no corresponde a este baúl."
+    is OpException.WrongSecretKey -> "La clave secreta no corresponde a esta caja fuerte."
     is OpException.InvalidSecretKey -> "La clave secreta no es válida. Revisa si hay erratas."
     is OpException.InvalidInput -> "Dato no válido: $reason."
     is OpException.Corrupted -> "Los datos están dañados o han sido modificados."
@@ -529,12 +529,12 @@ fun OpException.toUserMessage(): String = when (this) {
     is OpException.KdfTooExpensive ->
         "Esta copia necesita ${mKib / 1024u} MiB de memoria para abrirse y este dispositivo no puede darlos. " +
             "Ábrela en un dispositivo con más memoria."
-    is OpException.Locked -> "El baúl está bloqueado."
+    is OpException.Locked -> "La caja fuerte está bloqueada."
     is OpException.Internal -> INTERNAL_ERROR_MESSAGE
 }
 
 /** Generic message for a failure inside the native core. The panic text is never shown. */
-const val INTERNAL_ERROR_MESSAGE = "Ha ocurrido un error interno. Vuelve a desbloquear el baúl."
+const val INTERNAL_ERROR_MESSAGE = "Ha ocurrido un error interno. Vuelve a desbloquear la caja fuerte."
 
 /** Wipes the key and frees the native handle. */
 internal fun Vault.discard() {
