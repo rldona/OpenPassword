@@ -14,6 +14,14 @@ class LoginMatcherTest {
     private fun web(saved: String, visited: String) = LoginMatcher.matches(listOf(saved), FillTarget.Web(visited))
 
     @Test
+    fun aWebDomainThatIsNotABareHostNameNeverMatches() {
+        for (bad in listOf("evil.com/google.com", "https://google.com", "google.com:443", "google.com/", "user@google.com",
+            "evil.com?x=.google.com", "evil.com #.google.com", "a..google.com", "evil.com/.google.com", "")) {
+            assertFalse(bad, web("google.com", bad))
+        }
+    }
+
+    @Test
     fun exactHostAndSubdomainsMatch() {
         assertTrue(web("https://accounts.google.com", "accounts.google.com"))
         assertTrue(web("google.com", "accounts.google.com"))

@@ -45,7 +45,7 @@ object Datasets {
     /** A suggestion that opens [AutofillAuthActivity] to unlock and/or pick a login. */
     @Suppress("DEPRECATION")
     fun openApp(context: Context, request: LoginRequest, text: String): Dataset {
-        val intent = AutofillAuthActivity.intent(context, request)
+        val intent = AutofillAuthActivity.intent(context, AutofillRequestTokens.shared.put(request))
         // Mutable: the framework adds the assist structure to the intent.
         val pending = PendingIntent.getActivity(
             context,
@@ -67,17 +67,11 @@ object Datasets {
         return builder.build()
     }
 
-    fun toIntentExtras(intent: Intent, request: LoginRequest) = intent.apply {
-        putExtra(EXTRA_USERNAME_ID, request.username)
-        putExtra(EXTRA_PASSWORD_ID, request.password)
-        when (val t = request.target) {
-            is FillTarget.Web -> putExtra(EXTRA_WEB_DOMAIN, t.domain)
-            is FillTarget.App -> putExtra(EXTRA_PACKAGE, t.packageName)
-        }
-    }
+    /** Only the random token goes in the Intent; see [AutofillRequestTokens]. */
+    fun toIntentExtras(intent: Intent, token: String) = intent.putExtra(EXTRA_TOKEN, token)
 
-    const val EXTRA_USERNAME_ID = "op.autofill.username"
-    const val EXTRA_PASSWORD_ID = "op.autofill.password"
-    const val EXTRA_WEB_DOMAIN = "op.autofill.domain"
-    const val EXTRA_PACKAGE = "op.autofill.package"
+    const val EXTRA_TOKEN = "op.autofill.token"
+
+    /** Extras of older versions that carried the target. Never read; the activity strips them. */
+    val LEGACY_EXTRAS = listOf("op.autofill.domain", "op.autofill.package", "op.autofill.username", "op.autofill.password")
 }

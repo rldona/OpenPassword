@@ -33,11 +33,13 @@ const SALSA20_IV: [u8; 8] = [0xe8, 0x30, 0x09, 0x4b, 0x97, 0x20, 0x5d, 0x2a];
 
 // Refuse databases whose KDF would exhaust a phone: real files stay far below these.
 const MAX_AES_ROUNDS: u64 = 200_000_000;
-const MAX_ARGON2_BYTES: u64 = 1 << 30;
+/// Same ceiling as the platform one (`MOBILE_MAXIMUM` in `op-ffi`: 512 MiB, 6 passes), so a
+/// hostile `.kdbx` cannot ask a phone for more than a `.opvault` backup could.
+const MAX_ARGON2_BYTES: u64 = 512 << 20;
 const MAX_ARGON2_ITERATIONS: u64 = 1_000;
-/// Joint Argon2 budget, `memory × iterations` in bytes: 16 GiB·pass (for example
-/// 1 GiB × 16 or 64 MiB × 256). The separate caps above alone allowed 1 GiB × 1000.
-const MAX_ARGON2_WORK: u64 = 16 << 30;
+/// Joint Argon2 budget, `memory × iterations` in bytes: 3 GiB·pass, the platform ceiling's
+/// 512 MiB × 6. The separate caps above alone allowed 512 MiB × 1000.
+const MAX_ARGON2_WORK: u64 = 3 << 30;
 
 // Limits on the decrypted XML. Real databases nest groups a dozen levels deep and hold a
 // few thousand entries; a hostile one must not turn that into unbounded work or memory.
@@ -546,7 +548,7 @@ fn check_argon2_cost(memory: u64, iterations: u64, lanes: u64) -> Result<()> {
         || memory * iterations > MAX_ARGON2_WORK
     {
         return Err(bad(
-            "this KeePass database cannot be imported: its key derivation is too costly for this device",
+            "this KeePass database cannot be imported: its key derivation is too costly for this device (Argon2 above 512 MiB of memory or 3 GiB·pass of work); lower it in KeePass and export again",
         ));
     }
     Ok(())
@@ -1188,13 +1190,18 @@ mod tests {
     #[test]
     fn argon2_budget_accepts_the_edge_and_refuses_above_it() {
         const MIB: u64 = 1 << 20;
-        // 1 GiB × 16 and 64 MiB × 256 sit exactly on the 16 GiB·pass budget.
-        assert!(check_argon2_cost(1024 * MIB, 16, 4).is_ok());
-        assert!(check_argon2_cost(64 * MIB, 256, 4).is_ok());
+        // 512 MiB × 6 and 64 MiB × 48 sit exactly on the 3 GiB·pass budget.
+        assert!(check_argon2_cost(512 * MIB, 6, 4).is_ok());
+        assert!(check_argon2_cost(64 * MIB, 48, 4).is_ok());
         // Typical KeePass defaults stay far below it.
         assert!(check_argon2_cost(64 * MIB, 2, 2).is_ok());
-        // One step above the budget.
-        for (m, t) in [(1024 * MIB, 17), (64 * MIB, 257), (1024 * MIB, 1000)] {
+        // One step above the budget, and the old 1 GiB budget.
+        for (m, t) in [
+            (512 * MIB, 7),
+            (64 * MIB, 49),
+            (1024 * MIB, 1),
+            (512 * MIB, 1000),
+        ] {
             assert!(
                 check_argon2_cost(m, t, 4)
                     .unwrap_err()
@@ -1204,7 +1211,7 @@ mod tests {
             );
         }
         // The individual caps still apply.
-        assert!(check_argon2_cost(1024 * MIB + 1, 1, 1).is_err());
+        assert!(check_argon2_cost(512 * MIB + 1, 1, 1).is_err());
         assert!(check_argon2_cost(MIB, 1001, 1).is_err());
         assert!(check_argon2_cost(MIB, 1, 65).is_err());
     }

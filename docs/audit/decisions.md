@@ -1,9 +1,13 @@
 # Decisiones técnicas previas a la auditoría externa
 
-Estado: **propuesta**. Ninguna decisión está implementada. Las que aparecen en la
-[lista final](#decisiones-que-requieren-aprobación-humana) necesitan aprobación antes de empezar.
+Estado: **propuesta**, parcialmente implementada. `3725741` y `2bd56ce` implementan ADR-AUD-02 a 07 (estado
+paso a paso en [`hardening.md`](hardening.md)); ADR-AUD-01 no (`release/0.2` y la etiqueta firmada no existen). Hay
+trabajo adicional **sin commit** sobre `2bd56ce`. El texto de cada ADR describe la decisión tal como se
+redactó, con la base `3e94bce`, y **no** se ha reescrito. Las que aparecen en la
+[lista final](#decisiones-que-requieren-aprobación-humana) siguen necesitando aprobación humana.
 
-Base inspeccionada: `main` en `3e94bce` («CI: fuzzing con el target gnu del runner»), versión de
+Base inspeccionada al redactar las decisiones: `main` en `3e94bce` («CI: fuzzing con el target gnu del runner»).
+Estado actual: `main` en `2bd56ce` más el trabajo sin commit. Versión de
 espacio de trabajo `0.1.0` (`Cargo.toml`, `android/app/build.gradle.kts:28-29`).
 
 Alcance de la auditoría: `op-core`, `op-ffi`, la app Android y el formato `.opvault` v1. La CLI

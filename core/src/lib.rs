@@ -17,6 +17,10 @@ pub use crypto::{KdfParams, Key, SecretKey};
 pub use error::{Error, Result};
 pub use vault::{EncryptedItem, Item, ItemDetails, ItemOverview, UnlockedVault, VaultHeader};
 
+// Guard: `cargo fuzz build` keeps debug assertions on; a plain release build with `--cfg fuzzing` does not.
+#[cfg(all(fuzzing, not(debug_assertions)))]
+compile_error!("fuzzing hooks must not be compiled into release builds");
+
 /// Entry points that exist only under `cargo fuzz` (`--cfg fuzzing`, see `fuzz/README.md`).
 ///
 /// Random bytes never pass the AEAD, so the parsers behind it are only reachable by sealing the

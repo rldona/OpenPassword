@@ -4,9 +4,10 @@ Inventario de lo que entra en el producto y en su cadena de compilación, con lo
 árbol, qué se enlaza en `libop_ffi.so`, duplicados, avisos, licencias frente a GPL-3.0, pines y
 propuestas. Complementa ADR-AUD-04 en [`decisions.md`](decisions.md).
 
-Estado verificado el 2026-10-30 sobre el árbol de trabajo (`HEAD` `3725741` más cambios sin confirmar).
-**`deny.toml`, `.github/dependabot.yml`, `android/gradle/verification-metadata.xml`, las Actions fijadas
-por SHA y el job `release` están en el árbol de trabajo y no confirmados** ([`hardening.md`](hardening.md)).
+Estado verificado el 2026-10-30 sobre `HEAD` `2bd56ce`. `deny.toml`, `.github/dependabot.yml`,
+`android/gradle/verification-metadata.xml`, las Actions fijadas por SHA y el job `release` están
+confirmados en ese commit ([`hardening.md`](hardening.md)); **ninguno se ha ejecutado todavía en
+GitHub** (el job `release`) **ni con la verificación de Gradle activa**.
 Cada cifra lleva el comando que la produce (sección 8).
 
 ## 1. Cifras
@@ -23,7 +24,7 @@ Cada cifra lleva el comando que la produce (sección 8).
 | Versiones duplicadas (Rust) | **2** pares | `cargo metadata`: `getrandom` 0.2.17 y 0.3.4; `syn` 2.0.119 y 3.0.9 |
 | Vulnerabilidades conocidas (Rust) | **0** | `cargo audit --deny warnings`: 1386 avisos cargados, 139 paquetes, salida 0 |
 | `cargo deny --locked check` | `advisories ok, bans ok, licenses ok, sources ok` | `cargo deny --locked check` (0.20.2, en local) |
-| Pruebas de Rust | **92 pasan, 1 ignorada** | `cargo test --workspace --locked` |
+| Pruebas de Rust | **95 pasan, 1 ignorada** | `cargo test --workspace --locked` (45 unitarios de `op-core`, 9 + 3 + 19 + 5 de integración, 14 de `op-ffi`) |
 
 ## 2. Rust
 
@@ -89,7 +90,7 @@ desarrollo de `op-core` son solo `op-core` con `insecure-test-params` (`core/Car
 **Aviso ignorado**: `RUSTSEC-2026-0374` (`basic-toml` 0.1.10, sin mantenimiento) en
 `deny.toml`. Solo lo arrastra `uniffi_bindgen` → `askama`, que no está en el grafo del objetivo Android
 (`cargo tree -p op-ffi --target aarch64-linux-android` no lo contiene; sí está en `Cargo.lock:167`).
-`cargo audit` (sin `.cargo/audit.toml`, borrado en el árbol de trabajo) devuelve 0 vulnerabilidades.
+`cargo audit` (sin `.cargo/audit.toml`, borrado en `2bd56ce`) devuelve 0 vulnerabilidades.
 
 ### 2.4 Licencias frente a GPL-3.0-or-later
 
@@ -183,7 +184,7 @@ Plugins de build: AGP `9.4.1`, Kotlin Compose `2.4.21`, `org.cyclonedx.bom` `3.5
 
 ### 3.3 Verificación de dependencias
 
-`android/gradle/verification-metadata.xml` (árbol de trabajo): `verify-metadata` activo, **sin firmas**
+`android/gradle/verification-metadata.xml` (`2bd56ce`): `verify-metadata` activo, **sin firmas**
 (`verify-signatures` en `false`), **478** componentes y **918** sumas SHA-256, **133** grupos, y
 `aapt2` de **Linux y macOS** (`com.android.tools.build:aapt2:9.4.1-15978811`, jars `linux` y `osx`).
 Cubre los plugins de build además de las bibliotecas. **No se ha ejecutado una compilación con la
@@ -214,16 +215,17 @@ un dato, no código, pero conviene decidirlo con la licencia delante.
 
 ## 5. SBOM y atestaciones: estado
 
-- **Job `release`** (`ci.yml`, solo con etiquetas `v*`; árbol de trabajo, **no confirmado y no
+- **Job `release`** (`ci.yml`, solo con etiquetas `v*`; confirmado en `2bd56ce`, **no
   ejecutado nunca**): compila el APK, genera `op-ffi.cdx.json` (`cargo cyclonedx --manifest-path
   ffi/Cargo.toml --format json --spec-version 1.5`) y la SBOM de Gradle (`cyclonedxDirectBom`,
   `includeConfigs = releaseRuntimeClasspath`), calcula `SHA256SUMS` y atesta el APK sin firmar y las
   dos SBOM con `actions/attest-build-provenance`. Permisos `id-token: write` y `attestations: write`
-  solo en ese job. Sube el artefacto con 90 días de retención. **No crea la *release*** de GitHub: adjuntar
+  solo en ese job. Sube el artefacto con 90 días de retención (`retention-days: 90`, `ci.yml:143`). **No crea la *release*** de GitHub: adjuntar
   los ficheros es un paso manual.
 - **Qué contiene la SBOM de Rust**: la salida de `cargo cyclonedx` sobre `ffi/Cargo.toml`, que
-  incluye el grafo completo de `op-ffi` y no solo lo enlazado. Dos ficheros `core/op-core.cdx.json` y
-  `cli/opvault-cli.cdx.json` están sin seguimiento en el árbol y no se publican (ID-INT-23).
+  incluye el grafo completo de `op-ffi` y no solo lo enlazado. Los ficheros
+  `core/op-core.cdx.json` y `cli/opvault-cli.cdx.json` de pruebas anteriores ya no están en el árbol y
+  `*.cdx.json` está en `.gitignore` (ID-INT-23).
 - **Qué no contiene**: el `libjnidispatch.so` como componente nativo propio, las listas de datos (sufijos
   públicos y EFF) ni las herramientas de compilación.
 
@@ -236,7 +238,7 @@ Prioridad: **P1** antes de congelar `v0.2.0`; **P2** durante la auditoría; **P3
 | P1 | **Confirmar y ejecutar una vez** el job `release` con una etiqueta de prueba (`v0.2.0-rc1`) y `gh attestation verify` | Es el único modo de saber que la atestación y las SBOM funcionan; la propia decisión lo exige (paso 17) | Pendiente |
 | P1 | Quitar `Unlicense`, `Apache-2.0 WITH LLVM-exception` y `LGPL-2.1-or-later` de `deny.toml` | Reducir la lista a lo necesario (sección 2.4, probado) | Pendiente (decisión nº 7) |
 | P1 | **Decisión humana**: confirmar la licencia aplicada a JNA y la compatibilidad de CC BY 3.0 US (lista EFF) con GPL-3.0, y reflejarlo en el `README.md` | Evitar un incumplimiento de licencia | Pendiente |
-| P1 | Borrar o ignorar los `*.cdx.json` de `core/` y `cli/` | Evitar confirmar SBOM que no se publican | Pendiente |
+| P1 | Borrar o ignorar los `*.cdx.json` de `core/` y `cli/` | Evitar confirmar SBOM que no se publican | **Hecho** en `2bd56ce` (`.gitignore:5`) |
 | P1 | Comprobar la compilación con `verification-metadata.xml` en Linux y macOS y ver que falla si se altera una suma | Es la prueba del paso 16 | Pendiente (sin JDK en esta máquina) |
 | P2 | Atestar también el **APK firmado**, o publicar el `SHA256SUMS` del sin firmar y la regla de comparación | Hoy la firma rompe la cadena de procedencia | Propuesta |
 | P2 | Análisis de avisos de Gradle (por ejemplo `osv-scanner` sobre `verification-metadata.xml` o sobre la SBOM) en la CI | Hoy no hay ninguno | Propuesta |

@@ -92,10 +92,12 @@ class VaultSession(
     suspend fun create(password: String, secretKey: String) = mutex.withLock {
         withContext(Dispatchers.Default) {
             val created = Vault.create(password, secretKey, kdfProfile)
-            storage.clearItems()
-            storage.saveSecretKey(secretKey)
-            storage.writeHeader(created.headerJson())
-            recordPasswordUnlock()
+            discardOnFailure(created::discard) {
+                storage.clearItems()
+                storage.saveSecretKey(secretKey)
+                storage.writeHeader(created.headerJson())
+                recordPasswordUnlock()
+            }
             replaceVault(created, emptyList())
         }
     }

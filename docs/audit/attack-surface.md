@@ -5,9 +5,9 @@ valida y si hay fuzzing. Es la entrada para el auditor: dice **por dónde entran
 no si las defensas son suficientes (eso es [`internal-review.md`](internal-review.md) y
 [`threat-model-review.md`](threat-model-review.md)).
 
-Estado verificado el 2026-10-30 sobre el árbol de trabajo (`HEAD` `3725741` más cambios sin confirmar:
-`SecretString`, techo móvil de KDF, presupuesto de KDBX, lista de sufijos públicos, objetivos de
-fuzzing nuevos y `deny.toml`). Las referencias `fichero:línea` son de ese estado. Una línea se puede
+Estado verificado el 2026-10-30 sobre el árbol de trabajo (`HEAD` `3725741` más cambios sin confirmar, ya
+confirmados en `2bd56ce`: `SecretString`, techo móvil de KDF, presupuesto de KDBX, lista de sufijos públicos, objetivos de
+fuzzing nuevos y `deny.toml`). Un bloque posterior **sin commit** (token de autorrelleno, comprobación de navegador, techo de KDBX, guardia de `cfg(fuzzing)`) está reflejado en 2.3, 2.8 y 2.9. Las referencias `fichero:línea` son de ese estado. Una línea se puede
 comprobar con `sed -n 'Np' fichero`; una afirmación de ausencia, con `grep`.
 
 Alcance: `op-core`, `op-ffi`, la app Android y el formato `.opvault` v1. La CLI (`cli/`) queda fuera
@@ -40,7 +40,7 @@ flowchart LR
     VS <-- "F4 SK (se sella) y clave del baúl (se sella)<br/>CLARO en la app, SELLADO AES-GCM fuera<br/>valida: Keystore (desbloqueo, biometría)" --> KS
     VS <-- "F5 elementos: blobs XChaCha20-Poly1305<br/>CIFRADO; cabecera en claro sin datos de usuario;<br/>id y revisión en claro<br/>valida: op-core al descifrar (AEAD con AAD)" --> DB
     UI -- "F6 contraseña, usuario o código TOTP<br/>CLARO, 30 s<br/>valida: nadie" --> CLIP
-    SVC <-- "F7 entra: AssistStructure y SaveRequest (CLARO,<br/>contenido de otra app). Sale: Dataset con<br/>credenciales CLARO (hasta 5)<br/>valida: StructureParser, LoginMatcher,<br/>Android verifica el paquete" --> AF
+    SVC <-- "F7 entra: AssistStructure y SaveRequest (CLARO,<br/>contenido de otra app). Sale: Dataset con<br/>credenciales CLARO (hasta 5)<br/>valida: StructureParser, LoginMatcher,<br/>Android verifica el paquete.<br/>El PendingIntent mutable solo lleva<br/>un token, no el destino" --> AF
     UI <-- "F8 sale: .opvault CIFRADO, kit PDF con la SK CLARO.<br/>Entra: .opvault CIFRADO, exportaciones de otros<br/>gestores CLARO<br/>valida: op-core (AEAD) / parsers; el PDF, nadie" --> EXT
     CAM -- "F9 píxeles y texto del QR<br/>CLARO<br/>valida: ZXing, classifyTotpQr, Totp::parse" --> UI
     SVC --- VS
@@ -121,16 +121,15 @@ límites** · **fuzzing**. Los límites se citan con su constante.
   (`ffi/src/lib.rs:542`) → `import::parse_with_credentials` (`core/src/import/mod.rs:56`) →
   `kdbx::parse` (`import/kdbx.rs:161`) → descifrado → gunzip → `read_entries` (`:640`).
 - **Validación**: entrada ≤ **32 MiB** (`MAX_INPUT`, `import/mod.rs:34`, `:59`); `Cursor::take` con
-  `checked_add` (`kdbx.rs:75-83`); AES-KDF ≤ **200 millones** de rondas (`:35`); Argon2 ≤ **1 GiB**,
-  ≤ **1000** pasadas, ≤ **64** carriles y `memoria × pasadas ≤ 16 GiB·pasada` (`:36-40`, `:509-517`);
+  `checked_add` (`kdbx.rs:75-83`); AES-KDF ≤ **200 millones** de rondas (`:35`); Argon2 ≤ **512 MiB**,
+  ≤ **1000** pasadas, ≤ **64** carriles y `memoria × pasadas ≤ 3 GiB·pasada` (`:36-42`, `:544-555`; alineado con el techo móvil de `.opvault`);
   HMAC por bloque en KDBX 4; gunzip acotado a `MAX_INPUT + 1` (`:331-337`); `quick-xml` con
   entidades resueltas a mano (`:598-612`).
-- **No hay**: límite de profundidad ni de número de elementos del XML (ver ID-INT-01),
-  ni aplicación del techo móvil de `.opvault` a la KDF de KeePass (ver ID-INT-02).
-- **Fuzzing**: `import` **no** llega a `kdbx::parse` (sin credenciales el fichero se rechaza antes,
-  ID-INT-25); `kdbx_xml` recorre solo el XML ya descifrado con un flujo interno ChaCha20 fijo;
-  `key_file` el archivo de clave. La cabecera externa, el diccionario de variantes, los flujos de
-  bloques y el gunzip **no tienen cobertura**.
+- **Límites del XML** (`2bd56ce`, ID-INT-01 corregido): 100 grupos abiertos, 256 elementos abiertos y 100 000 entradas (`kdbx.rs:47-51`).
+- **No hay**: aplicación del techo móvil de `.opvault` a la KDF de KeePass (ver ID-INT-02).
+- **Fuzzing** (`2bd56ce`, ID-INT-25 corregido): `import` llama a `kdbx_fuzzing::file` (cabecera y comprobaciones previas a la KDF con una clave fija);
+  `kdbx_container` sella un KDBX con esa clave y llega a los flujos de bloques, el cifrado externo, el gunzip, la cabecera interna y el XML;
+  `kdbx_xml` recorre el XML ya descifrado; `key_file`, el archivo de clave. La KDF en sí no se fuzzea.
 
 ### 2.4 Archivo de clave de KeePass
 
@@ -182,8 +181,8 @@ límites** · **fuzzing**. Los límites se citan con su constante.
 - **Validación**: paquete propio excluido (`StructureParser.kt:29`); coincidencia estricta de host
   (host exacto o subdominio de un dominio registrable según la lista de sufijos públicos,
   `LoginMatcher.kt:43-48`); paquete exacto para apps; un login web nunca vale para una app.
-- **No hay**: comprobación de que quien declara un `webDomain` sea un navegador (ver ID-INT-16),
-  ni límite de profundidad en la recursión (ver ID-INT-18).
+- **`webDomain`** (ID-INT-16 corregido; la corrección de `2bd56ce` se completó sin commit): solo se acepta si el paquete es un navegador (`StructureParser.targetFor`, `:27-28`): uno de `KnownBrowsers.PACKAGES` o el navegador por defecto que atiende `https` y `http` (`BrowserCheck.kt:68-73`). Un `intent-filter` por sí solo no basta. El host debe ser un nombre ASCII (`[a-z0-9.-]+`, `LoginMatcher.kt:67-76`) y, si la lista de sufijos no carga (`IOException`), se compara el host exacto (`PublicSuffix.kt:21-25`). Sin tratar: `iframe` de otro origen en un navegador.
+- **No hay**: límite de profundidad en la recursión (ver ID-INT-18).
 - **Fuzzing**: ninguno para `StructureParser` (depende de `AssistStructure`);
   `LoginMatcher` y `FieldClassifier` tienen tests de invariantes deterministas
   (`LoginMatcherTest.kt`, semillas `Random(20260630)` y `Random(7)`).
@@ -195,15 +194,21 @@ límites** · **fuzzing**. Los límites se citan con su constante.
   `AutofillAuthActivity` y `SaveLoginActivity` tienen `exported="false"` (`:51-64`).
 - **Servicio**: `OpAutofillService` está exportado pero exige `BIND_AUTOFILL_SERVICE`, un permiso que
   solo tiene el sistema (`:67-71`).
-- **Extras que se aceptan**: `AutofillAuthActivity` lee `op.autofill.username`/`password` (un
-  `AutofillId`), `op.autofill.domain` o `op.autofill.package` (`Datasets.kt:79-82`,
-  `AutofillAuthActivity.kt:81-84`); el `PendingIntent` es **mutable** porque el sistema añade la
-  estructura (`Datasets.kt:50-55`), con `Intent` explícito. `SaveLoginActivity` solo lee `op.save.token`
+- **Extras que se aceptan**: `AutofillAuthActivity` lee solo `op.autofill.token` (`Datasets.kt:73`):
+  16 bytes aleatorios en hexadecimal, de un solo uso y con TTL de 5 min, que apuntan a un almacén en
+  memoria del proceso (`AutofillRequestTokens.kt`) donde están el destino (dominio o paquete) y los
+  ids de campo. Los extras antiguos (`op.autofill.domain`, `package`, `username`, `password`;
+  `Datasets.LEGACY_EXTRAS`, `:76`) se **borran** sin leerlos (`AutofillAuthActivity.kt:89`) y, sin token
+  válido, la actividad termina sin resultado (`:91-98`). El `PendingIntent` es **mutable** porque el
+  sistema añade la estructura (`Datasets.kt:50-55`), con `Intent` explícito, y **se entrega a la app
+  que se rellena**, que puede añadirle extras con `Intent.fillIn` (ID-INT-26). `SaveLoginActivity` solo lee `op.save.token`
   (`SaveLoginActivity.kt:79-80`), un valor aleatorio de 16 bytes del `SecureRandom` con vida de 5
   min (`PendingSaves.kt:15-24`); el `PendingIntent` de guardado es inmutable
   (`OpAutofillService.kt:74-79`).
-- **Quién valida**: la no exportación de las actividades; el token no adivinable. Un dominio o paquete
-  falsificado en los extras no sirve sin controlar el `PendingIntent`.
+- **Quién valida**: la no exportación de las actividades; el token no adivinable. **Corrección**: antes
+  se afirmaba que un dominio falsificado en los extras no servía sin controlar el `PendingIntent`;
+  era falso, porque la app rellenada sí lo controla (ID-INT-26). Por eso el destino ya no viaja en
+  extras sino en el almacén de tokens.
 - **Fuzzing**: ninguno.
 
 ### 2.10 URIs del Storage Access Framework
@@ -247,13 +252,13 @@ límites** · **fuzzing**. Los límites se citan con su constante.
 
 | Superficie | Quién la ataca | Código nativo implicado | Fuzzing | Hallazgos |
 |---|---|---|---|---|
-| `.opvault` | Nube, correo, proveedor | `op-core` (Rust) | Sí (2 objetivos) | ID-INT-05 (lado Kotlin) |
+| `.opvault` | Nube, correo, proveedor | `op-core` (Rust) | Sí (2 objetivos) | Ninguno abierto (ID-INT-05 corregido) |
 | Datos locales | Root (fuera de alcance), corrupción | `op-core` | Sí (4 objetivos) | ID-INT-06, ID-INT-10 |
-| KDBX y su XML | Autor del fichero | `op-core` + `argon2`, `aes`, `quick-xml`, `flate2` | Parcial (solo el XML y el archivo de clave) | ID-INT-01, ID-INT-02, ID-INT-03, ID-INT-25 |
+| KDBX y su XML | Autor del fichero | `op-core` + `argon2`, `aes`, `quick-xml`, `flate2` | Parcial (todo salvo la KDF) | ID-INT-02, ID-INT-03 (ID-INT-01 e ID-INT-25 corregidos) |
 | CSV, Bitwarden, `.1pux` | Autor del fichero | `op-core` + `zip`, `serde_json` | Sí | ID-INT-03 |
 | `otpauth://` | QR, portapapeles | `op-core` | Sí | Sin hallazgos |
 | Imágenes y QR | Autor de la imagen | Descodificadores del sistema + ZXing | No | Sin hallazgos propios |
-| `AssistStructure` | Cualquier app | Kotlin | No (Jazzer pospuesto) | ID-INT-16, ID-INT-17, ID-INT-18, ID-INT-19 |
+| `AssistStructure` | Cualquier app | Kotlin | No (Jazzer pospuesto) | ID-INT-17, ID-INT-18, ID-INT-19 (ID-INT-16 e ID-INT-26 corregidos) |
 | Intents y tokens | Otras apps | Kotlin | No | Sin hallazgos |
 | URIs de SAF | Proveedor de documentos | Kotlin | No | ID-INT-11, ID-INT-12 |
 | Portapapeles (salida) | Teclado, app con foco | Kotlin | No | ID-INT-14, ID-INT-15 |

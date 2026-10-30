@@ -15,7 +15,14 @@ object PublicSuffix {
 
     private class Rules(val normal: Set<String>, val wildcard: Set<String>, val exception: Set<String>)
 
-    private val rules: Rules? by lazy { load(PublicSuffix::class.java.classLoader?.getResourceAsStream(RESOURCE)?.bufferedReader(Charsets.UTF_8)?.useLines { it.toList() }) }
+    private val rules: Rules? by lazy { load(readResource()) }
+
+    /** The list's lines, or null if it is missing or unreadable (also half-way): fail closed, never throw. */
+    private fun readResource(): List<String>? = try {
+        PublicSuffix::class.java.classLoader?.getResourceAsStream(RESOURCE)?.bufferedReader(Charsets.UTF_8)?.useLines { it.toList() }
+    } catch (_: java.io.IOException) {
+        null
+    }
 
     val isAvailable: Boolean get() = rules != null
 
