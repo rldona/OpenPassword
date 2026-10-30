@@ -128,7 +128,7 @@ impl Totp {
                         .parse()
                         .map_err(|_| Error::InvalidInput("invalid TOTP period"))?
                 }
-                "issuer" if !value.is_empty() => issuer = Some(value),
+                "issuer" if !value.is_empty() => issuer = Some(value.to_string()),
                 _ => {}
             }
         }
@@ -196,7 +196,8 @@ fn user_secret(input: &str) -> Result<Vec<u8>> {
 
 /// RFC 4648 base32, ignoring case, spaces, dashes and `=` padding.
 fn base32_decode(input: &str) -> Result<Vec<u8>> {
-    let mut out = Vec::with_capacity(input.len() * 5 / 8);
+    // Wiped if a bad character aborts the decoding halfway.
+    let mut out = Zeroizing::new(Vec::with_capacity(input.len() * 5 / 8));
     let mut buffer: u64 = 0;
     let mut bits = 0u32;
     for c in input.bytes() {
@@ -217,12 +218,13 @@ fn base32_decode(input: &str) -> Result<Vec<u8>> {
     if out.is_empty() {
         return Err(Error::InvalidInput("the TOTP secret is empty"));
     }
-    Ok(out)
+    Ok(std::mem::take(&mut *out))
 }
 
-fn percent_decode(s: &str) -> Result<String> {
+/// The decoded value of a query parameter, which may be the secret: wiped on drop.
+fn percent_decode(s: &str) -> Result<Zeroizing<String>> {
     let bytes = s.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
+    let mut out = Zeroizing::new(Vec::with_capacity(bytes.len()));
     let mut i = 0;
     while i < bytes.len() {
         match bytes[i] {
@@ -246,7 +248,10 @@ fn percent_decode(s: &str) -> Result<String> {
             }
         }
     }
-    String::from_utf8(out).map_err(|_| Error::InvalidInput("malformed otpauth link"))
+    // Validated in place: `String::from_utf8` would hand the bytes back unwiped on error.
+    std::str::from_utf8(&out)
+        .map(|t| Zeroizing::new(t.to_owned()))
+        .map_err(|_| Error::InvalidInput("malformed otpauth link"))
 }
 
 #[cfg(test)]

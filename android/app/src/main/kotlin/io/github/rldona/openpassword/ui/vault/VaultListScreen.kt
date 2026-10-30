@@ -17,6 +17,9 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -24,6 +27,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -60,6 +64,7 @@ fun VaultListScreen(
     onSettings: () -> Unit,
     health: HealthReport = HealthReport.EMPTY,
     onHealth: () -> Unit = {},
+    unreadable: Int = 0,
 ) {
     // The query is not a secret, but it can reveal what you look for: keep it out of saved state too.
     var query by remember { mutableStateOf("") }
@@ -94,6 +99,7 @@ fun VaultListScreen(
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
+            UnreadableBanner(unreadable, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
             if (query.isEmpty()) HealthBanner(health, onHealth, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
             if (entries.isNotEmpty()) {
                 OutlinedTextField(
@@ -176,5 +182,29 @@ private fun EmptyState(title: String, body: String) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             Text(body, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+}
+
+/**
+ * Rows that could not be decrypted (ID-INT-06). They are not deleted or modified: they stay in
+ * storage and in every backup, so a good copy of this vault can still repair them.
+ */
+@Composable
+private fun UnreadableBanner(count: Int, modifier: Modifier = Modifier) {
+    if (count == 0) return
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+    ) {
+        ListItem(
+            headlineContent = {
+                Text(if (count == 1) "1 elemento no se puede leer" else "$count elementos no se pueden leer")
+            },
+            supportingContent = {
+                Text("Los datos están dañados. No se han borrado ni tocado: siguen en el baúl y en las copias. Importa una copia reciente para recuperarlos.")
+            },
+            leadingContent = { Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        )
     }
 }

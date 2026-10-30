@@ -155,17 +155,8 @@ fun displayNameOf(context: android.content.Context, uri: android.net.Uri): Strin
 /** Reads a document chosen with the system picker, refusing anything implausibly large for a backup. */
 suspend fun readBackupFile(context: android.content.Context, uri: android.net.Uri): ByteArray =
     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            val out = java.io.ByteArrayOutputStream()
-            val buffer = ByteArray(64 * 1024)
-            while (true) {
-                val n = input.read(buffer)
-                if (n < 0) break
-                out.write(buffer, 0, n)
-                require(out.size() <= MAX_BACKUP_BYTES) { "too large" }
-            }
-            out.toByteArray()
-        } ?: error("cannot open")
+        context.contentResolver.openInputStream(uri)?.use { input -> readWiping(input, MAX_BACKUP_BYTES) }
+            ?: error("cannot open")
     }
 
 private const val MAX_BACKUP_BYTES = 64 * 1024 * 1024

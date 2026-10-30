@@ -53,6 +53,7 @@ import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.security.EmergencyKit
 import io.github.rldona.openpassword.security.strongBiometricsAvailable
 import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
+import io.github.rldona.openpassword.session.UnlockResult
 import io.github.rldona.openpassword.session.VaultSession
 import io.github.rldona.openpassword.session.toUserMessage
 import io.github.rldona.openpassword.ui.PasswordField
@@ -330,13 +331,18 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
         ConfirmPasswordDialog(
             onDismiss = { askingPassword = false },
             onConfirm = { password ->
-                if (session.verifyPassword(password)) {
+                val result = try {
+                    session.verifyPassword(password)
+                } catch (_: OpException) {
+                    UnlockResult.Failed("No se pudo comprobar la contraseña.")
+                } catch (_: InternalException) {
+                    UnlockResult.Failed(INTERNAL_ERROR_MESSAGE)
+                }
+                if (result is UnlockResult.Success) {
                     askingPassword = false
                     shownSecretKey = session.secretKey()
-                    true
-                } else {
-                    false
                 }
+                result
             },
         )
     }
@@ -358,9 +364,9 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
 }
 
 @Composable
-private fun ConfirmPasswordDialog(onDismiss: () -> Unit, onConfirm: suspend (String) -> Boolean) {
+private fun ConfirmPasswordDialog(onDismiss: () -> Unit, onConfirm: suspend (String) -> UnlockResult) {
     var password by remember { mutableStateOf("") }
-    var wrong by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -368,7 +374,13 @@ private fun ConfirmPasswordDialog(onDismiss: () -> Unit, onConfirm: suspend (Str
         if (busy || password.isEmpty()) return
         busy = true
         scope.launch {
-            wrong = !onConfirm(password)
+            error = when (val result = onConfirm(password)) {
+                UnlockResult.Success -> null
+                is UnlockResult.WrongPassword ->
+                    "Contraseña incorrecta." + if (result.waitSeconds > 0) " Espera ${result.waitSeconds} s para volver a probar." else ""
+                is UnlockResult.MustWait -> "Demasiados intentos. Espera ${result.waitSeconds} s para volver a probar."
+                is UnlockResult.Failed -> result.message
+            }
             password = ""
             busy = false
         }
@@ -380,10 +392,10 @@ private fun ConfirmPasswordDialog(onDismiss: () -> Unit, onConfirm: suspend (Str
         text = {
             PasswordField(
                 value = password,
-                onValueChange = { password = it; wrong = false },
+                onValueChange = { password = it; error = null },
                 label = "Contraseña maestra",
-                isError = wrong,
-                supportingText = if (wrong) "Contraseña incorrecta." else null,
+                isError = error != null,
+                supportingText = error,
                 enabled = !busy,
                 onDone = ::submit,
                 modifier = Modifier.fillMaxWidth(),

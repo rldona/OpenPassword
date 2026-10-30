@@ -8,6 +8,7 @@ import android.provider.DocumentsContract
 import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.session.VaultSession
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -116,6 +117,9 @@ class AutoBackup(
             null
         } catch (_: SecurityException) {
             fail("OpenPassword ya no tiene permiso para usar esa carpeta. Elígela de nuevo.")
+        } catch (e: CancellationException) {
+            // Cancelled by disable() or a newer schedule: not a write error, so no message is stored.
+            throw e
         } catch (_: Exception) {
             fail("No se pudo escribir en la carpeta. ¿Sigue existiendo?")
         }

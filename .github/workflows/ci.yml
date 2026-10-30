@@ -23,6 +23,12 @@ jobs:
       - run: cargo test --workspace --locked
       # The shipped library must build without the test-only feature.
       - run: cargo build -p op-core -p opvault-cli --release --locked
+      # cfg(fuzzing) hooks must not reach the shipped library. Checked on the cdylib (a name search
+      # in an .rlib finds nothing: LTO bitcode), with a control that builds WITH the hooks and
+      # must find them. See scripts/check-no-fuzzing-hooks.sh.
+      - run: cargo build -p op-ffi --release --locked
+      - run: scripts/check-no-fuzzing-hooks.sh target/release/libop_ffi.so
+      - run: scripts/check-no-fuzzing-hooks.sh --self-test
 
   # Advisories, licenses, bans and sources in one run (deny.toml). Replaces cargo-audit: deny.toml
   # reads the same RustSec database, so keeping both would only duplicate the advisory check.
@@ -34,6 +40,9 @@ jobs:
         with:
           tool: cargo-deny@0.20.2
       - run: cargo deny --locked check
+      # fuzz/ is its own workspace (fuzz/Cargo.lock): the run above does not see it.
+      - name: cargo deny on the fuzz workspace
+        run: cargo deny --manifest-path fuzz/Cargo.toml --locked --config fuzz/deny.toml check
 
   # Short smoke run of every parser fuzzer; longer runs are local (fuzz/README.md).
   fuzz:
@@ -52,7 +61,7 @@ jobs:
           for t in import kdbx_xml kdbx_container key_file backup_header totp vault_json item_open item_plaintext backup_body ffi_records; do
             mkdir -p "corpus/$t" && cp seeds/$t/* "corpus/$t/"
             # The prebuilt cargo-fuzz is a musl binary and would default to that target.
-            cargo +nightly fuzz run -O --target x86_64-unknown-linux-gnu "$t" "corpus/$t" -- -max_total_time=30 -max_len=65536 -rss_limit_mb=2048 -timeout=10
+            cargo +nightly fuzz run -O -a --target x86_64-unknown-linux-gnu "$t" "corpus/$t" -- -max_total_time=30 -max_len=65536 -rss_limit_mb=2048 -timeout=10
           done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
@@ -82,6 +91,11 @@ jobs:
       # lintDebug catches calls above minSdk (NewApi). Also runs verifyDebugManifest / verifyReleaseManifest (no network permission, no backup).
       - run: ./gradlew :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --console=plain
         working-directory: android
+      # The libraries that go into the APK must not contain the cfg(fuzzing) hooks.
+      - name: No fuzzing hooks in the APK
+        run: |
+          unzip -q android/app/build/outputs/apk/release/app-release-unsigned.apk 'lib/*' -d "$RUNNER_TEMP/apk"
+          scripts/check-no-fuzzing-hooks.sh "$RUNNER_TEMP"/apk/lib/*/libop_ffi.so
       # Reproducible builds: compare with a local build of the same commit (docs/fdroid/README.md).
       - name: SHA-256 of the unsigned release APK
         run: sha256sum android/app/build/outputs/apk/release/app-release-unsigned.apk

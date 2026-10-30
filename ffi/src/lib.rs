@@ -500,6 +500,22 @@ pub fn backup_kdf(bytes: Vec<u8>) -> Result<KdfInfo> {
     })
 }
 
+/// Argon2 cost of a KeePass (`.kdbx`) file, to compare with the device's memory **before**
+/// [`parse_import`] runs the KDF (same rule as for backups: `KdfMemory.kt`). Reads only the
+/// file's plaintext header: no secret, no KDF. `None` if the file is not KDBX or its key
+/// derivation needs no memory worth checking (AES-KDF, KDBX 3.1). Values above the platform
+/// ceiling are reported as they are: `parse_import` refuses them with a clear message.
+#[uniffi::export]
+pub fn import_kdf(bytes: Vec<u8>) -> Result<Option<KdfInfo>> {
+    let bytes = Zeroizing::new(bytes);
+    let clamp = |v: u64| u32::try_from(v).unwrap_or(u32::MAX);
+    Ok(op_core::import::kdbx_argon2_cost(&bytes)?.map(|c| KdfInfo {
+        m_kib: clamp(c.memory_kib),
+        t: clamp(c.iterations),
+        p: clamp(c.lanes),
+    }))
+}
+
 /// A new random secret key in display form (`OP1-…`).
 #[uniffi::export]
 pub fn generate_secret_key() -> Result<SecretString> {
@@ -861,6 +877,87 @@ mod tests {
             backup_kdf(b"nope".to_vec()),
             Err(OpError::Corrupted)
         ));
+    }
+
+    const KDBX31: &[u8] = include_bytes!("../../core/src/import/testdata/keepassxc-3.1.kdbx");
+
+    /// The signature and header of a KDBX 4 file with an Argon2id KDF; no body.
+    fn kdbx4_argon2(memory_bytes: u64, iterations: u64, lanes: u32) -> Vec<u8> {
+        let uuid = [
+            0x9e, 0x29, 0x8b, 0x19, 0x56, 0xdb, 0x47, 0x73, 0xb2, 0x3d, 0xfc, 0x3e, 0xc6, 0xf0,
+            0xa1, 0xe6,
+        ];
+        let mut dict = vec![0x00, 0x01];
+        for (key, value) in [
+            ("$UUID", uuid.to_vec()),
+            ("S", vec![3; 32]),
+            ("M", memory_bytes.to_le_bytes().to_vec()),
+            ("I", iterations.to_le_bytes().to_vec()),
+            ("P", lanes.to_le_bytes().to_vec()),
+        ] {
+            dict.push(0x42);
+            dict.extend((key.len() as i32).to_le_bytes());
+            dict.extend(key.as_bytes());
+            dict.extend((value.len() as i32).to_le_bytes());
+            dict.extend(value);
+        }
+        dict.push(0);
+        let mut out = KDBX31[..8].to_vec();
+        out.extend([1, 0, 4, 0]);
+        for (id, data) in [(4u8, vec![5u8; 32]), (11, dict), (0, vec![])] {
+            out.push(id);
+            out.extend((data.len() as u32).to_le_bytes());
+            out.extend(data);
+        }
+        out
+    }
+
+    #[test]
+    fn import_kdf_reports_the_kdbx_argon2_cost_before_the_kdf() {
+        assert_eq!(
+            import_kdf(kdbx4_argon2(64 << 20, 2, 2)).unwrap(),
+            Some(KdfInfo {
+                m_kib: 65_536,
+                t: 2,
+                p: 2
+            })
+        );
+        // The edge the core accepts, then a header far above it (reported, not clamped to it).
+        assert_eq!(
+            import_kdf(kdbx4_argon2(512 << 20, 6, 4))
+                .unwrap()
+                .unwrap()
+                .m_kib,
+            524_288
+        );
+        assert_eq!(
+            import_kdf(kdbx4_argon2(u64::MAX, u64::MAX, 4)).unwrap(),
+            Some(KdfInfo {
+                m_kib: u32::MAX,
+                t: u32::MAX,
+                p: 4
+            })
+        );
+        // No memory to check: AES-KDF, and files that are not KeePass at all.
+        assert_eq!(import_kdf(KDBX31.to_vec()).unwrap(), None);
+        assert_eq!(import_kdf(b"a,b\n1,2".to_vec()).unwrap(), None);
+        assert!(
+            import_kdf(KDBX31[..10].to_vec()).is_err(),
+            "truncated header"
+        );
+    }
+
+    #[test]
+    fn kdbx_above_the_ceiling_is_refused_with_a_clear_message_and_a_normal_one_imports() {
+        match parse_import(kdbx4_argon2(1 << 30, 1, 4), Some("x".into()), None, 0) {
+            Err(OpError::InvalidInput { reason }) => {
+                assert!(reason.contains("too costly for this device"), "{reason}")
+            }
+            other => panic!("{other:?}"),
+        }
+        let out = parse_import(KDBX31.to_vec(), Some("prueba-kdbx".into()), None, 0).unwrap();
+        assert_eq!(out.format, "keepass-kdbx");
+        assert!(!out.items.is_empty());
     }
 
     #[test]

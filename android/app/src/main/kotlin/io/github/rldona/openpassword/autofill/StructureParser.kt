@@ -9,16 +9,21 @@ data class LoginRequest(val target: FillTarget, val username: AutofillId?, val p
     val ids: List<AutofillId> get() = listOfNotNull(username, password)
 }
 
+private typealias ViewNode = AssistStructure.ViewNode
+
+private fun AssistStructure.windowRoots(): List<ViewNode> = List(windowNodeCount) { getWindowNodeAt(it).rootViewNode }
+
 object StructureParser {
     /** The text currently in the field [id], searching every screen of the request. */
     fun textValue(structures: List<AssistStructure>, id: AutofillId): String? {
-        fun find(node: AssistStructure.ViewNode): String? {
-            if (node.autofillId == id) return node.autofillValue?.takeIf { it.isText }?.textValue?.toString()
-            for (i in 0 until node.childCount) find(node.getChildAt(i))?.let { return it }
-            return null
-        }
         for (structure in structures.asReversed()) {
-            for (i in 0 until structure.windowNodeCount) find(structure.getWindowNodeAt(i).rootViewNode)?.let { return it }
+            var found: String? = null
+            walkTree(structure.windowRoots(), { it.childCount }, { node, i -> node.getChildAt(i) }) { node ->
+                if (node.autofillId != id) return@walkTree false
+                found = node.autofillValue?.takeIf { it.isText }?.textValue?.toString()
+                true
+            }
+            found?.let { return it }
         }
         return null
     }
@@ -35,7 +40,7 @@ object StructureParser {
         var webDomain: String? = null
         val fields = mutableListOf<Pair<AutofillId, FieldType?>>()
 
-        fun visit(node: AssistStructure.ViewNode) {
+        walkTree(structure.windowRoots(), { it.childCount }, { node, i -> node.getChildAt(i) }) { node ->
             if (webDomain == null) node.webDomain?.takeIf(String::isNotBlank)?.let { webDomain = it }
             val id = node.autofillId
             if (id != null && node.autofillType == View.AUTOFILL_TYPE_TEXT && node.visibility == View.VISIBLE) {
@@ -48,9 +53,8 @@ object StructureParser {
                 )
                 fields += id to FieldClassifier.classify(signals)
             }
-            for (i in 0 until node.childCount) visit(node.getChildAt(i))
+            false
         }
-        for (i in 0 until structure.windowNodeCount) visit(structure.getWindowNodeAt(i).rootViewNode)
 
         val (username, password) = pickLoginFields(fields)
         if (username == null && password == null) return null

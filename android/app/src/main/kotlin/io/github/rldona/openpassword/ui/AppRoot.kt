@@ -63,12 +63,12 @@ private fun AppContent(state: SessionState, session: VaultSession, clipboard: Se
             )
         }
         // Leaving this branch on lock discards the whole navigation stack and every decrypted value in it.
-        is SessionState.Unlocked -> UnlockedRoot(s.entries, session, clipboard, autoBackup)
+        is SessionState.Unlocked -> UnlockedRoot(s.entries, s.unreadable.size, session, clipboard, autoBackup)
     }
 }
 
 @Composable
-private fun UnlockedRoot(entries: List<VaultEntry>, session: VaultSession, clipboard: SensitiveClipboard, autoBackup: AutoBackup) {
+private fun UnlockedRoot(entries: List<VaultEntry>, unreadable: Int, session: VaultSession, clipboard: SensitiveClipboard, autoBackup: AutoBackup) {
     var stack by remember { mutableStateOf(listOf<Screen>(Screen.List)) }
     fun push(screen: Screen) { stack = stack + screen }
     fun pop() { stack = stack.dropLast(1) }
@@ -88,6 +88,7 @@ private fun UnlockedRoot(entries: List<VaultEntry>, session: VaultSession, clipb
             onSettings = { push(Screen.Settings) },
             health = health,
             onHealth = { push(Screen.Health) },
+            unreadable = unreadable,
         )
         is Screen.Detail -> find(top.id)?.let { entry ->
             ItemDetailScreen(

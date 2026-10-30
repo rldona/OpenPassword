@@ -1,0 +1,47 @@
+# cargo-deny for the fuzz harness, which is its own Cargo workspace (fuzz/Cargo.lock) and so is
+# not walked by the root `cargo deny --locked check`. CI runs
+#   cargo deny --manifest-path fuzz/Cargo.toml --locked --config fuzz/deny.toml check
+# Same rules as the root deny.toml, minus its advisory ignore (uniffi_bindgen is not in this
+# graph) and plus ONE exception: libfuzzer-sys is "(MIT OR Apache-2.0) AND NCSA". NCSA is the
+# permissive University of Illinois license of the LLVM code it bundles; it is a dev-only
+# harness that is never linked into a shipped binary. Adding it needs human approval
+# (docs/audit/decisions.md, ADR-AUD-04): until then, drop the `fuzz` step of the `audit` job.
+
+[graph]
+# Dependencies of the shipped targets and of the host tooling (bindgen, CLI, fuzz harness).
+all-features = true
+
+[advisories]
+
+[licenses]
+# Compatible with GPL-3.0-or-later (a requirement for F-Droid). Only what the current tree needs.
+allow = [
+    "GPL-3.0-or-later",          # this project's own crates
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-3-Clause",              # subtle
+    "MPL-2.0",                   # uniffi (file-level copyleft, compatible with GPL-3.0)
+    "Unicode-3.0",               # unicode-ident, unicode-normalization data
+    "Unlicense",                 # memchr (dual-licensed with MIT)
+    "Zlib",                      # tinyvec, zlib-rs
+    "LGPL-2.1-or-later",         # r-efi (triple-licensed MIT OR Apache-2.0 OR LGPL-2.1-or-later)
+]
+confidence-threshold = 0.9
+exceptions = [
+    { allow = ["NCSA"], crate = "libfuzzer-sys" },
+]
+
+[bans]
+multiple-versions = "warn"
+# Should be "deny": the only hits are the `op-core = { path = "../core" }` entries of op-ffi and
+# opvault-cli, which cargo-deny treats as wildcards because those crates are not `publish = false`.
+# Add `publish = false` to them (ffi/Cargo.toml, cli/Cargo.toml) together with
+# `allow-wildcard-paths = true` here, then switch this to "deny".
+wildcards = "warn"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

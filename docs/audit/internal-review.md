@@ -10,14 +10,17 @@ confirmados en `2bd56ce` («Fase 3: endurecimiento, cadena de suministro y paque
 estado de cada hallazgo se ha vuelto a contrastar con el código de ese commit. **Los números de línea
 de las secciones «Evidencia» describen el código antes de la corrección** y ya no coinciden en los
 hallazgos corregidos. Un segundo bloque de correcciones, **todavía sin commit** (sobre `2bd56ce`), cierra ID-INT-26 (nuevo) y
-completa ID-INT-16 (su primera corrección era eludible), además de ajustar ID-INT-02, ID-INT-05 y ID-INT-21; está descrito en cada hallazgo. Las líneas pueden cambiar si el código cambia: el auditor trabajará sobre el SHA
+completa ID-INT-16 (su primera corrección era eludible), además de ajustar ID-INT-02, ID-INT-05 y ID-INT-21; está descrito en cada hallazgo. Un tercer bloque, también **sin commit** y
+**sin hash todavía** («en el bloque sin commit»), corrige o mitiga ID-INT-02, 03, 06, 08, 09, 10, 11, 12, 14, 17, 18, 21 y 23 y amplía la prueba instrumentada de ID-INT-13; cada hallazgo indica
+qué quedó **sin verificar en dispositivo**. Las líneas pueden cambiar si el código cambia: el auditor trabajará sobre el SHA
 congelado ([`decisions.md`](decisions.md), ADR-AUD-01).
 
 **Alcance de esta revisión**: lectura de `core/src`, `ffi/src`, `android/app/src/main`, los workflows y
-la configuración de build, más una ejecución de `cargo test --workspace --locked` (**95 pasan, 0 fallan,
-1 ignorado**: 45 unitarios de `op-core`, 9 + 3 + 19 + 5 de integración y 14 de `op-ffi`), `cargo audit` y
-`cargo deny --locked check`. **No** se han ejecutado los tests de Kotlin (no hay JDK en el `PATH` de
-esta máquina), ni los instrumentados, ni ninguna prueba en dispositivo. **No es una revisión
+la configuración de build, más una ejecución de `cargo test --workspace --locked` sobre el árbol con el
+tercer bloque (**102 pasan, 0 fallan, 1 ignorado**: 50 unitarios de `op-core`, 9 + 3 + 19 + 5 de
+integración y 16 de `op-ffi`; en la redacción original, sobre `2bd56ce`, eran 95), y `cargo deny --locked check` (`advisories ok, bans ok, licenses ok, sources ok`) más
+`cargo deny --manifest-path fuzz/Cargo.toml --locked --config fuzz/deny.toml check` (mismo resultado, ver ID-INT-23). **No** se han ejecutado los tests de Kotlin
+(no hay JDK en el `PATH` de esta máquina; el recuento de **186** `@Test` en `android/app/src/test` es de lectura, no de ejecución), ni los instrumentados, ni ninguna prueba en dispositivo. **No es una revisión
 criptográfica**: no se han comprobado la derivación ni los vectores más allá de lo que cubren los tests.
 
 ## Escala de severidad
@@ -28,40 +31,46 @@ criterio de la escala y la explotabilidad real apuntan a niveles distintos, se e
 
 ## Resumen
 
-| Severidad | Hallazgos |
-|---|---|
-| Crítica | 0 |
-| Alta | 2 |
-| Media | 3 |
-| Baja | 11 |
-| Info | 10 |
-| **Total** | **26** |
+| Severidad | Hallazgos | Corregido | Parcial | Aceptado | Abierto |
+|---|---|---|---|---|---|
+| Crítica | 0 | 0 | 0 | 0 | 0 |
+| Alta | 2 | 2 | 0 | 0 | 0 |
+| Media | 3 | 2 | 1 | 0 | 0 |
+| Baja | 11 | 11 | 0 | 0 | 0 |
+| Info | 10 | 3 | 2 | 3 | 2 |
+| **Total** | **26** | **18** | **3** | **3** | **2** |
+
+«Corregido» significa que el código lo trata y hay tests (JVM o Rust) escritos; **no** significa verificado en dispositivo. Las correcciones del bloque sin commit
+no se han ejecutado en Kotlin (sin JDK). Lo que sigue pendiente de dispositivo o de aprobación humana:
+
+- **Dispositivo**: ID-INT-14 (API 29, 33, 36; [DT-04](device-tests.md#dt-04)), ID-INT-13 (prueba instrumentada ampliada, no ejecutada), ID-INT-16 y 26 (autorrelleno), ID-INT-20 (lista de sufijos con R8).
+- **Aprobación humana**: ID-INT-23 (licencia NCSA de `libfuzzer-sys` en `fuzz/deny.toml`) y la política de KDBX de ID-INT-02 (decisión nº 4 de [`decisions.md`](decisions.md)).
 
 | ID | Sev. | Área | Título | Estado |
 |---|---|---|---|---|
 | [ID-INT-01](#id-int-01) | Media | Rust | KDBX: el XML consume memoria cuadrática (DoS reproducido) | **Corregido** (`2bd56ce`) |
-| [ID-INT-02](#id-int-02) | Baja | Rust | KDBX: la KDF de KeePass no pasa por el techo móvil de `.opvault` | Abierto (presupuesto de KDBX hecho; falta la política frente al techo móvil) |
-| [ID-INT-03](#id-int-03) | Baja | Rust | Importadores: secretos en búferes que no se borran | Abierto |
+| [ID-INT-02](#id-int-02) | Baja | Rust | KDBX: la KDF de KeePass no pasa por el techo móvil de `.opvault` | **Corregido** (en el bloque sin commit; política de KDBX pendiente de aprobación humana; Kotlin sin ejecutar) |
+| [ID-INT-03](#id-int-03) | Baja | Rust | Importadores: secretos en búferes que no se borran | **Corregido** (en el bloque sin commit; residuos documentados) |
 | [ID-INT-04](#id-int-04) | Info | FFI | Residuos de salida de UniFFI aceptados | Aceptado |
 | [ID-INT-05](#id-int-05) | Media | Android | El desbloqueo no cierra el `Vault` si falla después de `Vault.unlock` (conocido) | **Corregido** (`2bd56ce`) |
-| [ID-INT-06](#id-int-06) | Baja | Android | Un solo elemento ilegible impide desbloquear el baúl | Abierto |
+| [ID-INT-06](#id-int-06) | Baja | Android | Un solo elemento ilegible impide desbloquear el baúl | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar) |
 | [ID-INT-07](#id-int-07) | Baja | Android | Cuatro llamadas FFI sin captura de `InternalException` | **Corregido** (`2bd56ce`) |
-| [ID-INT-08](#id-int-08) | Baja | Android | `lock()` no toma el `mutex`: carrera con una operación en curso | Abierto |
-| [ID-INT-09](#id-int-09) | Baja | Android | `verifyPassword` no cuenta ni espera intentos | Abierto |
-| [ID-INT-10](#id-int-10) | Info | Android | `atomicWrite` no fuerza el volcado a disco | Abierto |
-| [ID-INT-11](#id-int-11) | Info | Android | `AutoBackup` traga `CancellationException` | Abierto |
-| [ID-INT-12](#id-int-12) | Baja | Android | `readBackupFile` deja una copia en claro sin borrar | Abierto |
-| [ID-INT-13](#id-int-13) | Info | Android | A7: la implementación y sus pruebas no alcanzan lo que describe el ADR | Parcial |
-| [ID-INT-14](#id-int-14) | Media | Portapapeles | El borrado de los 30 s probablemente no actúa si la app perdió el foco | Abierto, sin verificar en dispositivo |
+| [ID-INT-08](#id-int-08) | Baja | Android | `lock()` no toma el `mutex`: carrera con una operación en curso | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar) |
+| [ID-INT-09](#id-int-09) | Baja | Android | `verifyPassword` no cuenta ni espera intentos | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar) |
+| [ID-INT-10](#id-int-10) | Info | Android | `atomicWrite` no fuerza el volcado a disco | **Corregido** (en el bloque sin commit; residuo: fsync de directorio; Kotlin sin ejecutar) |
+| [ID-INT-11](#id-int-11) | Info | Android | `AutoBackup` traga `CancellationException` | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar) |
+| [ID-INT-12](#id-int-12) | Baja | Android | `readBackupFile` deja una copia en claro sin borrar | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar) |
+| [ID-INT-13](#id-int-13) | Info | Android | A7: la implementación y sus pruebas no alcanzan lo que describe el ADR | Parcial (prueba instrumentada ampliada, **no ejecutada**; banner en autorrelleno sin hacer) |
+| [ID-INT-14](#id-int-14) | Media | Portapapeles | El borrado de los 30 s probablemente no actúa si la app perdió el foco | Parcial (mitigado en código en el bloque sin commit; **pendiente de verificar en dispositivo**) |
 | [ID-INT-15](#id-int-15) | Info | Portapapeles | Sin marca de «sensible» en API 28-32 | Aceptado |
 | [ID-INT-16](#id-int-16) | Alta | Autorrelleno | El dominio de una página lo declara cualquier app: no se exige un navegador | **Corregido** (`2bd56ce`, completado en el bloque sin commit; sin probar en dispositivo) |
-| [ID-INT-17](#id-int-17) | Baja | Autorrelleno | `PendingSaves`: caducidad perezosa y sin vaciado al bloquear | Abierto |
-| [ID-INT-18](#id-int-18) | Baja | Autorrelleno | `StructureParser` recorre el árbol de forma recursiva y sin límite | Abierto |
+| [ID-INT-17](#id-int-17) | Baja | Autorrelleno | `PendingSaves`: caducidad perezosa y sin vaciado al bloquear | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar) |
+| [ID-INT-18](#id-int-18) | Baja | Autorrelleno | `StructureParser` recorre el árbol de forma recursiva y sin límite | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar, sin prueba en dispositivo) |
 | [ID-INT-19](#id-int-19) | Info | Autorrelleno | Hasta 5 logins en claro viajan a `system_server` sin autenticación de dataset | Aceptado |
 | [ID-INT-20](#id-int-20) | Info | Autorrelleno | La lista de sufijos públicos: sin prueba en dispositivo y sin actualización | Abierto |
-| [ID-INT-21](#id-int-21) | Baja | Herramientas | La comprobación de que `cfg(fuzzing)` no entra en release no detecta nada | Abierto |
+| [ID-INT-21](#id-int-21) | Baja | Herramientas | La comprobación de que `cfg(fuzzing)` no entra en release no detecta nada | **Corregido** (en el bloque sin commit; CI sin ejecutar) |
 | [ID-INT-22](#id-int-22) | Info | Herramientas | `cargoBuild` no declara `rust-toolchain.toml` ni `.cargo/config.toml` como entradas | Abierto |
-| [ID-INT-23](#id-int-23) | Info | Herramientas | Ficheros generados y *lockfiles* fuera de cobertura | Parcial (`.gitignore`; falta `fuzz/Cargo.lock`) |
+| [ID-INT-23](#id-int-23) | Info | Herramientas | Ficheros generados y *lockfiles* fuera de cobertura | Parcial (`.gitignore`; `fuzz/deny.toml` y paso de CI hechos en el bloque sin commit, **pendiente de aprobación humana** por la licencia NCSA) |
 | [ID-INT-24](#id-int-24) | Info | Herramientas | `fuzz/README.md` está desactualizado respecto a la CI y a los límites | **Corregido** (documentación) |
 | [ID-INT-25](#id-int-25) | Baja | Herramientas | El objetivo `import` no llega al analizador de la cabecera de KDBX | **Corregido** (`2bd56ce`) |
 | [ID-INT-26](#id-int-26) | Alta | Autorrelleno | Una app rellenada puede inyectar el dominio en el `PendingIntent` mutable y recibir credenciales de cualquier sitio | **Corregido** (sin commit; sin probar en dispositivo) |
@@ -72,10 +81,10 @@ criterio de la escala y la explotabilidad real apuntan a niveles distintos, se e
 |---|---|---|---|
 | El desbloqueo no cierra el `Vault` si `decryptOverview` falla después de `Vault.unlock` | Revisión previa (este documento) | ID-INT-05 | **Corregido** (`2bd56ce`) |
 | Llamadas FFI sin captura de `InternalException` | [`decisions.md`](decisions.md) ADR-AUD-03 (8 sitios) | ID-INT-07 | Los 8 de la lista, cubiertos en `3725741`; los 4 que quedaban fuera de la lista, en `2bd56ce` (**corregido**) |
-| Falta de memoria en Argon2 aborta el proceso | [`decisions.md`](decisions.md), «Riesgos que quedan abiertos» | ID-INT-02 | **Abierto**: el techo móvil lo reduce, no lo elimina, y KDBX no pasa por él |
+| Falta de memoria en Argon2 aborta el proceso | [`decisions.md`](decisions.md), «Riesgos que quedan abiertos» | ID-INT-02 | **Mitigado** (en el bloque sin commit): KDBX tiene el mismo techo que el móvil (512 MiB, 3 GiB·pase) y una comprobación de RAM previa a pedir la contraseña; el techo lo reduce, no lo elimina (sigue sin ser una asignación fallible), y la política está pendiente de aprobación humana |
 | KDF que no se puede cancelar | Ídem | — | Abierto, fuera de alcance |
 | Secretos en `String` de la JVM y Compose; `RustBuffer` de salida sin borrar | ADR-AUD-02 §6 | ID-INT-04 | Aceptado y documentado |
-| `StructureParser` sin fuzzing | ADR-AUD-05 | ID-INT-18 | Pospuesto ([`fuzzing.md`](fuzzing.md)) |
+| `StructureParser` sin fuzzing | ADR-AUD-05 | ID-INT-18 | El recorrido ya es iterativo y acotado (en el bloque sin commit); el fuzzing sigue pospuesto ([`fuzzing.md`](fuzzing.md)) |
 
 ---
 
@@ -104,7 +113,7 @@ criterio de la escala y la explotabilidad real apuntan a niveles distintos, se e
 | `totp.rs:180`, `kdbx.rs:471` HMAC | HMAC acepta claves de cualquier longitud |
 | `secret_key.rs:44,57` | Salida HKDF de 4 bytes y base32 ASCII |
 
-- Tests (`cargo test --workspace --locked`, todos en verde): 45 unitarios de `op-core` (33 s en la última ejecución: Argon2
+- Tests (`cargo test --workspace --locked`, todos en verde): 50 unitarios de `op-core` (36 s en la última ejecución: Argon2
   con 64 MiB en el perfil de pruebas), 9 de `tests/backup.rs`, 3 de `known_answers.rs`, 19 de
   `tests/vault.rs` y 5 de `tests/vectors.rs` (1 ignorado).
 
@@ -175,11 +184,18 @@ XML descifrado tiene límites: `MAX_GROUP_DEPTH` 100 grupos abiertos, `MAX_XML_D
 | Severidad | **Baja** (riesgo ya registrado en [`decisions.md`](decisions.md); vector que exige una base hostil) |
 | Componente | `op-core` / `op-ffi` |
 | Evidencia | `core/src/import/kdbx.rs:36-42,544-555` (hoy 512 MiB, 1000 pasadas, 64 carriles y `memoria × pasadas ≤ 3 GiB·pasada`; antes, 1 GiB y 16 GiB·pasada); `ffi/src/lib.rs:542-574` (`parse_import` no llama a `check_mobile_kdf`); `VaultSession.kt:126-129,139,168` (la comprobación de RAM solo existe para `.opvault`); `ExternalImport.kt:54,62` (importación sin esa comprobación) |
-| Estado | **Abierto** (el presupuesto de KDBX está implementado pero su aprobación está en la lista de decisiones humanas, nº 4) |
+| Estado | **Corregido** en el bloque sin commit (sin hash todavía). La **política** de rechazar bases KDBX que no caben queda pendiente de aprobación humana (decisión nº 4 de [`decisions.md`](decisions.md)). |
+
+**Corrección (en el bloque sin commit).** Dos partes, ambas verificadas **solo por lectura y por los tests de Rust** (los de Kotlin no se han ejecutado):
+(1) el techo de KDBX está alineado con el móvil (512 MiB / 3 GiB·pase, `kdbx.rs:36-42`);
+(2) `op_core::import::kdbx_argon2_cost` (`core/src/import/mod.rs:59`, expuesta como `import_kdf` en `ffi/src/lib.rs:509`, `importKdf` en Kotlin) lee la cabecera **sin derivar** y devuelve el coste Argon2 (`None` para AES-KDF, KDBX 3.1 o ficheros que no son KDBX);
+`checkImportKdfFits` (`session/KdfMemory.kt:28`) lanza `OpException.KdfTooExpensive` si la memoria pedida supera la mitad de la RAM del dispositivo, y se llama en `readExternalExport` (`ui/settings/ExternalImport.kt:57`) **antes** de pedir la contraseña, con mensaje de error propio.
+Tests: `argon2_budget_accepts_the_edge_and_refuses_above_it`, `argon2_cost_is_none_without_argon2_and_errors_on_damaged_headers` (`kdbx.rs`), `import_kdf_reports_the_kdbx_argon2_cost_before_the_kdf` (`ffi/src/lib.rs:916`; ejecutados, en verde) y `KdfMemoryTest` (6 `@Test`, no ejecutados).
+**Residuos**: `argon2` 0.5 sigue reservando la memoria sin posibilidad de fallo recuperable (un dispositivo con poca RAM *libre* puede abortar aunque pase la comprobación de RAM *total*); la comprobación no se ha probado en un dispositivo.
 
 **Contraste en `2bd56ce`.** Sigue abierto: `parse_import` no llama a `check_mobile_kdf`, y la comprobación de RAM (`checkKdfFits`, `VaultSession.kt:126`, regla de `KdfMemory.kt`: memoria de la KDF ≤ la mitad de la RAM)
 solo se aplica a copias `.opvault` (`restore` e `importBackup`). Lo que sí hay es el presupuesto conjunto de KDBX (`MAX_ARGON2_BYTES` 512 MiB y `MAX_ARGON2_WORK` 3 GiB·pasada, `kdbx.rs:36-42`), pendiente de aprobación humana (nº 4).
-**Actualización (sin commit):** el techo de KDBX se bajó de 1 GiB / 16 GiB·pasada a 512 MiB / 3 GiB·pasada, igual que el techo móvil de `.opvault` (512 MiB × 6 pasadas; `ffi/src/lib.rs:33`); el comentario de `kdbx.rs:34-37` lo justifica así. Sigue sin comprobación de RAM previa y el hallazgo sigue abierto.
+**Actualización (sin commit):** el techo de KDBX se bajó de 1 GiB / 16 GiB·pasada a 512 MiB / 3 GiB·pasada, igual que el techo móvil de `.opvault` (512 MiB × 6 pasadas; `ffi/src/lib.rs:33`); el comentario de `kdbx.rs:34-37` lo justifica así. Sin comprobación de RAM previa en ese momento; **esa parte se corrigió después** (ver «Corrección» más abajo).
 
 **Qué pasa.** Una copia `.opvault` está limitada a 512 MiB / 6 / 8 en Android (`ffi/src/lib.rs:33`),
 pero (en `2bd56ce`) una base KeePass podía pedir **1 GiB × 16 pasadas** y la importación la aceptaba. Ya no: el test
@@ -199,9 +215,15 @@ porque rechaza bases legítimas.
 | Severidad | **Baja** (residuo no documentado; requiere leer memoria del proceso, A10) |
 | Componente | `op-core`, importadores |
 | Evidencia | `core/src/import/mod.rs:333` (`serde_json::Value` con todas las contraseñas), `:517` (`data.fill(0)` solo borra el `Vec<u8>` del `.1pux`, y no en la ruta de error del `?` de `:513-515`), `:227-250` (`Vec<Vec<String>>` del CSV); `core/src/import/kdbx.rs:399-400` (`hex: String` y `decode_hex` con el material del archivo de clave); `core/src/totp.rs` (`percent_decode` crea un `String` con el secreto) |
-| Estado | **Abierto** |
+| Estado | **Corregido** en el bloque sin commit (sin hash todavía), con residuos documentados. |
 
-**Qué pasa.** `docs/threat-model.md` (A15) dice «los bytes leídos se borran de memoria al analizarlos».
+**Corrección (en el bloque sin commit).** Los búferes con secretos de los importadores pasan a `Zeroizing` o se borran al salir del ámbito, **también por las rutas de error**:
+`core/src/import/mod.rs` (copia del `.1pux`, campos del CSV, árbol JSON; cabecera del módulo), `kdbx.rs` (clave compuesta, claves derivadas, `protected_stream_key`, archivo de clave y su `hex`, `decode_hex`,
+texto descifrado) y `totp.rs` (parámetros de `otpauth://`). Los residuos que no se pueden borrar desde Rust están en `docs/threat-model.md` (viñeta «Importadores»):
+reasignaciones al crecer un `String`/`Vec`, búferes internos de `serde_json`, nombres de campo de los objetos JSON, temporales de pila de `sha2` y lo que ocurre tras cruzar la FFI.
+Verificado con la suite de Rust (en verde); no hay un test que mida el borrado.
+
+**Qué pasa (antes de la corrección).** `docs/threat-model.md` (A15) dice «los bytes leídos se borran de memoria al analizarlos».
 Eso es cierto para el búfer de entrada (`Zeroizing` en `op-ffi`, `fill(0)` en Kotlin), pero la
 estructura **analizada** (el árbol JSON, los campos del CSV, las cadenas de KeePass tras
 `reveal`, `kdbx.rs:578`) contiene las mismas contraseñas y se libera sin borrar. En el `.1pux` el
@@ -335,9 +357,13 @@ función auxiliar.
 | Severidad | **Baja** (disponibilidad; requiere una fila dañada) |
 | Componente | Android, `VaultSession` |
 | Evidencia | `VaultSession.kt:108`, `:141`, `:280`: el `map { decryptOverview }` no tiene tolerancia por elemento; `:136` (`restore` exige que no haya baúl) |
-| Estado | **Abierto** |
+| Estado | **Corregido** en el bloque sin commit (sin hash todavía; Kotlin sin ejecutar). |
 
-**Qué pasa.** Una fila con un bit cambiado (fallo de almacenamiento) hace que `decryptOverview`
+**Corrección (en el bloque sin commit).** Política elegida: aislar la fila dañada y avisar. `session/EntryLoading.kt` omite las filas cuyo resumen lanza `OpException.Corrupted` y devuelve sus ids en `LoadedEntries.unreadable`;
+`SessionState.Unlocked.unreadable` lo lleva a la interfaz, que muestra un aviso sobre la lista (`UnreadableBanner` en `ui/vault/VaultListScreen.kt`, alimentado desde `ui/AppRoot.kt`). Tests: `EntryLoadingTest` (4 `@Test`, no ejecutados).
+**Pendiente**: la política (omitir en lugar de fallar) es una decisión de producto que no está aprobada formalmente; el usuario sigue sin poder reparar ni borrar desde la app la fila ilegible.
+
+**Qué pasa (antes de la corrección).** Una fila con un bit cambiado (fallo de almacenamiento) hace que `decryptOverview`
 lance `Corrupted` y que **todo el desbloqueo falle** con «Los datos están dañados». La app no ofrece
 borrar el baúl ni restaurar sobre uno existente (`restore` exige `!storage.hasVault()`,
 `VaultSession.kt:136`): el usuario debe borrar los datos de la app desde Ajustes de Android y
@@ -381,9 +407,12 @@ nuevo **sin ningún `catch`** seguiría sin detectarse; la recomendación de amp
 | Severidad | **Baja** (carrera estrecha; **sin reproducir**) |
 | Componente | Android, `VaultSession` |
 | Evidencia | `VaultSession.kt:300-307` (`lock()`: `it.lock(); it.close(); vault = null`, sin `mutex`); `:419-420` (`backgroundLock` ejecuta `lock()` en el hilo principal); `:434-443` (`withVault` mantiene `mutex` y llama al `Vault` desde `Dispatchers.Default`); `build/generated/uniffi/…/op_ffi.kt:1451-1453` (tras `close()`, una llamada lanza `IllegalStateException("… object has already been destroyed")`) |
-| Estado | **Abierto** |
+| Estado | **Corregido** en el bloque sin commit (sin hash todavía; Kotlin sin ejecutar). |
 
-**Qué pasa.** El autobloqueo (30 s en segundo plano, `ACTION_SCREEN_OFF`) llama a `lock()` desde el
+**Corrección (en el bloque sin commit).** `session/KeyHolder.kt` guarda el `Vault` en un `AtomicReference`: `lock()` lo intercambia por `null` y lo cierra sin esperar al `mutex` (sin carrera de lectura/escritura sobre el campo), y `KeyHolder.use` convierte la `IllegalStateException` de un `Vault` cerrado a mitad de operación en `OpException.Locked`, que los llamadores ya tratan. Tests: `KeyHolderTest` (7 `@Test`, no ejecutados).
+`lock()` sigue sin esperar a la operación en curso: esta termina con `Locked`, no con un cierre de la app.
+
+**Qué pasa (antes de la corrección).** El autobloqueo (30 s en segundo plano, `ACTION_SCREEN_OFF`) llama a `lock()` desde el
 hilo principal sin esperar a una operación que esté dentro de `withVault`. Si esa operación hace
 varias llamadas FFI seguidas (`importExternal` itera por todos los elementos, `:339-347`), las
 posteriores a `close()` lanzan `IllegalStateException`, que **no es** `OpException` ni
@@ -402,9 +431,11 @@ capture `IllegalStateException` como `OpException.Locked`.
 | Severidad | **Baja** (requiere el baúl ya abierto y en manos del atacante) |
 | Componente | Android, `VaultSession` |
 | Evidencia | `VaultSession.kt:201-210` (sin `remainingWait()` ni contador) frente a `:103-117` (`unlock` sí); uso en `SettingsScreen.kt:333` («ver la clave secreta») |
-| Estado | **Abierto** |
+| Estado | **Corregido** en el bloque sin commit (sin hash todavía; Kotlin sin ejecutar). |
 
-**Qué pasa.** La comprobación de contraseña de Ajustes ejecuta Argon2 completo cada vez, sin límite
+**Corrección (en el bloque sin commit).** `session/AttemptLimiter.kt` es un contador compartido por `unlock` y `verifyPassword` (`VaultSession.kt:80`): `verifyPassword` consulta `remainingWait()` antes de ejecutar Argon2, registra fallos y éxitos, y devuelve `UnlockResult` (`Success`, `WrongPassword`, `MustWait`, `Failed`) en lugar de un booleano. Tests: `AttemptLimiterTest` (5 `@Test`, no ejecutados).
+
+**Qué pasa (antes de la corrección).** La comprobación de contraseña de Ajustes ejecuta Argon2 completo cada vez, sin límite
 ni espera. Quien tenga el teléfono con el baúl abierto (A2, no A1) puede probar contraseñas sin la
 espera exponencial. Cada intento ejecuta Argon2 completo (coste no medido en esta revisión), lo que lo frena pero no lo limita.
 
@@ -419,9 +450,12 @@ abierto ya ve todo.
 | Severidad | **Info** (sin reproducir; la cabecera solo se escribe al crear o restaurar) |
 | Componente | Android, `VaultStorage` |
 | Evidencia | `VaultStorage.kt:72-76`: `tmp.writeBytes(bytes)` y `renameTo` sin `FileDescriptor.sync()`; usos: `:39` (cabecera), `:41` (clave secreta), `:57` (clave biométrica) |
-| Estado | **Abierto** |
+| Estado | **Corregido** en el bloque sin commit (sin hash todavía; Kotlin sin ejecutar), con un residuo documentado. |
 
-**Qué pasa.** Tras un corte de energía justo después de crear el baúl, el `rename` puede persistir
+**Corrección (en el bloque sin commit).** `data/AtomicWrite.kt` llama a `fd.sync()` sobre el temporal **antes** del `rename`. Tests: `AtomicWriteTest` (3 `@Test`, no ejecutados).
+**Residuo**: el propio `rename` no se vuelca (Java no puede hacer `fsync` de un directorio), así que un corte de energía justo después puede perder el cambio de nombre, pero ya no deja una cabecera vacía; está documentado en el comentario del fichero.
+
+**Qué pasa (antes de la corrección).** Tras un corte de energía justo después de crear el baúl, el `rename` puede persistir
 antes que los datos y dejar una cabecera vacía. La cabecera no cambia después, así que el riesgo se
 limita a un baúl recién creado o restaurado.
 
@@ -433,9 +467,11 @@ limita a un baúl recién creado o restaurado.
 | Severidad | **Info** |
 | Componente | Android, `AutoBackup` |
 | Evidencia | `AutoBackup.kt:108-121` (`catch (_: Exception)` alrededor de `withContext(Dispatchers.IO)`); `:62-67` (`disable()` borra el error y cancela el trabajo) |
-| Estado | **Abierto** |
+| Estado | **Corregido** en el bloque sin commit (sin hash todavía; Kotlin sin ejecutar). |
 
-**Qué pasa.** Cancelar el trabajo (`schedule`, `disable`, `backupNow`) durante la escritura lanza
+**Corrección (en el bloque sin commit).** `AutoBackup` captura `CancellationException` antes de `catch (_: Exception)` y la relanza (`AutoBackup.kt:120`), así que cancelar el trabajo ya no guarda un error en `KEY_ERROR`. No hay un test específico.
+
+**Qué pasa (antes de la corrección).** Cancelar el trabajo (`schedule`, `disable`, `backupNow`) durante la escritura lanza
 `CancellationException`, que `catch (_: Exception)` convierte en «No se pudo escribir…» y guarda en
 `KEY_ERROR` (`fail`, `:148-152`) incluso después de `disable()`. Solo afecta al mensaje de la interfaz.
 
@@ -447,9 +483,12 @@ limita a un baúl recién creado o restaurado.
 | Severidad | **Baja** (residuo; contradice parcialmente A15) |
 | Componente | Android, UI |
 | Evidencia | `ui/Components.kt:159` (`ByteArrayOutputStream`), `:167` (`out.toByteArray()` copia); `ExternalImport.kt:54-56,61-63` solo borran el `ByteArray` devuelto |
-| Estado | **Abierto** |
+| Estado | **Corregido** en el bloque sin commit (sin hash todavía; Kotlin sin ejecutar). |
 
-**Qué pasa.** Para exportaciones en claro (CSV, JSON, `.1pux`) el `ByteArrayOutputStream` guarda su
+**Corrección (en el bloque sin commit).** `ui/WipingRead.kt` (`readWiping`) lee a un único `ByteArray` con tope, y borra cada búfer intermedio que se sustituye o deja de usarse, también si la lectura falla o se supera el límite; el llamador borra el resultado. Tests: `WipingReadTest` (5 `@Test`, no ejecutados).
+**Residuo**: lo que mantienen el sistema, el proveedor de contenido y el núcleo mientras sirven el fichero, y los `String` que luego construyen los analizadores.
+
+**Qué pasa (antes de la corrección).** Para exportaciones en claro (CSV, JSON, `.1pux`) el `ByteArrayOutputStream` guarda su
 propio búfer interno (hasta 2× el tamaño por el crecimiento) y `toByteArray()` otra copia. Solo la
 última se borra. El texto con todas las contraseñas queda en el montón hasta el siguiente GC.
 
@@ -465,6 +504,9 @@ borrarlo; o aceptarlo y documentarlo en A15.
 | Componente | Android, `OverlayProtection` |
 | Evidencia | `androidTest/.../OverlayProtectionTest.kt` (solo `MainActivity`; el propio comentario dice «Pending: AutofillAuthActivity / SaveLoginActivity … and the dialogs»); `ui/AppRoot.kt:47` (`OverlayWarningBanner` solo en `MainActivity`); `security/OverlayProtection.kt:39,57-62` (un `Toast` y solo la primera vez por proceso) |
 | Estado | **Parcial** |
+
+**Actualización (en el bloque sin commit).** `OverlayProtectionTest` (instrumentado) ahora tiene 4 `@Test`: `mainActivityWindowIsProtected`, `autofillAuthActivityWindowIsProtected`, `saveLoginActivityWindowIsProtected` y `protectedAlertDialogWindowIsProtected`, es decir, las tres actividades y un diálogo. **No se ha ejecutado** (ni en emulador ni en dispositivo; sin JDK).
+Sigue sin hacer el resto del hallazgo: el banner solo está en `MainActivity` (`ui/AppRoot.kt:47`) y las dos actividades de autorrelleno solo muestran un `Toast` la primera vez por proceso (`OverlayProtection.kt:60`).
 
 La defensa está en las tres actividades y en los diálogos (código), pero ADR-AUD-06 pedía un banner
 en las dos actividades de autorrelleno y una prueba instrumentada para cada actividad y diálogo. Hoy
@@ -486,7 +528,12 @@ Código: `security/SensitiveClipboard.kt` (45 líneas), usado desde la UI y limp
 | Severidad | **Media** (la escala diría **Alta**: «una defensa descrita en el modelo de amenazas … se salta»; se propone Media hasta confirmarlo en un dispositivo) |
 | Componente | Android, portapapeles |
 | Evidencia | `SensitiveClipboard.kt:34-39`: `if (clipboard.primaryClipDescription?.label == LABEL) clipboard.clearPrimaryClip()`, con el comentario «Android 10+ may deny clipboard access in the background: then the description is null»; `OpenPasswordApp.kt:78-79` |
-| Estado | **Abierto**, **sin verificar en dispositivo** |
+| Estado | **Parcial**: mitigado en código en el bloque sin commit (sin hash todavía); **pendiente de verificar en dispositivo** (API 29, 33 y 36). |
+
+**Corrección (en el bloque sin commit), sin verificar.** `security/ClipboardClearPolicy.kt` es la decisión pura (qué hacer según plazo, etiqueta y si se puede leer el portapapeles) y `SensitiveClipboard` la aplica con el plazo **persistido** en `SharedPreferences` y un `Handler` del hilo principal del proceso que intenta el borrado al vencer;
+si el portapapeles no se puede leer en ese momento no se toca nada y el borrado queda **pendiente** hasta que la app vuelva a primer plano (`onForeground`, llamado desde `OpenPasswordApp.kt:63,79`) o se apague la pantalla (`clearIfOurs`). Tests: `ClipboardClearPolicyTest` (7 `@Test`, no ejecutados).
+**Lo que NO se sabe** (lo dice el propio comentario de `SensitiveClipboard.kt`): (1) si `primaryClipDescription` es de verdad `null` en segundo plano en API 29, 33 y 36; (2) si `clearPrimaryClip()` está permitido desde segundo plano; (3) si el `Handler` se ejecuta con el proceso en caché.
+Hasta probarlo ([DT-04](device-tests.md#dt-04), sin ejecutar), una contraseña copiada y pegada en otra app puede seguir en el portapapeles hasta que el usuario vuelva a OpenPassword, se apague la pantalla o se copie otra cosa; **no** debe afirmarse «con borrado» en A7 sin esa prueba.
 
 **Qué pasa.** El uso típico es copiar una contraseña y **cambiar a la otra app** para pegarla: en ese
 momento OpenPassword ya no tiene el foco. Desde Android 10 solo la app con foco y el teclado por
@@ -586,9 +633,12 @@ Tests (JVM, no ejecutados aquí): `BrowserCheckTest` (13 `@Test`) y `LoginMatche
 | Severidad | **Baja** |
 | Componente | Android, autorrelleno |
 | Evidencia | `autofill/PendingSaves.kt:20-40` (`expire()` solo se llama desde `put` y `peek`; no hay temporizador); `SaveLoginActivity.kt:122` (única llamada a `remove`, solo `if (isFinishing)`); `VaultSession.kt:300-307` (`lock()` no toca `PendingSaves`); `grep -rn PendingSaves android/app/src/main` lo confirma |
-| Estado | **Abierto** |
+| Estado | **Corregido** en el bloque sin commit (sin hash todavía; Kotlin sin ejecutar). |
 
-**Qué pasa.** La contraseña tecleada en otra app queda en un `String` del montón hasta 5 min **solo
+**Corrección (en el bloque sin commit).** `PendingSaves` delega en `PendingStore` (`autofill/PendingSaves.kt`), que caduca las entradas a los 5 min (`TTL_MS`) con un barrido periódico de un `Handler` (cada 30 s mientras queden entradas) además de la purga en `put`/`peek`, y `session.onLocked = PendingSaves::clear` (`OpenPasswordApp.kt:75`) las vacía al bloquear. Tests: `PendingStoreTest` (6 `@Test`, no ejecutados).
+**Residuo**: la contraseña sigue siendo un `String` del montón hasta que el GC lo recoja.
+
+**Qué pasa (antes de la corrección).** La contraseña tecleada en otra app queda en un `String` del montón hasta 5 min **solo
 si** otra llamada a `put`/`peek` ejecuta `expire()`; si no llega ninguna, permanece hasta que el
 proceso muera. Si `SaveLoginActivity` se destruye sin `isFinishing` (p. ej. por falta de memoria), el
 elemento no se elimina. Bloquear el baúl no lo vacía. README Android dice «La contraseña tecleada se
@@ -604,9 +654,12 @@ queda en la memoria de la app»; no dice cuánto.
 | Severidad | **Baja** (teórico: **sin reproducir**) |
 | Componente | Android, autorrelleno |
 | Evidencia | `autofill/StructureParser.kt:15-18` (`find`) y `:34-48` (`visit`): recursión por `getChildAt` sin profundidad máxima; la llamada de `onFillRequest` no está protegida (`OpAutofillService.kt:30`) |
-| Estado | **Abierto** |
+| Estado | **Corregido** en el bloque sin commit (sin hash todavía; Kotlin sin ejecutar). **Sin prueba en dispositivo**; el fuzzing de `StructureParser` sigue pospuesto. |
 
-**Qué pasa.** La estructura la construye la app de origen. Un árbol con anidamiento muy profundo
+**Corrección (en el bloque sin commit).** `autofill/TreeWalker.kt` (`walkTree`) es un recorrido **iterativo** con `MAX_DEPTH` = 100 y `MAX_NODES` = 20 000; `StructureParser` lo usa en sus dos recorridos (`StructureParser.kt:21,43`). Al superar un límite deja de visitar, no lanza. Tests: `TreeWalkerTest` (6 `@Test`, no ejecutados).
+Sigue sin comprobarse qué profundidad deja pasar el sistema al transmitir el `AssistStructure`.
+
+**Qué pasa (antes de la corrección).** La estructura la construye la app de origen. Un árbol con anidamiento muy profundo
 podría agotar la pila y lanzar `StackOverflowError` (un `Error`, no una `Exception`) dentro del
 proceso de OpenPassword, que es el mismo que la app. No se ha comprobado qué profundidad permite el
 sistema al transmitir el `AssistStructure` ni si Android la acota antes.
@@ -714,9 +767,15 @@ y `fuzz/`. Ejecución de `cargo audit` (0 vulnerabilidades, 139 *crates*) y `car
 | Severidad | **Baja** (falsa seguridad en un control documentado) |
 | Componente | Herramientas, fuzzing |
 | Evidencia | `fuzz/README.md` («cargo build -p op-core --release && ! strings target/release/libop_core.rlib \| grep -E 'seal_backup\|seal_item_part\|TEST_VAULT_KEY'»); control negativo: `strings -a target/release/libop_core.rlib \| grep -c "cost above the accepted maximum"` da **0** aunque esa cadena existe en el código, mientras que en `libop_ffi.so` da **1** |
-| Estado | **Abierto** |
+| Estado | **Corregido** en el bloque sin commit (sin hash todavía). El script y su autoprueba **no se han ejecutado en la CI**. |
 
-**Qué pasa.** Con `lto = true` el `.rlib` contiene *bitcode* de LLVM y `strings` ni siquiera lo lee
+**Corrección (en el bloque sin commit).** `op_core::fuzzing::HOOKS_MARKER` (`core/src/lib.rs:42`, `#[used]`, solo con `--cfg fuzzing`) es el marcador que se busca, porque tras LTO el binario final no conserva los nombres de los ganchos.
+`scripts/check-no-fuzzing-hooks.sh <libop_ffi.so>…` falla si encuentra el marcador **o** si no encuentra la cadena de control (`cost above the accepted maximum`), de modo que un binario ilegible no pasa por limpio (control negativo);
+`--self-test` compila `op-ffi` con `--cfg fuzzing` y comprueba que el marcador aparece y que la comprobación **falla** (control positivo). La CI lo ejecuta sobre `libop_ffi.so` (`ci.yml:30-31`) y sobre las bibliotecas del APK (`ci.yml:98`).
+Además se corrigieron los comandos de fuzzing de `fuzz/README.md` y de [`fuzzing.md`](fuzzing.md): con `-O` hay que añadir `-a` (`cargo +nightly fuzz run -O -a …`), porque la guardia `compile_error!` rechaza `--cfg fuzzing` sin `debug_assertions`.
+En esta revisión no se ha podido ejecutar el script (no había `libop_ffi.so` compilado en `target/release`; devolvió «no such file»).
+
+**Qué pasa (antes de la corrección).** Con `lto = true` el `.rlib` contiene *bitcode* de LLVM y `strings` ni siquiera lo lee
 bien (`warning: … Not an int attribute`); el comando siempre «pasa». La comprobación real y que sí
 funciona es sobre el binario final: `strings -a …/libop_ffi.so | grep -cE
 'seal_backup|seal_item_part|TEST_VAULT_KEY'` da **0** (arm64, compilado a las 10:14 del 30/10) y la
@@ -725,7 +784,7 @@ cadena de control da 1.
 **Recomendación.** Sustituirla en el README y en un paso de la CI por la comprobación sobre
 `libop_ffi.so`, **con** el control positivo.
 
-**Mitigación parcial (sin commit).** `core/src/lib.rs:20-22` añade `#[cfg(all(fuzzing, not(debug_assertions)))] compile_error!(…)`: una compilación `release` con `--cfg fuzzing` falla en vez de incluir los ganchos (`cargo fuzz build` mantiene `debug_assertions`). Esto no sustituye a la comprobación sobre el `.so`, que sigue sin cambiar; el hallazgo sigue **abierto**.
+**Mitigación parcial (sin commit).** `core/src/lib.rs:20-22` añade `#[cfg(all(fuzzing, not(debug_assertions)))] compile_error!(…)`: una compilación `release` con `--cfg fuzzing` falla en vez de incluir los ganchos (`cargo fuzz build` mantiene `debug_assertions`). Esto no sustituye a la comprobación sobre el `.so`; esa comprobación es ahora `scripts/check-no-fuzzing-hooks.sh` (ver «Corrección» arriba), y el hallazgo queda **corregido**.
 
 <a id="id-int-22"></a>
 ### ID-INT-22 · `cargoBuild` no declara `rust-toolchain.toml` ni `.cargo/config.toml` como entradas
@@ -748,7 +807,11 @@ antiguo en local. No afecta a la CI (partida limpia). Relevante para quien repro
 | Severidad | **Info** |
 | Componente | Herramientas |
 | Evidencia | `git status --short` muestra `core/op-core.cdx.json` (78 084 B) y `cli/opvault-cli.cdx.json` (95 577 B) sin seguimiento ni ignorados (`git check-ignore` no devuelve nada); `fuzz/Cargo.lock` (132 paquetes) tiene su propio espacio de trabajo y no lo recorre `cargo deny` (que corre en la raíz) |
-| Estado | **Parcial**: `*.cdx.json` está en `.gitignore` (`2bd56ce`) y los dos ficheros ya no existen; `fuzz/Cargo.lock` sigue sin revisión de `cargo deny` |
+| Estado | **Parcial**: `*.cdx.json` está en `.gitignore` (`2bd56ce`) y los dos ficheros ya no existen; `fuzz/deny.toml` y el paso de CI para `fuzz/Cargo.lock` están hechos en el bloque sin commit, **pendientes de aprobación humana** (licencia NCSA) |
+
+**Corrección (en el bloque sin commit).** `fuzz/deny.toml` aplica las mismas reglas que el `deny.toml` raíz más **una** excepción: `libfuzzer-sys` es «(MIT OR Apache-2.0) AND NCSA», una licencia permisiva de la Universidad de Illinois del código de LLVM que incluye; es solo del arnés de desarrollo y no entra en ningún binario distribuido.
+El job `audit` ejecuta `cargo deny --manifest-path fuzz/Cargo.toml --locked --config fuzz/deny.toml check` (`ci.yml:44-45`). Ejecutado en esta revisión: `advisories ok, bans ok, licenses ok, sources ok`.
+**Pendiente de aprobación humana**: aceptar la licencia NCSA (ADR-AUD-04). Mientras no se apruebe, el propio fichero indica quitar el paso `fuzz` del job `audit`.
 
 Riesgo de confirmar por error dos SBOM que no se publican, y que el entorno de *fuzzing* no tenga
 revisión de avisos. El segundo es de desarrollo y no entra en el binario.
@@ -806,4 +869,4 @@ la cabecera interna y el XML; semillas en `fuzz/seeds/kdbx_container/` (5). Los 
 - La **interfaz Compose** en general (estados, navegación); solo las llamadas a `session.*`.
 - `FieldClassifier` y `SavePlanner`: leídos por encima, con tests.
 - El **proceso de publicación** completo (F-Droid, firma) más allá de lo citado.
-- Cualquier **prueba en dispositivo** (ID-INT-14, 16, 18 y 20 lo necesitan).
+- Cualquier **prueba en dispositivo** (ID-INT-13, 14, 16, 18, 20 y 26 lo necesitan).

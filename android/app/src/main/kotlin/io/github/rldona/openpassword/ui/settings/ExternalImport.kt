@@ -27,6 +27,8 @@ import io.github.rldona.openpassword.core.importNeedsPassword
 import io.github.rldona.openpassword.core.parseImport
 import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
 import io.github.rldona.openpassword.session.VaultSession
+import io.github.rldona.openpassword.session.checkImportKdfFits
+import io.github.rldona.openpassword.session.deviceTotalMemory
 import io.github.rldona.openpassword.ui.PasswordField
 import io.github.rldona.openpassword.ui.displayNameOf
 import io.github.rldona.openpassword.ui.readBackupFile
@@ -49,7 +51,12 @@ private fun now() = (System.currentTimeMillis() / 1000).toULong()
  */
 suspend fun readExternalExport(context: Context, uri: Uri): Result<Any> = runCatching {
     val bytes = readBackupFile(context, uri)
-    if (importNeedsPassword(bytes)) return@runCatching LockedExport(uri, bytes)
+    if (importNeedsPassword(bytes)) {
+        // Before asking for the password: a KeePass database can ask for more RAM than the device
+        // has, and deriving would be killed by the system instead of showing a clear error.
+        checkImportKdfFits(bytes, deviceTotalMemory(context))
+        return@runCatching LockedExport(uri, bytes)
+    }
     try {
         withContext(Dispatchers.Default) { PendingImport(uri, parseImport(bytes, null, null, now())) }
     } finally {
@@ -83,6 +90,8 @@ fun importErrorMessage(e: Throwable): String = when {
         "Este ZIP no es una exportación .1pux de 1Password o está dañado."
     e is OpException.InvalidInput && "too large" in e.reason -> "El fichero es demasiado grande para importarlo."
     e is OpException.InvalidInput && "UTF-8" in e.reason -> "El fichero no es de texto. Elige la exportación en CSV o JSON."
+    e is OpException.KdfTooExpensive ->
+        "La base de KeePass pide ${e.mKib / 1024u} MiB de memoria para derivar la clave, más de lo que este teléfono puede dar. Baja la memoria en la configuración de la base y vuelve a exportarla."
     else -> "No se pudo leer ese fichero."
 }
 
