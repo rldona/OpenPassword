@@ -17,6 +17,8 @@ pub use secret_key::{SECRET_KEY_LEN, SecretKey};
 pub const DOMAIN_WRAP: &str = "op/wrap/v1";
 /// Domain for item overview and details.
 pub const DOMAIN_ITEM: &str = "op/item/v1";
+/// Domain for item attachments (images).
+pub const DOMAIN_ATTACHMENT: &str = "op/attachment/v1";
 
 /// Encodes associated data unambiguously (spec 6.2):
 /// `domain ‖ 0x00 ‖ (u32_le(len) ‖ part)*`.

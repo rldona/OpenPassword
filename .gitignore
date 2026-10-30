@@ -1,6 +1,7 @@
 /target
 *.opvault
 !core/tests/vectors/*.opvault
+!core/tests/fixtures/*.opvault
 .DS_Store
 *.cdx.json
 .idea/

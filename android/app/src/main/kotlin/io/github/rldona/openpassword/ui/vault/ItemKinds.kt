@@ -111,12 +111,18 @@ val FieldKindRecord.isSecret: Boolean
     get() = this == FieldKindRecord.CONCEALED || this == FieldKindRecord.PIN ||
         this == FieldKindRecord.CARD_NUMBER || this == FieldKindRecord.TOTP
 
+/** The value of an image field is an attachment id, never shown to the user. */
+val FieldKindRecord.isImage: Boolean
+    get() = this == FieldKindRecord.IMAGE
+
 fun FieldRecord.masked(): String = when (kind) {
+    FieldKindRecord.IMAGE -> "Imagen"
     FieldKindRecord.CARD_NUMBER -> "•••• " + value.filter(Char::isDigit).takeLast(4)
     else -> "•".repeat(value.length.coerceIn(4, 12))
 }
 
 fun FieldRecord.formatted(): String = when (kind) {
+    FieldKindRecord.IMAGE -> ""
     FieldKindRecord.CARD_NUMBER -> value.filter(Char::isDigit).chunked(4).joinToString(" ")
     else -> value
 }

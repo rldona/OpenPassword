@@ -13,13 +13,14 @@ fn sample_backup() -> (Vec<u8>, Vec<op_core::EncryptedItem>) {
         vault.encrypt_item(&card()).unwrap(),
         vault.encrypt_item(&login()).unwrap(),
     ];
-    (backup::write(&vault, &items, 1_793_257_200).unwrap(), items)
+    (backup::write(&vault, &items, &[], 1_793_257_200).unwrap(), items)
 }
 
 #[test]
 fn roundtrip() {
     let (file, items) = sample_backup();
-    let (vault, restored) = backup::open(&file, PASSWORD, &secret_key()).unwrap();
+    let (vault, restored, attachments) = backup::open(&file, PASSWORD, &secret_key()).unwrap();
+    assert!(attachments.is_empty());
     assert_eq!(restored, items);
     assert_eq!(vault.decrypt_item(&restored[0]).unwrap(), card());
     assert_eq!(vault.decrypt_item(&restored[1]).unwrap(), login());
@@ -28,8 +29,8 @@ fn roundtrip() {
 #[test]
 fn empty_vault_roundtrip() {
     let vault = new_vault();
-    let file = backup::write(&vault, &[], 0).unwrap();
-    let (_, restored) = backup::open(&file, PASSWORD, &secret_key()).unwrap();
+    let file = backup::write(&vault, &[], &[], 0).unwrap();
+    let (_, restored, _) = backup::open(&file, PASSWORD, &secret_key()).unwrap();
     assert!(restored.is_empty());
 }
 
@@ -37,7 +38,7 @@ fn empty_vault_roundtrip() {
 fn header_has_no_user_data() {
     let (file, _) = sample_backup();
     let header = backup::read_header(&file).unwrap();
-    assert_eq!(header.format_version, 1);
+    assert_eq!(header.format_version, 2);
     for needle in ["Visa", "Google", "4940192355674821", "raul", "items"] {
         assert!(
             !file.windows(needle.len()).any(|w| w == needle.as_bytes()),
@@ -95,8 +96,8 @@ fn multi_chunk_backup_and_boundary_truncation() {
         "x".repeat(300_000),
     ));
     let items = vec![vault.encrypt_item(&big).unwrap()];
-    let file = backup::write(&vault, &items, 0).unwrap();
-    let (_, restored) = backup::open(&file, PASSWORD, &secret_key()).unwrap();
+    let file = backup::write(&vault, &items, &[], 0).unwrap();
+    let (_, restored, _) = backup::open(&file, PASSWORD, &secret_key()).unwrap();
     assert_eq!(restored, items);
 
     let header_end = 12 + u32::from_le_bytes(file[8..12].try_into().unwrap()) as usize;
@@ -109,16 +110,38 @@ fn multi_chunk_backup_and_boundary_truncation() {
 }
 
 #[test]
+fn opens_the_v1_fixture_without_attachments() {
+    const V1: &[u8] = include_bytes!("fixtures/backup-v1.opvault");
+    let header = backup::read_header(V1).unwrap();
+    assert_eq!(header.format_version, 1);
+    let (vault, items, attachments) = backup::open(V1, PASSWORD, &secret_key()).unwrap();
+    assert_eq!(items.len(), 2);
+    assert!(attachments.is_empty());
+    assert_eq!(vault.decrypt_item(&items[0]).unwrap(), card());
+    assert_eq!(vault.decrypt_item(&items[1]).unwrap(), login());
+}
+
+#[test]
+fn rejects_a_v2_header_behind_a_v1_magic() {
+    let (mut file, _) = sample_backup();
+    file[MAGIC.len() - 1] = 1;
+    assert_eq!(
+        backup::read_header(&file).unwrap_err(),
+        Error::Malformed("format version mismatch")
+    );
+}
+
+#[test]
 fn rejects_other_files_and_versions() {
     assert!(matches!(
         backup::read_header(b"PK\x03\x04 not a backup"),
         Err(Error::Malformed(_))
     ));
     let (mut file, _) = sample_backup();
-    file[MAGIC.len() - 1] = 2;
+    file[MAGIC.len() - 1] = 3;
     assert_eq!(
         backup::read_header(&file).unwrap_err(),
-        Error::UnsupportedVersion(2)
+        Error::UnsupportedVersion(3)
     );
 }
 

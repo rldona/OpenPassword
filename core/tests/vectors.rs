@@ -118,7 +118,8 @@ fn stored_backup_opens() {
     let case = &v["backup"];
     let sk = SecretKey::parse(case["secret_key"].as_str().unwrap()).unwrap();
     let file = unhex(&case["file"]);
-    let (vault, items) = backup::open(&file, case["password"].as_str().unwrap(), &sk).unwrap();
+    let (vault, items, attachments) = backup::open(&file, case["password"].as_str().unwrap(), &sk).unwrap();
+    assert!(attachments.is_empty());
     let titles: Vec<String> = items
         .iter()
         .map(|i| vault.decrypt_overview(i).unwrap().title.clone())
@@ -127,7 +128,7 @@ fn stored_backup_opens() {
 }
 
 #[test]
-#[ignore = "only when creating a new format version"]
+#[ignore = "v1 is frozen: the writer only emits v2"]
 fn regenerate() {
     let aad_json: Vec<Value> = aad_cases()
         .into_iter()
@@ -182,7 +183,8 @@ fn regenerate() {
         .map(|(enc, plain)| json!({ "encrypted": enc, "plaintext": plain }))
         .collect();
 
-    let file = backup::write(&vault, &[card_v2.clone(), login_v1.clone()], 1_793_257_200).unwrap();
+    // v1 is frozen: the writer only emits v2 now, so the stored v1 backup stays as it is.
+    let file = unhex(&load()["backup"]["file"]);
 
     let out = json!({
         "format": "op-v1",

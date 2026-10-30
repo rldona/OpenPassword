@@ -16,6 +16,8 @@ Gestor de contraseñas, tarjetas, PINs y secretos, offline y sin servidor. Andro
   incluida) y sin aceptar el dominio que declare una app que no sea un navegador.
 - Desbloqueo con contraseña maestra o huella, bloqueo automático y `FLAG_SECURE` (sin capturas).
 - Códigos TOTP: escaneados con la cámara, leídos de una imagen o pegados desde `otpauth://`.
+- Imágenes cifradas (DNI, tarjetas, pólizas) adjuntas a cualquier elemento, hechas con la cámara de la
+  app o elegidas de la galería. Solo se ven dentro de OpenPassword: no se comparten ni se guardan fuera.
 - Generador de contraseñas, PINs y frases de paso (lista EFF).
 - Copia automática cifrada a una carpeta que elijas (nube, Syncthing o tarjeta SD) y exportación
   manual `.opvault`.
@@ -120,6 +122,8 @@ implementación (Kotlin, Swift) debe pasar el mismo fichero.
 - La contraseña maestra (Argon2id, 256 MiB) se combina con una **clave secreta** de 128 bits. Una copia
   robada no se puede atacar por fuerza bruta sin ella.
 - Cada elemento tiene su propia clave. Todo va cifrado con XChaCha20-Poly1305, metadatos incluidos.
+- Cada imagen adjunta es un registro cifrado aparte, sellado con la clave de su elemento y dentro de
+  las copias `.opvault` v2. Se reescala y recodifica al guardarla, así que pierde EXIF y GPS.
 - Cada bloque cifrado está ligado a su contexto (baúl, elemento, revisión, parte) mediante datos
   asociados.
 - La app no tiene permiso de Internet. Las copias se escriben cifradas en la carpeta que elijas.

@@ -1827,3 +1827,22 @@ también se actualiza la frase del README de Android y el «Pendiente» de
 | Pruebas sobre iOS, escritorio y la CLI `opvault` | Fuera del alcance de la auditoría ([`scope.md`](scope.md))). La CLI se usa aquí solo como herramienta |
 | Las pruebas de Kotlin en la JVM y los fuzzers | Se ejecutan en la CI o localmente (`./gradlew testDebugUnitTest`, [`fuzzing.md`](fuzzing.md))); este plan es lo que **no** puede hacerse allí |
 | Versiones de Android no incluidas en la matriz (2.9) | Se cubren API 28, 29, 30, 33 y 36 como mínimo. Cada API adicional es una fila nueva en la tabla, no una prueba nueva |
+
+---
+
+## 9. Pruebas posteriores: imágenes (31-oct-2026)
+
+No formaban parte del plan de auditoría; se añaden como registro de la primera verificación manual en
+dispositivo (SM-S948B, Android 17 / API 37, build de depuración).
+
+| Prueba | Resultado |
+|---|---|
+| Añadir una imagen de la galería a un documento y verla en el visor | Pasa. Se guarda cifrada y el detalle muestra «Imagen cifrada» con el pie «Anverso» |
+| Hacer una foto con la cámara de la app | Pasa. El borrador aparece sin dejar ficheros en `cache/` ni en `files/` (solo `files/profileInstalled`) |
+| Exportar `.opvault` con la imagen | Pasa. 629.966 bytes; `opvault decrypt` la descifra y el JPEG resultante (469.095 bytes) decodifica y no tiene APP1/Exif, GPS ni COM; solo APP0 y el perfil ICC |
+| Copia de seguridad y restauración en un «dispositivo nuevo» | Cubierto por `ImagesSessionTest` (instrumentado): bloqueo, desbloqueo, exportar, restaurar y mismos bytes |
+| Capturas de pantalla | Bloqueadas por `FLAG_SECURE` (la captura sale en negro) |
+
+Límites: una sola versión de Android, un solo dispositivo, y la cámara se probó sin comprobar el
+resultado visual dentro de la app (la ventana es segura y la captura sale en negro); el borrador se
+verificó por la jerarquía de accesibilidad. No se probó una foto Ultra HDR de la galería.

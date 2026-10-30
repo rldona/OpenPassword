@@ -1,5 +1,6 @@
 //! Vault key hierarchy and per-item encryption (spec 3, 7 and 8).
 
+pub(crate) mod attachment;
 mod item;
 mod padding;
 
@@ -7,6 +8,11 @@ use core::fmt;
 
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
+pub use attachment::{
+    AttachmentId, EncryptedAttachment, Image, ItemChange, MAX_IMAGE_BYTES, MAX_IMAGES_PER_ITEM,
+    MAX_SEALED_ATTACHMENT_LEN, MAX_VAULT_ATTACHMENT_BYTES, MediaType, NewImage, PlainItem,
+    new_attachment_id,
+};
 pub use item::{Field, FieldKind, Item, ItemDetails, ItemKind, ItemOverview, PasswordChange};
 
 use crate::crypto::{
@@ -80,6 +86,14 @@ fn check_password(password: &str) -> Result<()> {
         return Err(Error::InvalidInput("the master password must not be empty"));
     }
     Ok(())
+}
+
+fn same_ids(a: &[AttachmentId], b: &[AttachmentId]) -> bool {
+    let mut a = a.to_vec();
+    let mut b = b.to_vec();
+    a.sort_unstable();
+    b.sort_unstable();
+    a == b
 }
 
 impl UnlockedVault {
@@ -157,6 +171,17 @@ impl UnlockedVault {
 
     /// Encrypts a new item under a fresh item key. Revision starts at 1.
     pub fn encrypt_item(&self, item: &Item) -> Result<EncryptedItem> {
+        Ok(self.encrypt_item_with_images(item, Vec::new())?.item)
+    }
+
+    /// Encrypts a new item and its new images. Revision starts at 1.
+    pub fn encrypt_item_with_images(
+        &self,
+        item: &Item,
+        images: Vec<NewImage>,
+    ) -> Result<ItemChange> {
+        let current = item.details.image_ids()?;
+        self.check_images(&[], &current, &images)?;
         let id: ItemId = random_array()?;
         let item_key = Key::generate()?;
         let wrapped_item_key = crypto::wrap_key(
@@ -164,7 +189,16 @@ impl UnlockedVault {
             &item_key,
             &item_key_aad(self.vault_id(), &id),
         )?;
-        self.seal_item(id, 1, wrapped_item_key, &item_key, item)
+        let encrypted = self.seal_item(id, 1, wrapped_item_key, &item_key, item)?;
+        let added = images
+            .iter()
+            .map(|image| attachment::seal(self.vault_id(), &id, &item_key, image))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(ItemChange {
+            item: encrypted,
+            added,
+            removed: Vec::new(),
+        })
     }
 
     /// Re-encrypts an edited item: same id and item key, next revision.
@@ -175,21 +209,166 @@ impl UnlockedVault {
         let item_key = self.item_key(existing)?;
         let previous: ItemDetails =
             self.open_part(&item_key, b"details", existing, &existing.details)?;
+        let previous_ids = previous.image_ids()?;
+        let current = item.details.image_ids()?;
+        if !same_ids(&previous_ids, &current) {
+            return Err(Error::InvalidInput("image set changed"));
+        }
+        Ok(self.update_item_with_images(existing, item, Vec::new())?.item)
+    }
+
+    /// Re-encrypts an edited item and seals the images added in this edit.
+    ///
+    /// Images are immutable: adding one seals it under a new id, removing one lists it in
+    /// `removed`. The caller writes the item, the added attachments and the removals in one
+    /// transaction.
+    pub fn update_item_with_images(
+        &self,
+        existing: &EncryptedItem,
+        item: &Item,
+        images: Vec<NewImage>,
+    ) -> Result<ItemChange> {
+        let item_key = self.item_key(existing)?;
+        let previous: ItemDetails =
+            self.open_part(&item_key, b"details", existing, &existing.details)?;
+        let previous_ids = previous.image_ids()?;
+        let current = item.details.image_ids()?;
+        self.check_images(&previous_ids, &current, &images)?;
+
         let mut item = item.clone();
         item.details
             .record_changes(&previous, item.overview.kind, item.overview.updated_at);
-        let item = &item;
         let revision = existing
             .revision
             .checked_add(1)
             .ok_or(Error::Malformed("revision overflow"))?;
-        self.seal_item(
+        let encrypted = self.seal_item(
             existing.id,
             revision,
             existing.wrapped_item_key.clone(),
             &item_key,
-            item,
-        )
+            &item,
+        )?;
+        let added = images
+            .iter()
+            .map(|image| attachment::seal(self.vault_id(), &existing.id, &item_key, image))
+            .collect::<Result<Vec<_>>>()?;
+        let removed = previous_ids
+            .iter()
+            .filter(|id| !current.contains(id))
+            .copied()
+            .collect();
+        Ok(ItemChange {
+            item: encrypted,
+            added,
+            removed,
+        })
+    }
+
+    /// Checks that the image fields and the images to seal describe the same set, and that
+    /// every new image is a metadata-free JPEG.
+    fn check_images(
+        &self,
+        previous: &[AttachmentId],
+        current: &[AttachmentId],
+        images: &[NewImage],
+    ) -> Result<()> {
+        if current.len() > MAX_IMAGES_PER_ITEM {
+            return Err(Error::InvalidInput("too many images"));
+        }
+        let mut seen = Vec::with_capacity(images.len());
+        for image in images {
+            if seen.contains(&image.id) {
+                return Err(Error::InvalidInput("duplicate attachment"));
+            }
+            if !current.contains(&image.id) {
+                return Err(Error::InvalidInput("image data without field"));
+            }
+            if previous.contains(&image.id) {
+                return Err(Error::InvalidInput("image id already used"));
+            }
+            seen.push(image.id);
+            attachment::check_jpeg(&image.jpeg)?;
+        }
+        for id in current {
+            if !previous.contains(id) && !images.iter().any(|image| image.id == *id) {
+                return Err(Error::InvalidInput("image field without data"));
+            }
+        }
+        Ok(())
+    }
+
+    /// Decrypts one image. The returned bytes are wiped when dropped.
+    pub fn decrypt_image(
+        &self,
+        item: &EncryptedItem,
+        attachment: &EncryptedAttachment,
+    ) -> Result<Image> {
+        let key = self.item_key(item)?;
+        attachment::open(self.vault_id(), &item.id, &key, attachment)
+    }
+
+    /// Ids of the images the item references, in field order.
+    pub fn image_ids(&self, item: &EncryptedItem) -> Result<Vec<AttachmentId>> {
+        self.decrypt_details(item)?.image_ids()
+    }
+
+    /// Decrypts an item and the images it references, to move it to another vault.
+    ///
+    /// Unreferenced attachments are ignored; a reference without an attachment is kept.
+    pub fn open_item_with_images(
+        &self,
+        item: &EncryptedItem,
+        attachments: &[EncryptedAttachment],
+    ) -> Result<PlainItem> {
+        let key = self.item_key(item)?;
+        let plain = Item {
+            overview: self.open_part(&key, b"overview", item, &item.overview)?,
+            details: self.open_part(&key, b"details", item, &item.details)?,
+        };
+        let ids = plain.details.image_ids()?;
+        let mut images = Vec::with_capacity(ids.len());
+        for id in ids {
+            if let Some(attachment) = attachments
+                .iter()
+                .find(|a| a.id == id && a.item_id == item.id)
+            {
+                images.push((
+                    id,
+                    attachment::open(self.vault_id(), &item.id, &key, attachment)?,
+                ));
+            }
+        }
+        Ok(PlainItem {
+            item: plain,
+            images,
+        })
+    }
+
+    /// Moves a plaintext item and its images into this vault under a new id and key.
+    pub fn adopt_item(&self, plain: &PlainItem) -> Result<ItemChange> {
+        let id: ItemId = random_array()?;
+        let item_key = Key::generate()?;
+        let wrapped_item_key = crypto::wrap_key(
+            &self.vault_key,
+            &item_key,
+            &item_key_aad(self.vault_id(), &id),
+        )?;
+        let encrypted = self.seal_item(id, 1, wrapped_item_key, &item_key, &plain.item)?;
+        let referenced = plain.item.details.image_ids()?;
+        let added = plain
+            .images
+            .iter()
+            .filter(|(attachment_id, _)| referenced.contains(attachment_id))
+            .map(|(attachment_id, image)| {
+                attachment::seal_bytes(self.vault_id(), &id, &item_key, *attachment_id, image)
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(ItemChange {
+            item: encrypted,
+            added,
+            removed: Vec::new(),
+        })
     }
 
     pub fn decrypt_overview(&self, item: &EncryptedItem) -> Result<ItemOverview> {
