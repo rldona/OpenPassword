@@ -20,7 +20,7 @@ la configuración de build, más una ejecución de `cargo test --workspace --loc
 tercer bloque (**102 pasan, 0 fallan, 1 ignorado**: 50 unitarios de `op-core`, 9 + 3 + 19 + 5 de
 integración y 16 de `op-ffi`; en la redacción original, sobre `2bd56ce`, eran 95), y `cargo deny --locked check` (`advisories ok, bans ok, licenses ok, sources ok`) más
 `cargo deny --manifest-path fuzz/Cargo.toml --locked --config fuzz/deny.toml check` (mismo resultado, ver ID-INT-23). **No** se han ejecutado los tests de Kotlin
-(no hay JDK en el `PATH` de esta máquina; el recuento de **186** `@Test` en `android/app/src/test` es de lectura, no de ejecución), ni los instrumentados, ni ninguna prueba en dispositivo. **No es una revisión
+(no hay JDK en el `PATH` de esta máquina; el recuento de **186** `@Test` en `android/app/src/test` es de lectura, no de ejecución), ni los instrumentados en la revisión original. **Actualización del 30-oct-2026**: los instrumentados (17 tests) se ejecutaron después en un SM-S948B (API 37) y pasaron; en una segunda parte de la sesión se ejecutaron DT-05 y DT-07 (`pasan`) y DT-04 (**`falla`**: confirma ID-INT-14); sigue sin ejecutarse el resto de pruebas en dispositivo (ver [`device-tests.md`](device-tests.md), secciones 3.3 y 3.4). **No es una revisión
 criptográfica**: no se han comprobado la derivación ni los vectores más allá de lo que cubren los tests.
 
 ## Escala de severidad
@@ -31,20 +31,20 @@ criterio de la escala y la explotabilidad real apuntan a niveles distintos, se e
 
 ## Resumen
 
-| Severidad | Hallazgos | Corregido | Parcial | Aceptado | Abierto |
-|---|---|---|---|---|---|
-| Crítica | 0 | 0 | 0 | 0 | 0 |
-| Alta | 2 | 2 | 0 | 0 | 0 |
-| Media | 3 | 2 | 1 | 0 | 0 |
-| Baja | 11 | 11 | 0 | 0 | 0 |
-| Info | 10 | 3 | 2 | 3 | 2 |
-| **Total** | **26** | **18** | **3** | **3** | **2** |
+| Severidad | Hallazgos | Corregido | Parcial | Confirmado en dispositivo | Aceptado | Abierto |
+|---|---|---|---|---|---|---|
+| Crítica | 0 | 0 | 0 | 0 | 0 | 0 |
+| Alta | 2 | 2 | 0 | 0 | 0 | 0 |
+| Media | 3 | 2 | 0 | 1 | 0 | 0 |
+| Baja | 11 | 11 | 0 | 0 | 0 | 0 |
+| Info | 10 | 4 | 1 | 0 | 3 | 2 |
+| **Total** | **26** | **19** | **1** | **1** | **3** | **2** |
 
-«Corregido» significa que el código lo trata y hay tests (JVM o Rust) escritos; **no** significa verificado en dispositivo. Las correcciones del bloque sin commit
-no se han ejecutado en Kotlin (sin JDK). Lo que sigue pendiente de dispositivo o de aprobación humana:
+«Corregido» significa que el código lo trata y hay tests (JVM o Rust) escritos; **no** significa verificado en dispositivo salvo donde se indica (ID-INT-05, 08, 09 y 13, 30-oct-2026, SM-S948B API 37; y, en parte, ID-INT-16, ver abajo). Las correcciones del bloque sin commit
+no se han ejecutado en la JVM de Kotlin (sin JDK en la revisión original). **«Confirmado en dispositivo»** significa que el fallo descrito se reprodujo en un dispositivo: **no** es «corregido» y el hallazgo sigue abierto hasta que haya corrección y se repita la prueba. Lo que sigue pendiente de dispositivo o de aprobación humana:
 
-- **Dispositivo**: ID-INT-14 (API 29, 33, 36; [DT-04](device-tests.md#dt-04)), ID-INT-13 (prueba instrumentada ampliada, no ejecutada), ID-INT-16 y 26 (autorrelleno), ID-INT-20 (lista de sufijos con R8).
-- **Aprobación humana**: ID-INT-23 (licencia NCSA de `libfuzzer-sys` en `fuzz/deny.toml`) y la política de KDBX de ID-INT-02 (decisión nº 4 de [`decisions.md`](decisions.md)).
+- **Dispositivo**: ID-INT-14 (confirmado en API 37; faltan API 29, 33 y 36, DT-04c y la comprobación de «al volver a la app»; [DT-04](device-tests.md#dt-04)), ID-INT-26 (autorrelleno) y ID-INT-16 (el `webDomain` de una app no navegador se ignora: **verificado en dispositivo** con DT-07 en API 37; faltan DT-06 con Chrome, DT-08 y la hipótesis del `iframe`), ID-INT-20 (la carga de la lista de sufijos **verificada en dispositivo** en la build de depuración con DT-05; falta la variante con R8 y la actualización automática). ID-INT-13 se verificó el 30-oct-2026 en un SM-S948B (API 37) con los instrumentados y DT-01; los instrumentados de ID-INT-05, 08 y 09 también pasaron ahí. Sigue pendiente DT-02/DT-03 (API 28-30 y diálogos), DT-12 (Android 9) y todo lo que dependa de un baúl real.
+- **Aprobación humana**: ID-INT-23 (licencia NCSA de `libfuzzer-sys` en `fuzz/deny.toml`), la política de KDBX de ID-INT-02 (decisión nº 4 de [`decisions.md`](decisions.md)) y **qué hacer con ID-INT-14** (corregir el borrado o aceptar el riesgo residual): no está decidido y no se ha tomado aquí.
 
 | ID | Sev. | Área | Título | Estado |
 |---|---|---|---|---|
@@ -52,22 +52,22 @@ no se han ejecutado en Kotlin (sin JDK). Lo que sigue pendiente de dispositivo o
 | [ID-INT-02](#id-int-02) | Baja | Rust | KDBX: la KDF de KeePass no pasa por el techo móvil de `.opvault` | **Corregido** (en el bloque sin commit; política de KDBX pendiente de aprobación humana; Kotlin sin ejecutar) |
 | [ID-INT-03](#id-int-03) | Baja | Rust | Importadores: secretos en búferes que no se borran | **Corregido** (en el bloque sin commit; residuos documentados) |
 | [ID-INT-04](#id-int-04) | Info | FFI | Residuos de salida de UniFFI aceptados | Aceptado |
-| [ID-INT-05](#id-int-05) | Media | Android | El desbloqueo no cierra el `Vault` si falla después de `Vault.unlock` (conocido) | **Corregido** (`2bd56ce`) |
+| [ID-INT-05](#id-int-05) | Media | Android | El desbloqueo no cierra el `Vault` si falla después de `Vault.unlock` (conocido) | **Corregido** (`2bd56ce`; test instrumentado en verde en dispositivo, 30-oct-2026) |
 | [ID-INT-06](#id-int-06) | Baja | Android | Un solo elemento ilegible impide desbloquear el baúl | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar) |
 | [ID-INT-07](#id-int-07) | Baja | Android | Cuatro llamadas FFI sin captura de `InternalException` | **Corregido** (`2bd56ce`) |
-| [ID-INT-08](#id-int-08) | Baja | Android | `lock()` no toma el `mutex`: carrera con una operación en curso | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar) |
-| [ID-INT-09](#id-int-09) | Baja | Android | `verifyPassword` no cuenta ni espera intentos | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar) |
+| [ID-INT-08](#id-int-08) | Baja | Android | `lock()` no toma el `mutex`: carrera con una operación en curso | **Corregido** (en el bloque sin commit; test instrumentado en verde en dispositivo, 30-oct-2026; JVM sin ejecutar) |
+| [ID-INT-09](#id-int-09) | Baja | Android | `verifyPassword` no cuenta ni espera intentos | **Corregido** (en el bloque sin commit; test instrumentado en verde en dispositivo, 30-oct-2026; JVM sin ejecutar) |
 | [ID-INT-10](#id-int-10) | Info | Android | `atomicWrite` no fuerza el volcado a disco | **Corregido** (en el bloque sin commit; residuo: fsync de directorio; Kotlin sin ejecutar) |
 | [ID-INT-11](#id-int-11) | Info | Android | `AutoBackup` traga `CancellationException` | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar) |
 | [ID-INT-12](#id-int-12) | Baja | Android | `readBackupFile` deja una copia en claro sin borrar | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar) |
-| [ID-INT-13](#id-int-13) | Info | Android | A7: la implementación y sus pruebas no alcanzan lo que describe el ADR | Parcial (prueba instrumentada ampliada, **no ejecutada**; banner en autorrelleno sin hacer) |
-| [ID-INT-14](#id-int-14) | Media | Portapapeles | El borrado de los 30 s probablemente no actúa si la app perdió el foco | Parcial (mitigado en código en el bloque sin commit; **pendiente de verificar en dispositivo**) |
+| [ID-INT-13](#id-int-13) | Info | Android | A7: la implementación y sus pruebas no alcanzan lo que describe el ADR | **Corregido y verificado en dispositivo** (30-oct-2026; DT-01 solo `MainActivity`; banner en autorrelleno sin hacer) |
+| [ID-INT-14](#id-int-14) | Media | Portapapeles | El borrado de los 30 s no actúa si la app perdió el foco | **Confirmado en dispositivo** (DT-04, 30-oct-2026, SM-S948B API 37: el borrado no ocurre en segundo plano; **no corregido**; no consta que la mitigación en código sin commit lo evite) |
 | [ID-INT-15](#id-int-15) | Info | Portapapeles | Sin marca de «sensible» en API 28-32 | Aceptado |
-| [ID-INT-16](#id-int-16) | Alta | Autorrelleno | El dominio de una página lo declara cualquier app: no se exige un navegador | **Corregido** (`2bd56ce`, completado en el bloque sin commit; sin probar en dispositivo) |
+| [ID-INT-16](#id-int-16) | Alta | Autorrelleno | El dominio de una página lo declara cualquier app: no se exige un navegador | **Corregido** (`2bd56ce`, completado en el bloque sin commit; **verificado en dispositivo** solo que una app no navegador no recibe datasets web, DT-07 en API 37; sin probar con Chrome ni el `iframe`) |
 | [ID-INT-17](#id-int-17) | Baja | Autorrelleno | `PendingSaves`: caducidad perezosa y sin vaciado al bloquear | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar) |
 | [ID-INT-18](#id-int-18) | Baja | Autorrelleno | `StructureParser` recorre el árbol de forma recursiva y sin límite | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar, sin prueba en dispositivo) |
 | [ID-INT-19](#id-int-19) | Info | Autorrelleno | Hasta 5 logins en claro viajan a `system_server` sin autenticación de dataset | Aceptado |
-| [ID-INT-20](#id-int-20) | Info | Autorrelleno | La lista de sufijos públicos: sin prueba en dispositivo y sin actualización | Abierto |
+| [ID-INT-20](#id-int-20) | Info | Autorrelleno | La lista de sufijos públicos: sin prueba con R8 y sin actualización | Abierto (carga y aplicación **verificadas en dispositivo** en la build de depuración, DT-05; sin R8 ni actualización automática) |
 | [ID-INT-21](#id-int-21) | Baja | Herramientas | La comprobación de que `cfg(fuzzing)` no entra en release no detecta nada | **Corregido** (en el bloque sin commit; CI sin ejecutar) |
 | [ID-INT-22](#id-int-22) | Info | Herramientas | `cargoBuild` no declara `rust-toolchain.toml` ni `.cargo/config.toml` como entradas | Abierto |
 | [ID-INT-23](#id-int-23) | Info | Herramientas | Ficheros generados y *lockfiles* fuera de cobertura | Parcial (`.gitignore`; `fuzz/deny.toml` y paso de CI hechos en el bloque sin commit, **pendiente de aprobación humana** por la licencia NCSA) |
@@ -323,7 +323,7 @@ Lectura completa de `VaultSession.kt`, `VaultStorage.kt`, `ItemDatabase.kt`, `De
 | Severidad | **Media**. El criterio de la escala (§1: «clave en memoria tras bloquear con el proceso vivo») apunta a **Alta**; la explotación exige leer la memoria del proceso (A10, fuera de alcance, «Info» según la misma escala). Se propone Media; **decide el auditor** |
 | Componente | Android, `VaultSession` |
 | Evidencia | `VaultSession.kt:107-108` (`unlock`), `:140-141` (`restore`), `:279-280` (`unlockWithBiometric`) |
-| Estado | **Corregido** en `2bd56ce`. |
+| Estado | **Corregido** en `2bd56ce`. Test instrumentado `failedRestoreLeavesNoVaultBehind` ejecutado y en verde en SM-S948B (API 37, 30-oct-2026). |
 
 **Qué pasa.** En los tres caminos, `Vault.unlock`, `openBackup` o `Vault.unlockWithVaultKey` devuelven un
 `Vault` con la clave en memoria, y a continuación `storage.items().map { … decryptOverview(it) }` (o
@@ -407,7 +407,7 @@ nuevo **sin ningún `catch`** seguiría sin detectarse; la recomendación de amp
 | Severidad | **Baja** (carrera estrecha; **sin reproducir**) |
 | Componente | Android, `VaultSession` |
 | Evidencia | `VaultSession.kt:300-307` (`lock()`: `it.lock(); it.close(); vault = null`, sin `mutex`); `:419-420` (`backgroundLock` ejecuta `lock()` en el hilo principal); `:434-443` (`withVault` mantiene `mutex` y llama al `Vault` desde `Dispatchers.Default`); `build/generated/uniffi/…/op_ffi.kt:1451-1453` (tras `close()`, una llamada lanza `IllegalStateException("… object has already been destroyed")`) |
-| Estado | **Corregido** en el bloque sin commit (sin hash todavía; Kotlin sin ejecutar). |
+| Estado | **Corregido** en el bloque sin commit (sin hash todavía). Test instrumentado `locksInTheBackgroundWithoutComingBack` ejecutado y en verde en SM-S948B (API 37, 30-oct-2026); `KeyHolderTest` (JVM) sigue sin ejecutar. |
 
 **Corrección (en el bloque sin commit).** `session/KeyHolder.kt` guarda el `Vault` en un `AtomicReference`: `lock()` lo intercambia por `null` y lo cierra sin esperar al `mutex` (sin carrera de lectura/escritura sobre el campo), y `KeyHolder.use` convierte la `IllegalStateException` de un `Vault` cerrado a mitad de operación en `OpException.Locked`, que los llamadores ya tratan. Tests: `KeyHolderTest` (7 `@Test`, no ejecutados).
 `lock()` sigue sin esperar a la operación en curso: esta termina con `Locked`, no con un cierre de la app.
@@ -431,7 +431,7 @@ capture `IllegalStateException` como `OpException.Locked`.
 | Severidad | **Baja** (requiere el baúl ya abierto y en manos del atacante) |
 | Componente | Android, `VaultSession` |
 | Evidencia | `VaultSession.kt:201-210` (sin `remainingWait()` ni contador) frente a `:103-117` (`unlock` sí); uso en `SettingsScreen.kt:333` («ver la clave secreta») |
-| Estado | **Corregido** en el bloque sin commit (sin hash todavía; Kotlin sin ejecutar). |
+| Estado | **Corregido** en el bloque sin commit (sin hash todavía). Test instrumentado `wrongPasswordsTriggerTheWait` ejecutado y en verde en SM-S948B (API 37, 30-oct-2026); `AttemptLimiterTest` (JVM) sigue sin ejecutar. |
 
 **Corrección (en el bloque sin commit).** `session/AttemptLimiter.kt` es un contador compartido por `unlock` y `verifyPassword` (`VaultSession.kt:80`): `verifyPassword` consulta `remainingWait()` antes de ejecutar Argon2, registra fallos y éxitos, y devuelve `UnlockResult` (`Success`, `WrongPassword`, `MustWait`, `Failed`) en lugar de un booleano. Tests: `AttemptLimiterTest` (5 `@Test`, no ejecutados).
 
@@ -503,15 +503,16 @@ borrarlo; o aceptarlo y documentarlo en A15.
 | Severidad | **Info** |
 | Componente | Android, `OverlayProtection` |
 | Evidencia | `androidTest/.../OverlayProtectionTest.kt` (solo `MainActivity`; el propio comentario dice «Pending: AutofillAuthActivity / SaveLoginActivity … and the dialogs»); `ui/AppRoot.kt:47` (`OverlayWarningBanner` solo en `MainActivity`); `security/OverlayProtection.kt:39,57-62` (un `Toast` y solo la primera vez por proceso) |
-| Estado | **Parcial** |
+| Estado | **Corregido y verificado en dispositivo** (30-oct-2026; ver los límites abajo) |
 
-**Actualización (en el bloque sin commit).** `OverlayProtectionTest` (instrumentado) ahora tiene 4 `@Test`: `mainActivityWindowIsProtected`, `autofillAuthActivityWindowIsProtected`, `saveLoginActivityWindowIsProtected` y `protectedAlertDialogWindowIsProtected`, es decir, las tres actividades y un diálogo. **No se ha ejecutado** (ni en emulador ni en dispositivo; sin JDK).
-Sigue sin hacer el resto del hallazgo: el banner solo está en `MainActivity` (`ui/AppRoot.kt:47`) y las dos actividades de autorrelleno solo muestran un `Toast` la primera vez por proceso (`OverlayProtection.kt:60`).
+**Actualización (en el bloque sin commit).** `OverlayProtectionTest` (instrumentado) ahora tiene 4 `@Test`: `mainActivityWindowIsProtected`, `autofillAuthActivityWindowIsProtected`, `saveLoginActivityWindowIsProtected` y `protectedAlertDialogWindowIsProtected`, es decir, las tres actividades y un diálogo.
+
+**Verificación en dispositivo (30-oct-2026, SM-S948B, Android 17 / API 37, commit `b2e18ca` con `fuzz/deny.toml` sin commit).** `./gradlew :app:connectedDebugAndroidTest`: 17 tests, 0 fallos; los 4 de `OverlayProtectionTest` pasan. Además, [DT-01](device-tests.md#dt-01) `pasa`: con OpenPassword al frente el overlay de `test.overlay` queda oculto (`shown=false`; SurfaceFlinger «hidden») y reaparece en el lanzador. **Límites**: DT-01 solo probó `MainActivity` y un toque, no el overlay parcial; DT-02 (API 28-30, aviso de toque tapado, toque parcial) y DT-03 (diálogos en el sistema real) **siguen sin ejecutar** y el aviso no se pudo observar en API 37. Sigue sin hacer el resto del hallazgo: el banner solo está en `MainActivity` (`ui/AppRoot.kt:47`) y las dos actividades de autorrelleno solo muestran un `Toast` la primera vez por proceso (`OverlayProtection.kt:60`).
 
 La defensa está en las tres actividades y en los diálogos (código), pero ADR-AUD-06 pedía un banner
 en las dos actividades de autorrelleno y una prueba instrumentada para cada actividad y diálogo. Hoy
-hay una prueba (solo `MainActivity`) y un `Toast` único. Los 6 tests unitarios de `obscuredTouch` sí
-existen. No se han ejecutado pruebas instrumentadas en esta revisión.
+hay (ver arriba) cuatro pruebas instrumentadas y un `Toast` único en las actividades de autorrelleno. Los 6 tests unitarios de `obscuredTouch` sí
+existen.
 
 ---
 
@@ -521,30 +522,45 @@ Código: `security/SensitiveClipboard.kt` (45 líneas), usado desde la UI y limp
 `OpenPasswordApp.kt:79` (apagado de pantalla).
 
 <a id="id-int-14"></a>
-### ID-INT-14 · El borrado de los 30 s probablemente no actúa si la app perdió el foco
+### ID-INT-14 · El borrado de los 30 s no actúa si la app perdió el foco
 
 | Campo | Valor |
 |---|---|
-| Severidad | **Media** (la escala diría **Alta**: «una defensa descrita en el modelo de amenazas … se salta»; se propone Media hasta confirmarlo en un dispositivo) |
+| Severidad | **Media** (la escala diría **Alta**: «una defensa descrita en el modelo de amenazas … se salta»; se mantiene Media: la propuesta del proyecto antes de confirmarlo, que decide el auditor) |
 | Componente | Android, portapapeles |
-| Evidencia | `SensitiveClipboard.kt:34-39`: `if (clipboard.primaryClipDescription?.label == LABEL) clipboard.clearPrimaryClip()`, con el comentario «Android 10+ may deny clipboard access in the background: then the description is null»; `OpenPasswordApp.kt:78-79` |
-| Estado | **Parcial**: mitigado en código en el bloque sin commit (sin hash todavía); **pendiente de verificar en dispositivo** (API 29, 33 y 36). |
+| Evidencia | `SensitiveClipboard.kt:34-39`: `if (clipboard.primaryClipDescription?.label == LABEL) clipboard.clearPrimaryClip()`, con el comentario «Android 10+ may deny clipboard access in the background: then the description is null»; `OpenPasswordApp.kt:78-79`; **DT-04 en dispositivo** (ver abajo) |
+| Estado | **Confirmado en dispositivo** (30-oct-2026, SM-S948B, Android 17 / API 37): el borrado **no** ocurre con la app en segundo plano. **No corregido.** Se observó con la build instalada desde el árbol de trabajo (commit y huella no registrados); no consta que la mitigación en código sin commit lo evite. Sin probar en API 29, 33 y 36. |
 
-**Corrección (en el bloque sin commit), sin verificar.** `security/ClipboardClearPolicy.kt` es la decisión pura (qué hacer según plazo, etiqueta y si se puede leer el portapapeles) y `SensitiveClipboard` la aplica con el plazo **persistido** en `SharedPreferences` y un `Handler` del hilo principal del proceso que intenta el borrado al vencer;
+**Confirmación en dispositivo (30-oct-2026, [DT-04](device-tests.md#dt-04), segunda parte de la sesión).** Se leyó el portapapeles con un lector propio (en `onWindowFocusChanged`):
+
+| Secuencia | Resultado |
+|---|---|
+| Copiar la contraseña y abrir el lector a los 5 s | `CLIPBOARD_HAS_TEXT` (control positivo: el copiado funciona y el lector lee bien) |
+| Copiar y esperar 35 s con la app en primer plano | `CLIPBOARD_EMPTY` (control: el borrado **sí** funciona con la app enfocada) |
+| Copiar, pulsar Inicio, esperar 36 s, abrir el lector | **`CLIPBOARD_HAS_TEXT` a los 45 s**: el borrado **no** ocurre en segundo plano |
+
+Conclusión (de la sesión): es una **limitación de la plataforma** en API 37: `clearPrimaryClip()` desde segundo plano no surte efecto, y el mecanismo actual solo limpia con la app en primer plano. No se aisló cuál de las tres incógnitas de abajo lo causa. **Lo que no se probó**: que se borre al volver a OpenPassword (`onForeground`, el diseño de la mitigación), DT-04c (pantalla apagada), DT-04d (marca de sensible) y las API 29, 33 y 36 que pedía este hallazgo. Evidencia: anotaciones de la sesión, sin ficheros archivados.
+
+**Nota del mensaje (sin commit).** La app prometía «Se borrará del portapapeles en 30 s» también en segundo plano. El mensaje ahora dice «Se borrará en 30 s, o al volver a la app si sales.» (`ui/vault/ItemDetailScreen.kt:99,142,184`). Esto corrige lo que se promete al usuario, **no** el borrado; y «o al volver a la app» es el diseño de la mitigación, **no verificado en dispositivo**.
+
+**Decisión pendiente (humana)**: corregir el borrado o **aceptar el riesgo residual** y documentarlo. No se ha decidido ni se ha identificado una vía de corrección; el hallazgo se queda en «Confirmado en dispositivo» hasta entonces.
+
+**Mitigación en código (en el bloque sin commit), no verificada.** `security/ClipboardClearPolicy.kt` es la decisión pura (qué hacer según plazo, etiqueta y si se puede leer el portapapeles) y `SensitiveClipboard` la aplica con el plazo **persistido** en `SharedPreferences` y un `Handler` del hilo principal del proceso que intenta el borrado al vencer;
 si el portapapeles no se puede leer en ese momento no se toca nada y el borrado queda **pendiente** hasta que la app vuelva a primer plano (`onForeground`, llamado desde `OpenPasswordApp.kt:63,79`) o se apague la pantalla (`clearIfOurs`). Tests: `ClipboardClearPolicyTest` (7 `@Test`, no ejecutados).
-**Lo que NO se sabe** (lo dice el propio comentario de `SensitiveClipboard.kt`): (1) si `primaryClipDescription` es de verdad `null` en segundo plano en API 29, 33 y 36; (2) si `clearPrimaryClip()` está permitido desde segundo plano; (3) si el `Handler` se ejecuta con el proceso en caché.
-Hasta probarlo ([DT-04](device-tests.md#dt-04), sin ejecutar), una contraseña copiada y pegada en otra app puede seguir en el portapapeles hasta que el usuario vuelva a OpenPassword, se apague la pantalla o se copie otra cosa; **no** debe afirmarse «con borrado» en A7 sin esa prueba.
+**Lo que sigue sin saberse** (lo dice el propio comentario de `SensitiveClipboard.kt`): (1) si `primaryClipDescription` es de verdad `null` en segundo plano; (2) si `clearPrimaryClip()` está denegado desde segundo plano; (3) si el `Handler` se ejecuta con el proceso en caché. DT-04 confirma el síntoma en API 37 sin distinguirlas.
+Mientras no se corrija, una contraseña copiada y pegada en otra app puede seguir en el portapapeles hasta que el usuario vuelva a OpenPassword, se apague la pantalla o se copie otra cosa; **no** debe afirmarse «con borrado» en A7 (ya corregido en [`threat-model.md`](../threat-model.md)).
 
 **Qué pasa.** El uso típico es copiar una contraseña y **cambiar a la otra app** para pegarla: en ese
 momento OpenPassword ya no tiene el foco. Desde Android 10 solo la app con foco y el teclado por
 defecto leen el portapapeles; el propio código lo reconoce y, sin acceso, `primaryClipDescription` es
 `null`, la comparación falla y **no se borra nada**. El temporizador de 30 s y el receptor de
-`ACTION_SCREEN_OFF` hacen lo mismo. Conclusión por el código y el comentario; **no probado en un
-dispositivo**.
+`ACTION_SCREEN_OFF` hacen lo mismo. Conclusión por el código y el comentario; **confirmada en un dispositivo el
+30-oct-2026** (API 37, ver arriba) en cuanto al síntoma.
 
-**Recomendación.** Probarlo en API 29, 33 y 36. Si se confirma: borrar también al volver a primer
+**Recomendación.** Probarlo también en API 29, 33 y 36. Para corregirlo: borrar también al volver a primer
 plano, o sin comprobar la etiqueta (`clearPrimaryClip()` incondicional si se copió algo hace menos de
-30 s), y no afirmar «con borrado» en A7.
+30 s), y no afirmar «con borrado» en A7. Ojo: según DT-04, `clearPrimaryClip()` desde segundo plano no actúa
+en API 37, así que la vía «sin comprobar la etiqueta» por sí sola no lo resuelve en segundo plano; ninguna de las dos está verificada.
 
 <a id="id-int-15"></a>
 ### ID-INT-15 · Sin marca de «sensible» en API 28-32
@@ -588,7 +604,7 @@ Lectura de `OpAutofillService`, `StructureParser`, `FieldClassifier` (por encima
 | Severidad | **Alta** (criterio de la escala: «el autorrelleno entrega credenciales a un sitio o app equivocados») |
 | Componente | Android, autorrelleno |
 | Evidencia | `autofill/StructureParser.kt:35` (`node.webDomain` del primer nodo que lo tenga) y `:53` (`webDomain?.let { FillTarget.Web(it) } ?: FillTarget.App(packageName)`); no hay lista de navegadores: `grep -rniE "chrome|browser|trusted|allowlist" android/app/src/main/kotlin/io/github/rldona/openpassword/autofill` solo devuelve tres comentarios (`OpAutofillService.kt:22`, `LoginMatcher.kt:6`, `FieldClassifier.kt:14`) y ninguna comprobación; `OpAutofillService.kt:38,41-42` y `Datasets.kt:37-43` entregan los datos |
-| Estado | **Corregido**: la primera corrección (`2bd56ce`) era eludible y se cerró en el mismo bloque de trabajo (ver [ID-INT-26](#id-int-26) y la nota al final de este hallazgo); sin commit y sin probar en dispositivo. |
+| Estado | **Corregido**: la primera corrección (`2bd56ce`) era eludible y se cerró en el mismo bloque de trabajo (ver [ID-INT-26](#id-int-26) y la nota al final de este hallazgo); sin commit. **Verificado en dispositivo** (DT-07, API 37) que una app no navegador no recibe datasets web; el resto (Chrome real, DT-08, `iframe`) sin probar. |
 
 **Qué pasa.** `ViewNode.webDomain` es un valor que **rellena la app de origen** con
 `ViewStructure.setWebDomain`; no es un dato que el sistema verifique. `StructureParser` lo usa en
@@ -624,6 +640,8 @@ Tests: `BrowserCheckTest` (8) y los de invariantes de `LoginMatcherTest` (29; p.
 `LoginMatcher` valida además el host como nombre ASCII (`[a-z0-9.-]+`, sin esquema, puerto, ruta ni Unicode; `LoginMatcher.kt:67-76`) y `PublicSuffix` captura `IOException` al leer la lista y falla cerrado (coincidencia exacta de host; `PublicSuffix.kt:21-25`).
 Tests (JVM, no ejecutados aquí): `BrowserCheckTest` (13 `@Test`) y `LoginMatcherTest` (30 `@Test`).
 **Riesgos residuales**: un navegador que el usuario elija como predeterminado y sea malicioso es creído; la lista de navegadores se queda desactualizada (un navegador nuevo y no predeterminado se trata como app); la hipótesis del `iframe` sigue sin tratar.
+
+**Verificación en dispositivo (30-oct-2026, SM-S948B, Android 17 / API 37, build de depuración; [DT-07](device-tests.md#dt-07), [DT-05](device-tests.md#dt-05)).** Con Chrome como navegador predeterminado, una app de prueba propia (`test.fakebrowser`) que declara `webDomain = bank.example` mediante una estructura de autorrelleno virtual produce «Para: test.fakebrowser»: el `webDomain` **se ignora** y no hay coincidencias web. Esto verifica en dispositivo el núcleo de la corrección (una app no navegador no recibe datasets web). **Sigue sin verificar en dispositivo**: [DT-06](device-tests.md#dt-06) (`webDomain` de Chrome real y token hasta la actividad correcta), [DT-08](device-tests.md#dt-08) (navegador predeterminado malicioso; solo se observó de pasada que, con la app de prueba como predeterminada en DT-05, su `webDomain` se tomó en cuenta, coherente con el riesgo residual) y la hipótesis del `iframe`. En DT-07 no se anotó la casilla «Recordar…» ni se repitió con el baúl bloqueado ni tras 5 min.
 
 <a id="id-int-17"></a>
 ### ID-INT-17 · `PendingSaves`: caducidad perezosa y sin vaciado al bloquear
@@ -685,17 +703,18 @@ amortigua porque la coincidencia es estricta y porque el baúl se bloquea. Convi
 amenazas lo diga explícitamente. Importa más cuanto más débil es la coincidencia (ID-INT-16).
 
 <a id="id-int-20"></a>
-### ID-INT-20 · La lista de sufijos públicos: sin prueba en dispositivo y sin actualización
+### ID-INT-20 · La lista de sufijos públicos: sin prueba con R8 y sin actualización
 
 | Campo | Valor |
 |---|---|
 | Severidad | **Info** |
 | Componente | Android, autorrelleno |
-| Evidencia | `PublicSuffix.kt:18` (carga por `classLoader.getResourceAsStream`), `:20` (`isAvailable`); `unzip -l android/app/build/outputs/apk/release/app-release.apk` incluye `public_suffix_list.dat` (338 012 B); versión `2026-10-28_13-15-55_UTC` (cabecera del fichero); `ls android/app/src/androidTest/kotlin/…` (3 clases, ninguna de autorrelleno) |
-| Estado | **Abierto** (sin verificar en dispositivo) |
+| Evidencia | `PublicSuffix.kt:18` (carga por `classLoader.getResourceAsStream`), `:20` (`isAvailable`); `unzip -l android/app/build/outputs/apk/release/app-release.apk` incluye `public_suffix_list.dat` (338 012 B); versión `2026-10-28_13-15-55_UTC` (cabecera del fichero); `ls android/app/src/androidTest/kotlin/…` (3 clases, ninguna de autorrelleno); **DT-05 en dispositivo** (ver abajo) |
+| Estado | **Abierto**. Carga y aplicación de la lista **verificadas en dispositivo** en la build de depuración (30-oct-2026, API 37); **sin verificar con R8** y sin proceso de actualización. |
 
-El recurso está en el APK, pero no hay prueba que confirme en un dispositivo que `getResourceAsStream`
-lo encuentra con R8 activo (`isMinifyEnabled = true`, `build.gradle.kts:55`); si fallara, la
+**Verificación en dispositivo (30-oct-2026, SM-S948B, API 37, build de depuración, [DT-05](device-tests.md#dt-05) `pasa`).** Con los dos controles positivos: `x.alice.github.io` ofrece `alice.github.io` y `en.wikipedia.org` ofrece `wikipedia` (solo ocurre si la lista cargó). Los negativos: `evil.github.io` no ofrece ningún login (con «Ningún login tiene guardado evil.github.io») y `alice.github.io` solo coincide con `alice.github.io`, quedando `github.io` en «OTROS LOGINS»; `github.io` coincide exacto con el login de sufijo. Esto demuestra que **la lista se cargó y se aplicó**, no que la app falle cerrada si no cargara (eso solo lo cubren tests de JVM, sin ejecutar). La build de depuración **no** pasa por R8 (`isMinifyEnabled = true` solo en `release`), así que la parte del hallazgo sobre R8 **sigue sin verificar** (variante 5.R8 de DT-05, sin ejecutar). La actualización de la lista **sigue pendiente**: no hay proceso.
+
+El recurso está en el APK, pero la carga con R8 activo (`isMinifyEnabled = true`, `build.gradle.kts:55`) no está comprobada en dispositivo; si fallara, la
 degradación sería a host exacto, silenciosa. La lista se cuenta como dato versionado sin proceso de
 actualización: una lista vieja deja pasar como «dominio registrable» un sufijo público nuevo.
 
@@ -869,4 +888,4 @@ la cabecera interna y el XML; semillas en `fuzz/seeds/kdbx_container/` (5). Los 
 - La **interfaz Compose** en general (estados, navegación); solo las llamadas a `session.*`.
 - `FieldClassifier` y `SavePlanner`: leídos por encima, con tests.
 - El **proceso de publicación** completo (F-Droid, firma) más allá de lo citado.
-- Cualquier **prueba en dispositivo** (ID-INT-13, 14, 16, 18, 20 y 26 lo necesitan).
+- Cualquier **prueba en dispositivo** salvo las ejecutadas el 30-oct-2026 (ID-INT-14 está confirmado como fallo en API 37 pero sin corregir; ID-INT-16 y 20 solo en parte; ID-INT-18 y 26 siguen necesitándola).

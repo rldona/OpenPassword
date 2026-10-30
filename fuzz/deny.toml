@@ -4,8 +4,8 @@
 # Same rules as the root deny.toml, minus its advisory ignore (uniffi_bindgen is not in this
 # graph) and plus ONE exception: libfuzzer-sys is "(MIT OR Apache-2.0) AND NCSA". NCSA is the
 # permissive University of Illinois license of the LLVM code it bundles; it is a dev-only
-# harness that is never linked into a shipped binary. Adding it needs human approval
-# (docs/audit/decisions.md, ADR-AUD-04): until then, drop the `fuzz` step of the `audit` job.
+# harness that is never linked into a shipped binary. Approved by the project owner on
+# 2026-10-30 (docs/audit/decisions.md, ADR-AUD-04 requires human approval for new licenses).
 
 [graph]
 # Dependencies of the shipped targets and of the host tooling (bindgen, CLI, fuzz harness).

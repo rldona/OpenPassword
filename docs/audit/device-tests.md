@@ -5,9 +5,14 @@ verificar en dispositivo» ([`internal-review.md`](internal-review.md), [`harden
 [`threat-model.md`](../threat-model.md)) y que no se puede comprobar en la JVM ni en la CI. Está escrito
 para que lo ejecute una persona sin contexto previo y sirva de **evidencia para el auditor**.
 
-> **Estado: plan en blanco. No se ha ejecutado ninguna prueba.** Todas las columnas de resultado están
-> vacías a propósito (sección 3). Los «resultados esperados» describen lo que el código pretende hacer
-> (con `fichero:línea`); no son resultados. Si el dispositivo hace otra cosa, eso es lo que se anota.
+> **Estado: ejecución parcial (sesión del 30-oct-2026, dos partes, ver [«Sesión del 30-oct-2026»](#sesion-2026-10-30)
+> y [«segunda parte»](#sesion-2026-10-30-b)).** Tienen resultado DT-01 (`pasa`, con límites), DT-02 y DT-12
+> (`bloqueado`), DT-04a (`pasa`) y **DT-04b (`falla`: confirma [ID-INT-14](internal-review.md#id-int-14))**,
+> DT-05 (`pasa`, solo build de depuración) y DT-07 (`pasa`), más la fila de las pruebas instrumentadas
+> (sección 3.2). Todo en **un único dispositivo, API 37**. **El resto de pruebas no se ha ejecutado** (DT-03,
+> DT-04c, DT-04d, DT-06, DT-08 a DT-11 y DT-13 a DT-17) y sus celdas siguen vacías. Los «resultados
+> esperados» describen lo que el código pretende hacer (con `fichero:línea`); no son resultados. Si el
+> dispositivo hace otra cosa, eso es lo que se anota.
 
 Redactado el 2026-10-30 sobre `HEAD` `6c9a587` («Docs: pausar la publicación en F-Droid»). Las líneas
 citadas son de ese commit y se desplazan si el código cambia: el nombre del símbolo es la referencia
@@ -299,16 +304,16 @@ cita ficheros de la carpeta de evidencia (2.8).
 
 | ID | fecha | dispositivo/API | resultado | evidencia | notas |
 |---|---|---|---|---|---|
-| DT-01 | | | | | |
-| DT-02 | | | | | |
+| DT-01 | 2026-10-30 | SM-S948B, Android 17 (API 37), físico | **pasa** (con límites) | `/tmp/dt-00-launcher.png`, `/tmp/dt-01.png`, `/tmp/dt-02.png`, salida de `dumpsys window` (ver «Sesión del 30-oct-2026»; no archivada en la carpeta de evidencia) | Control positivo: overlay `full` visible sobre el lanzador. Con OpenPassword al frente (`MainActivity`, `FLAG_SECURE`): overlay con `Surface: shown=false`, `isVisible=false`, `isOnScreen=false` y SurfaceFlinger «hidden»; al volver al lanzador, `shown=true`. `HIDE_OVERLAY_WINDOWS` `granted=true`. Un toque sobre «Crear mi baúl» cambió de pantalla. Sin `FATAL EXCEPTION` ni errores de `AndroidRuntime`. **No** se observó el aviso de «toque tapado» (con `setHideOverlayWindows` el toque no llega tapado; límite conocido). **Límites**: solo `MainActivity` y un toque; no `AutofillAuthActivity` ni `SaveLoginActivity`, ni el overlay parcial, ni los pasos 4-8 completos con baúl desbloqueado |
+| DT-02 | 2026-10-30 | — | **bloqueado** | — | Sin binario de emulador ni imágenes de sistema API 28/30 en el equipo (solo `android-36` y `android-37.0`); el teléfono es API 37 |
 | DT-03 | | | | | |
-| DT-04a (primer plano) | | | | | |
-| DT-04b (segundo plano) | | | | | |
+| DT-04a (primer plano) | 2026-10-30 | SM-S948B, Android 17 (API 37), físico | **pasa** | Salida del lector de portapapeles (`CLIPBOARD_EMPTY`); sin fichero archivado (ver «segunda parte») | Copiar y esperar 35 s **con OpenPassword en primer plano**: `CLIPBOARD_EMPTY`. El borrado a los 30 s **sí** funciona con la app enfocada. Solo API 37 (ID-INT-14 pide también 29, 33 y 36). Método distinto del plan: el portapapeles se leyó con un lector propio, no pegando en `test.fakebrowser` |
+| DT-04b (segundo plano) | 2026-10-30 | SM-S948B, Android 17 (API 37), físico | **falla** (confirma ID-INT-14) | Salida del lector de portapapeles (`CLIPBOARD_HAS_TEXT`); sin fichero archivado | Copiar la contraseña, pulsar Inicio, esperar 36 s y abrir el lector: **`CLIPBOARD_HAS_TEXT` a los 45 s**; el borrado **no** ocurre con la app en segundo plano. Controles: copiar y leer a los 5 s da `CLIPBOARD_HAS_TEXT` (el copiado funciona y el lector lee bien, en `onWindowFocusChanged`), y el 04a da `CLIPBOARD_EMPTY` (el borrado funciona en primer plano). **No** se probó el paso 5 del plan (volver a OpenPassword y ver si se borra al volver): lo que hace `onForeground` sigue **sin verificar en dispositivo**. No se distinguió cuál de las tres hipótesis de ID-INT-14 explica el síntoma (descripción `null`, `clearPrimaryClip()` denegado o `Handler` sin ejecutar); solo consta que, en API 37, el portapapeles sigue con texto tras salir de la app |
 | DT-04c (pantalla apagada) | | | | | |
 | DT-04d (marca sensible) | | | | | |
-| DT-05 | | | | | |
+| DT-05 | 2026-10-30 | SM-S948B, Android 17 (API 37), físico; build de **depuración** (sin R8) | **pasa** (solo depuración; variante R8 sin ejecutar) | Salida de la sesión (tabla en «segunda parte»); sin capturas archivadas | Con `test.fakebrowser` como navegador predeterminado. `alice.github.io` → «COINCIDEN» solo `alice.github.io` (`github.io` en «OTROS LOGINS»); `evil.github.io` → «ELIGE UN LOGIN», sin coincidencias y con «Ningún login tiene guardado evil.github.io» (repetido con el baúl desbloqueado); `x.alice.github.io` → ofrece `alice.github.io`; `en.wikipedia.org` → ofrece `wikipedia`; `github.io` → ofrece `sufijo-github-io` (exacta). Los dos controles positivos (`x.alice.github.io`, `en.wikipedia.org`) ofrecen el elemento: **la lista se cargó y se aplicó**. No prueban que la app falle cerrada si la lista no cargara. Baúl de 4 logins, no los 7 de 2.4 |
 | DT-06 | | | | | |
-| DT-07 | | | | | |
+| DT-07 | 2026-10-30 | SM-S948B, Android 17 (API 37), físico | **pasa** | Salida de la sesión; sin capturas archivadas | Con Chrome como navegador predeterminado, `test.fakebrowser` declarando `bank.example` produce «Para: test.fakebrowser»; el `webDomain` se ignora y no hay coincidencias web. **No se anotó** si había casilla «Recordar…» ni se hicieron los pasos 4 (baúl bloqueado) y 5 (caché de 5 min) del plan |
 | DT-08 | | | | | |
 | DT-09a (guardar) | | | | | |
 | DT-09b (rellenar) | | | | | |
@@ -316,7 +321,7 @@ cita ficheros de la carpeta de evidencia (2.8).
 | DT-09d (token y rotación) | | | | | |
 | DT-10 | | | | | |
 | DT-11 | | | | | |
-| DT-12 | | | | | |
+| DT-12 | 2026-10-30 | — | **bloqueado** | — | Necesita Android 9 (API 28); no hay emulador ni imagen de sistema y el teléfono es API 37 |
 | DT-13a (ChaCha20 + Argon2id) | | | | | |
 | DT-13b (AES-256 + Argon2d) | | | | | |
 | DT-13c (con archivo de clave) | | | | | |
@@ -331,6 +336,90 @@ cita ficheros de la carpeta de evidencia (2.8).
 | DT-17a (QR con la cámara) | | | | | |
 | DT-17b (QR desde una imagen) | | | | | |
 | DT-17c (pegar `otpauth://` o secreto) | | | | | |
+| Instrumentados (`./gradlew :app:connectedDebugAndroidTest`) | 2026-10-30 | SM-S948B, Android 17 (API 37), arm64-v8a, físico | **pasa** | `android/app/build/outputs/androidTest-results/connected/debug/TEST-SM-S948B - 17.xml` (ver «Sesión del 30-oct-2026») | 17 tests, 0 fallos, 0 errores, 0 omitidos, 47 s: `EmergencyKitTest` (2), `OverlayProtectionTest` (4), `VaultSessionTest` (11). Sobre el commit `b2e18ca` con el árbol sucio (`fuzz/deny.toml` modificado). Versión instalada `0.1.0` (`io.github.rldona.openpassword.debug`). Los tests son de banderas y de sesión con baúles aislados: no sustituyen a las pruebas DT sobre comportamiento real |
+
+<a id="sesion-2026-10-30"></a>
+### 3.3 Sesión del 30-oct-2026
+
+- **Dispositivo**: Samsung SM-S948B, Android 17 (API 37), `arm64-v8a`, físico.
+- **App**: `versionName` 0.1.0, `io.github.rldona.openpassword.debug`, instalada desde el árbol de trabajo
+  en el commit `b2e18ca`, **con `fuzz/deny.toml` modificado sin commit** (árbol no limpio; sin huella SHA-256
+  del APK registrada).
+- **Instrumentados**: `./gradlew :app:connectedDebugAndroidTest`, 17 tests, 0 fallos, 0 errores, 0
+  omitidos, 47 s. `EmergencyKitTest` (2); `OverlayProtectionTest` (4: `mainActivityWindowIsProtected`,
+  `autofillAuthActivityWindowIsProtected`, `saveLoginActivityWindowIsProtected`,
+  `protectedAlertDialogWindowIsProtected`); `VaultSessionTest` (11, entre ellos `createLockAndUnlock`,
+  `nothingIsStoredInClear`, `exportAndRestoreOnANewDevice`, `failedRestoreLeavesNoVaultBehind`,
+  `wrongPasswordsTriggerTheWait`, `locksInTheBackgroundWithoutComingBack`, `itemsRoundTripAndKeepRevisions`,
+  `importingAnOlderCopyOfTheSameVaultKeepsNewerItems`, `importingANewerCopyUpdatesAndAddsItems`,
+  `importingAnotherVaultReencryptsItsItems`; el undécimo no se transcribió). Fichero de resultados:
+  `android/app/build/outputs/androidTest-results/connected/debug/TEST-SM-S948B - 17.xml`.
+- **DT-01**: `test.overlay` compilado en `~/openpassword-testapps` (AGP 9.4.1, JDK 17, `compileSdk 36`,
+  `targetSdk 33`) y `SYSTEM_ALERT_WINDOW` concedido con `adb shell appops set test.overlay
+  SYSTEM_ALERT_WINDOW allow`. Resultado y límites en la fila DT-01.
+- **DT-02 y DT-12**: bloqueados (sin emulador ni imágenes API 28/30; el teléfono es API 37).
+- **Estado del teléfono al terminar**: `test.overlay` desinstalado; OpenPassword instalada **sin baúl
+  creado** (los instrumentados desinstalaron la app y se reinstaló limpia). No se tocó ningún baúl real.
+- **Evidencia disponible** (fuera del repositorio): `/tmp/dt-00-launcher.png` (control positivo en el
+  lanzador), `/tmp/dt-01.png` y `/tmp/dt-02.png` (OpenPassword al frente; salen negras a propósito por
+  `FLAG_SECURE`) y la salida de `dumpsys window` (no guardada en fichero). **`/tmp` se puede limpiar**: si
+  esta evidencia ha de entregarse al auditor, hay que copiarla antes a la carpeta de evidencia (2.8) y
+  registrar su `SHA256SUMS`.
+
+<a id="sesion-2026-10-30-b"></a>
+### 3.4 Sesión del 30-oct-2026, segunda parte
+
+- **Dispositivo**: el mismo Samsung SM-S948B, Android 17 (API 37), físico. **Commit probado y huella del
+  APK: no registrados** (la app debug se instaló desde el árbol de trabajo, con cambios sin commit, entre
+  ellos el texto del mensaje de copiado descrito abajo).
+- **Método**: se creó una bóveda de pruebas con **4 logins** (no los 7 de 2.4; entre ellos `alice.github.io`,
+  uno de sufijo `github.io` titulado `sufijo-github-io` y `wikipedia`) y se instaló `test.fakebrowser`
+  (sección 4.3), que declara `webDomain` mediante una estructura de autorrelleno virtual. Para DT-05 se
+  puso como navegador predeterminado; para DT-07, Chrome.
+- **DT-05 · sufijos públicos: `pasa`** (build de depuración). Resultado por dominio declarado:
+
+  | Dominio declarado | Observado |
+  |---|---|
+  | `alice.github.io` | «COINCIDEN» solo `alice.github.io`; `github.io` queda en «OTROS LOGINS» |
+  | `evil.github.io` | «ELIGE UN LOGIN», sin coincidencias, con «Ningún login tiene guardado evil.github.io». Repetido con el baúl desbloqueado |
+  | `x.alice.github.io` | Ofrece `alice.github.io` (control positivo: la lista cargó) |
+  | `en.wikipedia.org` | Ofrece `wikipedia` (control positivo) |
+  | `github.io` | Ofrece `sufijo-github-io` (coincidencia exacta) |
+
+  Los controles positivos demuestran que la lista **se cargó y se aplicó**; no demuestran que la app falle
+  cerrada si no cargara (eso solo lo cubren tests de JVM, sin ejecutar). **Sin ejecutar** la variante R8 (5.R8): la
+  build de depuración no pasa por R8.
+- **DT-07 · app que se declara navegador: `pasa`**. Con Chrome predeterminado, `test.fakebrowser` con
+  `bank.example` produce «Para: test.fakebrowser»; el `webDomain` se ignora y no hay coincidencias web.
+- **DT-08 (no ejecutada como tal)**: durante DT-05, con `test.fakebrowser` como predeterminado, su
+  `webDomain` **se tomó en cuenta** (hubo coincidencias web por dominio). Es coherente con el riesgo
+  residual de A17, pero no se siguió el procedimiento de DT-08 ni se anotó «Para:» ni la casilla
+  «Recordar…»: la fila sigue vacía.
+- **DT-04 · portapapeles: `falla` en segundo plano (confirma ID-INT-14)**. Se leyó el portapapeles con un
+  lector propio que consulta el portapapeles en `onWindowFocusChanged` (cuando tiene foco) y escribe
+  `CLIPBOARD_HAS_TEXT` o `CLIPBOARD_EMPTY`. Este método **sustituye** a pegar en el campo de
+  `test.fakebrowser` del plan. Controles y resultados:
+
+  | Secuencia | Resultado |
+  |---|---|
+  | Copiar la contraseña y abrir el lector a los 5 s | `CLIPBOARD_HAS_TEXT` (control positivo: el copiado funciona y el lector lee) |
+  | Copiar, esperar 35 s con OpenPassword en primer plano, leer | `CLIPBOARD_EMPTY` (el borrado funciona con la app enfocada) |
+  | Copiar, pulsar Inicio, esperar 36 s, abrir el lector | **`CLIPBOARD_HAS_TEXT` a los 45 s** (el borrado **no** ocurre en segundo plano) |
+
+  Conclusión de la sesión: `clearPrimaryClip()` desde segundo plano no surte efecto en API 37; el
+  mecanismo actual solo limpia con la app en primer plano. **Sin verificar**: que se borre al volver a la
+  app (no se probó), DT-04c (pantalla apagada), DT-04d (marca de sensible) y las API 29, 33 y 36.
+- **Cambio de código asociado (sin commit)**: el mensaje prometía «Se borrará del portapapeles en 30 s»
+  también en segundo plano. Ahora dice «Se borrará en 30 s, o al volver a la app si sales.»
+  (`ui/vault/ItemDetailScreen.kt:99,142,184`). Solo corrige el texto: **no** corrige el borrado, y la parte
+  «o al volver a la app» describe el diseño de `onForeground`, **no verificado en dispositivo**.
+- **Estado del teléfono al terminar**: servicio de autorrelleno devuelto a
+  `com.google.android.gms/…AutofillService`; navegador predeterminado de vuelta a `com.android.chrome`;
+  `test.fakebrowser` desinstalado; OpenPassword debug instalada con la bóveda de pruebas. No se tocó
+  ninguna bóveda real.
+- **Evidencia**: las lecturas del portapapeles y la salida de DT-05 y DT-07 son anotaciones de la sesión; **no
+  hay ficheros archivados ni `SHA256SUMS`**. Antes de entregarlas al auditor hay que repetir la captura
+  (2.8) o aceptar que son testimonio del proyecto.
 
 ---
 
@@ -352,8 +441,10 @@ descarga de Google y Maven Central (sin verificación de dependencias: son APK d
 publican ni se entregan al usuario).
 
 > Los dos módulos se compilaron con esta receta (JDK 21, AGP 9.4.1, Gradle 9.8.2 del *wrapper* del
-> repositorio) y `assembleDebug` terminó con éxito. **No se han instalado ni ejecutado en ningún
-> dispositivo**: que se comporten como se describe es parte de lo que las pruebas comprueban.
+> repositorio) y `assembleDebug` terminó con éxito. `test.overlay` se instaló y
+> ejecutó el 30-oct-2026 (DT-01, con JDK 17 y `compileSdk 36`); `test.fakebrowser` se instaló y ejecutó el
+> mismo día (segunda parte: DT-05 y DT-07) y se desinstaló al terminar. Que se comporten como se describe es
+> parte de lo que las pruebas comprueban.
 
 ### 4.1 Crear el proyecto
 
@@ -1584,11 +1675,11 @@ indicados; el código coincide con el de la CLI; el secreto no se copia.
 
 Hoy **no hay ninguna prueba instrumentada en la CI** (no hay referencias a `androidTest`, `connected` ni
 `emulator` en `.github/workflows/`), y las tres clases de `android/app/src/androidTest/kotlin/…/` son:
-`EmergencyKitTest`, `OverlayProtectionTest` (solo `MainActivity`: banderas `filterTouchesWhenObscured` y
-`FLAG_SECURE`; su propio comentario dice que faltan las otras actividades y los diálogos) y
-`VaultSessionTest` (con un espacio de nombres aislado por prueba). Nota de discrepancia: la tabla de tests de
-[ADR-AUD-06](decisions.md) describe un `OverlayProtectionTest` instrumentado que cubre las tres actividades
-y los diálogos con un toque `FLAG_WINDOW_IS_OBSCURED`; **el fichero actual no lo hace** (ver ID-INT-13).
+`EmergencyKitTest`, `OverlayProtectionTest` (4 tests: las tres actividades y un `ProtectedAlertDialog`,
+ver ID-INT-13) y `VaultSessionTest` (con un espacio de nombres aislado por prueba). Se ejecutaron a mano el
+30-oct-2026 en un dispositivo (17 tests en verde, sección 3.2). Nota: la tabla de tests de
+[ADR-AUD-06](decisions.md) habla de un toque `FLAG_WINDOW_IS_OBSCURED` inyectado; **no se ha comprobado**
+aquí que los tests lo hagan, solo que pasan.
 
 ### Qué se puede convertir en `androidTest`
 
@@ -1624,8 +1715,9 @@ cd "$OP_REPO/android"
 ./gradlew :app:connectedDebugAndroidTest
 ```
 
-Antes, comprueba que `ANDROID_SERIAL` apunta al emulador. Este comando **no se ha ejecutado** al redactar
-este plan.
+Antes, comprueba que `ANDROID_SERIAL` apunta al emulador. Este comando se ejecutó el 30-oct-2026 en un
+dispositivo físico sin baúl (SM-S948B, API 37): 17 tests, todos en verde (ver «Sesión del 30-oct-2026»).
+Los tests instrumentados desinstalaron la app de depuración al terminar, como advierte el aviso anterior.
 
 ---
 
@@ -1659,7 +1751,18 @@ dispositivo» a «verificado en dispositivo» **solo si** se cumple todo lo sigu
 
 `bloqueado` **no cuenta** como verificado: la afirmación sigue «sin verificar» y se dice por qué.
 
-Al cerrar, los textos que se actualizan **(no se han tocado en este plan)**: filas de `internal-review.md`
+**Estado del cierre a 30-oct-2026** (un solo dispositivo, API 37, build de depuración; ninguna fila está cerrada del todo):
+
+| Afirmación | Estado |
+|---|---|
+| A7: portapapeles / ID-INT-14 | **Confirmado como fallo** en API 37 (DT-04b `falla`): «con borrado» **se quita** de A7 (regla 7.2.5). DT-04c, DT-04d y API 29, 33 y 36 sin ejecutar. No hay fila `pasa` que cerrar |
+| ID-INT-20: lista de sufijos | DT-05 `pasa` en depuración con los dos controles positivos; **falta la variante R8**: sigue abierto |
+| A17 / ID-INT-16: `webDomain` | DT-07 `pasa`; **faltan** DT-06 (Chrome real) y DT-08 (formal); la hipótesis del `iframe` sigue sin probar |
+| El resto (A7 anti-tapjacking, ID-INT-26, A10, KDBX, KDF, copia, bloqueo, TOTP) | Como antes de esta parte: ver la tabla 3.2 |
+
+En todos los casos falta además archivar la evidencia (2.8) y fijar el commit probado (7.1, punto 2).
+
+Al cerrar, los textos que se actualizan **(salvo lo ya registrado de ID-INT-14, 16, 20 y A7/A17 tras la sesión del 30-oct-2026, no se han tocado en este plan)**: filas de `internal-review.md`
 para ID-INT-14, 16, 20 y 26 («sin probar en dispositivo»); `threat-model.md` A7 («sin verificar en
 dispositivo») y A17 («Sin probar en dispositivo»); y los «sin verificar» de [`hardening.md`](hardening.md) y
 [`README.md`](README.md) (índice). Cada cambio cita el ID de la prueba y el commit. Si DT-13 pasa,
