@@ -17,7 +17,11 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use zeroize::Zeroizing;
 
-use op_core::vault::{Field, FieldKind, ItemDetails, ItemKind, ItemOverview, PasswordChange};
+use op_core::vault::{
+    AttachmentId, EncryptedAttachment, Field, FieldKind, ItemChange, ItemDetails, ItemKind,
+    ItemOverview, MAX_IMAGE_BYTES, MAX_IMAGES_PER_ITEM, MAX_VAULT_ATTACHMENT_BYTES, NewImage,
+    PasswordChange,
+};
 use op_core::{EncryptedItem, Item, KdfParams, Key, SecretKey, UnlockedVault, VaultHeader, backup};
 
 mod secret;
@@ -123,7 +127,7 @@ mirror_enum!(
 mirror_enum!(
     FieldKindRecord,
     FieldKind,
-    [Text, Concealed, Pin, CardNumber, Totp, Date, Url, Email]
+    [Text, Concealed, Pin, CardNumber, Totp, Date, Url, Email, Image]
 );
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -169,6 +173,54 @@ pub struct EncryptedItemRecord {
     pub wrapped_item_key: Vec<u8>,
     pub overview: Vec<u8>,
     pub details: Vec<u8>,
+}
+
+/// A sealed image as stored by the app and carried in backups.
+#[derive(Clone, uniffi::Record)]
+pub struct EncryptedAttachmentRecord {
+    pub item_id: String,
+    pub id: String,
+    pub data: Vec<u8>,
+}
+
+impl std::fmt::Debug for EncryptedAttachmentRecord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EncryptedAttachmentRecord")
+            .field("item_id", &self.item_id)
+            .field("id", &self.id)
+            .field("data_len", &self.data.len())
+            .finish()
+    }
+}
+
+/// A new image to seal. Kotlin owns `jpeg` and must wipe it after the call.
+#[derive(Clone, uniffi::Record)]
+pub struct NewImageRecord {
+    pub id: String,
+    pub jpeg: Vec<u8>,
+}
+
+impl std::fmt::Debug for NewImageRecord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("NewImageRecord(<redacted>)")
+    }
+}
+
+/// What a save writes: the item, the attachments to add and the ids to remove.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct ItemChangeRecord {
+    pub item: EncryptedItemRecord,
+    pub added: Vec<EncryptedAttachmentRecord>,
+    pub removed: Vec<String>,
+}
+
+/// Product limits, so the app does not duplicate them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Record)]
+pub struct AttachmentLimits {
+    pub max_image_bytes: u32,
+    pub max_images_per_item: u32,
+    pub max_vault_attachment_bytes: u64,
+    pub max_backup_bytes: u64,
 }
 
 impl From<&ItemOverview> for ItemOverviewRecord {
@@ -282,6 +334,51 @@ fn item(overview: ItemOverviewRecord, details: ItemDetailsRecord) -> Item {
     Item {
         overview: overview.into(),
         details: details.into(),
+    }
+}
+
+fn parse_attachment_id(value: &str) -> Result<AttachmentId> {
+    hex::decode(value)
+        .ok()
+        .and_then(|b| b.try_into().ok())
+        .ok_or(OpError::Corrupted)
+}
+
+fn new_image(record: NewImageRecord) -> Result<NewImage> {
+    Ok(NewImage {
+        id: parse_attachment_id(&record.id)?,
+        jpeg: Zeroizing::new(record.jpeg),
+    })
+}
+
+impl From<EncryptedAttachment> for EncryptedAttachmentRecord {
+    fn from(a: EncryptedAttachment) -> Self {
+        Self {
+            item_id: hex::encode(a.item_id),
+            id: hex::encode(a.id),
+            data: a.data,
+        }
+    }
+}
+
+impl TryFrom<EncryptedAttachmentRecord> for EncryptedAttachment {
+    type Error = OpError;
+    fn try_from(r: EncryptedAttachmentRecord) -> Result<Self> {
+        Ok(Self {
+            item_id: parse_attachment_id(&r.item_id)?,
+            id: parse_attachment_id(&r.id)?,
+            data: r.data,
+        })
+    }
+}
+
+impl From<ItemChange> for ItemChangeRecord {
+    fn from(c: ItemChange) -> Self {
+        Self {
+            item: c.item.into(),
+            added: c.added.into_iter().map(Into::into).collect(),
+            removed: c.removed.into_iter().map(hex::encode).collect(),
+        }
     }
 }
 
@@ -420,17 +517,90 @@ impl Vault {
         self.with(|v| v.decrypt_details(&item)).map(|d| (&d).into())
     }
 
-    /// Serializes an encrypted `.opvault` backup of `items`.
+    /// Encrypts a new item and its new images.
+    pub fn encrypt_item_with_images(
+        &self,
+        overview: ItemOverviewRecord,
+        details: ItemDetailsRecord,
+        images: Vec<NewImageRecord>,
+    ) -> Result<ItemChangeRecord> {
+        let images = images.into_iter().map(new_image).collect::<Result<Vec<_>>>()?;
+        self.with(|v| v.encrypt_item_with_images(&item(overview, details), images))
+            .map(Into::into)
+    }
+
+    /// Re-encrypts an edited item, sealing `images` and reporting the ids to remove.
+    pub fn update_item_with_images(
+        &self,
+        existing: EncryptedItemRecord,
+        overview: ItemOverviewRecord,
+        details: ItemDetailsRecord,
+        images: Vec<NewImageRecord>,
+    ) -> Result<ItemChangeRecord> {
+        let existing = existing.try_into()?;
+        let images = images.into_iter().map(new_image).collect::<Result<Vec<_>>>()?;
+        self.with(|v| v.update_item_with_images(&existing, &item(overview, details), images))
+            .map(Into::into)
+    }
+
+    /// Decrypts one image. The caller owns the bytes and must wipe them; the outgoing
+    /// `RustBuffer` is an accepted leftover.
+    pub fn decrypt_image(
+        &self,
+        item: EncryptedItemRecord,
+        attachment: EncryptedAttachmentRecord,
+    ) -> Result<Vec<u8>> {
+        let item = item.try_into()?;
+        let attachment = attachment.try_into()?;
+        self.with(|v| v.decrypt_image(&item, &attachment))
+            .map(|image| image.jpeg.to_vec())
+    }
+
+    /// Ids of the images the item references, in field order.
+    pub fn image_ids(&self, item: EncryptedItemRecord) -> Result<Vec<String>> {
+        let item = item.try_into()?;
+        self.with(|v| v.image_ids(&item))
+            .map(|ids| ids.into_iter().map(hex::encode).collect())
+    }
+
+    /// Moves an item and its images from `source` into this vault. Plaintext never crosses
+    /// the FFI boundary. The two locks are never held at the same time.
+    pub fn adopt_item(
+        &self,
+        source: Arc<Vault>,
+        item: EncryptedItemRecord,
+        attachments: Vec<EncryptedAttachmentRecord>,
+    ) -> Result<ItemChangeRecord> {
+        if std::ptr::eq(Arc::as_ptr(&source), self) {
+            return Err(OpError::InvalidInput {
+                reason: "cannot adopt an item into its own vault".into(),
+            });
+        }
+        let item = item.try_into()?;
+        let attachments = attachments
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<Result<Vec<_>>>()?;
+        let plain = source.with(|v| v.open_item_with_images(&item, &attachments))?;
+        self.with(|v| v.adopt_item(&plain)).map(Into::into)
+    }
+
+    /// Serializes an encrypted `.opvault` backup of `items` and their attachments.
     pub fn export_backup(
         &self,
         items: Vec<EncryptedItemRecord>,
+        attachments: Vec<EncryptedAttachmentRecord>,
         created_at: u64,
     ) -> Result<Vec<u8>> {
         let items = items
             .into_iter()
             .map(EncryptedItem::try_from)
             .collect::<Result<Vec<_>>>()?;
-        self.with(|v| backup::write(v, &items, created_at))
+        let attachments = attachments
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<Result<Vec<_>>>()?;
+        self.with(|v| backup::write(v, &items, &attachments, created_at))
     }
 
     /// Wipes the vault key. Every later call fails with [`OpError::Locked`].
@@ -447,6 +617,7 @@ impl Vault {
 pub struct BackupContents {
     pub vault: Arc<Vault>,
     pub items: Vec<EncryptedItemRecord>,
+    pub attachments: Vec<EncryptedAttachmentRecord>,
 }
 
 /// Opens a `.opvault` backup. Fails with [`OpError::KdfTooExpensive`], before deriving
@@ -461,11 +632,29 @@ pub fn open_backup(
     let bytes = Zeroizing::new(bytes);
     let sk = SecretKey::parse(secret_key.expose())?;
     check_mobile_kdf(&backup::read_header(&bytes)?.vault.kdf)?;
-    let (vault, items) = backup::open(&bytes, password.expose(), &sk)?;
+    let (vault, items, attachments) = backup::open(&bytes, password.expose(), &sk)?;
     Ok(BackupContents {
         vault: Vault::wrap(vault),
         items: items.into_iter().map(Into::into).collect(),
+        attachments: attachments.into_iter().map(Into::into).collect(),
     })
+}
+
+/// A new random attachment id, as the canonical lowercase hex the image field stores.
+#[uniffi::export]
+pub fn new_attachment_id() -> Result<String> {
+    Ok(hex::encode(op_core::vault::new_attachment_id()?))
+}
+
+/// Product limits for images, so the app does not duplicate them.
+#[uniffi::export]
+pub fn attachment_limits() -> AttachmentLimits {
+    AttachmentLimits {
+        max_image_bytes: u32::try_from(MAX_IMAGE_BYTES).expect("1.5 MiB fits"),
+        max_images_per_item: u32::try_from(MAX_IMAGES_PER_ITEM).expect("10 fits"),
+        max_vault_attachment_bytes: MAX_VAULT_ATTACHMENT_BYTES,
+        max_backup_bytes: u64::try_from(backup::MAX_FILE_LEN).expect("64 MiB fits"),
+    }
 }
 
 /// Rejects a header whose KDF is above [`MOBILE_MAXIMUM`], before any derivation.
@@ -692,7 +881,7 @@ mod tests {
             ""
         );
 
-        let file = vault.export_backup(vec![enc2.clone()], 1).unwrap();
+        let file = vault.export_backup(vec![enc2.clone()], Vec::new(), 1).unwrap();
         let restored = open_backup(file, "contraseña larga de prueba".into(), sk).unwrap();
         assert_eq!(restored.items[0].id, enc2.id);
 
@@ -782,6 +971,103 @@ mod tests {
     }
 
     #[test]
+    fn images_through_the_ffi() {
+        fn jpeg() -> Vec<u8> {
+            let segment = |marker: u8, payload: &[u8]| {
+                let mut out = vec![0xFF, marker];
+                out.extend_from_slice(&u16::try_from(payload.len() + 2).unwrap().to_be_bytes());
+                out.extend_from_slice(payload);
+                out
+            };
+            let mut out = vec![0xFF, 0xD8];
+            out.extend(segment(0xDB, &[0; 65]));
+            out.extend(segment(0xC0, &[8, 0, 1, 0, 1, 1, 1, 0x11, 0]));
+            out.extend(segment(0xC4, &[0; 20]));
+            out.extend(segment(0xDA, &[1, 1, 0, 0, 63, 0]));
+            out.extend_from_slice(&[0x12, 0x34, 0xFF, 0xD9]);
+            out
+        }
+
+        let sk = generate_secret_key().unwrap();
+        let vault = Vault::create(PASSWORD.into(), sk.clone(), KdfProfile::Minimum).unwrap();
+        let id = new_attachment_id().unwrap();
+        let bytes = jpeg();
+        let details = ItemDetailsRecord {
+            fields: vec![FieldRecord {
+                label: "Anverso".into(),
+                kind: FieldKindRecord::Image,
+                value: id.clone().into(),
+            }],
+            notes: SecretString::default(),
+            history: Vec::new(),
+        };
+        let change = vault
+            .encrypt_item_with_images(
+                overview("DNI"),
+                details,
+                vec![NewImageRecord {
+                    id: id.clone(),
+                    jpeg: bytes.clone(),
+                }],
+            )
+            .unwrap();
+        assert_eq!(change.added.len(), 1);
+        assert_eq!(vault.image_ids(change.item.clone()).unwrap(), vec![id]);
+        assert_eq!(
+            vault
+                .decrypt_image(change.item.clone(), change.added[0].clone())
+                .unwrap(),
+            bytes
+        );
+        assert!(format!("{:?}", change.added[0]).contains("data_len"));
+        assert!(!format!("{:?}", change.added[0]).contains("255"));
+
+        let file = vault
+            .export_backup(
+                vec![change.item.clone()],
+                change.added.clone(),
+                1,
+            )
+            .unwrap();
+        let restored = open_backup(file, PASSWORD.into(), sk.clone()).unwrap();
+        assert_eq!(restored.attachments.len(), 1);
+        assert_eq!(
+            restored
+                .vault
+                .decrypt_image(restored.items[0].clone(), restored.attachments[0].clone())
+                .unwrap(),
+            bytes
+        );
+
+        let other = Vault::create(PASSWORD.into(), sk, KdfProfile::Minimum).unwrap();
+        let adopted = other
+            .adopt_item(vault.clone(), change.item, change.added)
+            .unwrap();
+        assert_eq!(other.image_ids(adopted.item.clone()).unwrap().len(), 1);
+        assert_eq!(
+            other
+                .decrypt_image(adopted.item, adopted.added[0].clone())
+                .unwrap(),
+            bytes
+        );
+        assert!(matches!(
+            other.adopt_item(
+                other.clone(),
+                EncryptedItemRecord {
+                    id: "00".into(),
+                    revision: 1,
+                    wrapped_item_key: vec![],
+                    overview: vec![],
+                    details: vec![],
+                },
+                vec![],
+            ),
+            Err(OpError::InvalidInput { .. })
+        ));
+        assert_eq!(attachment_limits().max_images_per_item, 10);
+    }
+
+    #[test]
     fn corrupted_item_ids_are_rejected() {
         let sk = generate_secret_key().unwrap();
         let vault =
@@ -799,7 +1085,7 @@ mod tests {
     fn backup_with_kdf(kdf: KdfParams) -> (Vec<u8>, SecretString) {
         let sk = generate_secret_key().unwrap();
         let vault = Vault::create(PASSWORD.into(), sk.clone(), KdfProfile::Minimum).unwrap();
-        let file = vault.export_backup(Vec::new(), 1).unwrap();
+        let file = vault.export_backup(Vec::new(), Vec::new(), 1).unwrap();
         let start = backup::MAGIC.len() + 4;
         let len = u32::from_le_bytes(file[start - 4..start].try_into().unwrap()) as usize;
         let mut header: serde_json::Value =

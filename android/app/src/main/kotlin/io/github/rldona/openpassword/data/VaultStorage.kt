@@ -1,6 +1,7 @@
 package io.github.rldona.openpassword.data
 
 import android.content.Context
+import io.github.rldona.openpassword.core.EncryptedAttachmentRecord
 import io.github.rldona.openpassword.core.EncryptedItemRecord
 import io.github.rldona.openpassword.security.DeviceKeyStore
 import java.io.File
@@ -62,9 +63,32 @@ class VaultStorage(context: Context, namespace: String = "") {
 
     fun items(): List<EncryptedItemRecord> = db.all()
 
+    fun allAttachments(): List<EncryptedAttachmentRecord> = db.allAttachments()
+
+    fun attachment(itemId: String, id: String): EncryptedAttachmentRecord? = db.attachment(itemId, id)
+
+    fun attachmentSize(itemId: String, id: String): Long = db.attachmentSize(itemId, id)
+
+    fun attachmentBytesTotal(): Long = db.attachmentBytesTotal()
+
     fun upsert(item: EncryptedItemRecord) = db.upsert(item)
 
-    fun delete(id: String) = db.delete(id)
+    /** Writes an item, its new images and its removed images in one transaction. */
+    fun applyChange(item: EncryptedItemRecord, added: List<EncryptedAttachmentRecord>, removed: List<String>) =
+        db.applyChange(item, added, removed)
+
+    fun delete(id: String) = db.deleteItem(id)
+
+    fun replaceAll(items: List<EncryptedItemRecord>, attachments: List<EncryptedAttachmentRecord>) =
+        db.replaceAll(items, attachments)
+
+    fun applyImport(
+        items: List<EncryptedItemRecord>,
+        insertions: List<EncryptedAttachmentRecord>,
+        deletions: List<Pair<String, String>>,
+    ) = db.applyImport(items, insertions, deletions)
+
+    fun sweepOrphans() = db.sweepOrphans()
 
     /** Removes leftover rows, e.g. from a restore that failed half way. */
     fun clearItems() = db.clear()

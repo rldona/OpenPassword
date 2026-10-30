@@ -93,3 +93,10 @@ path = "fuzz_targets/ffi_records.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "jpeg_check"
+path = "fuzz_targets/jpeg_check.rs"
+test = false
+doc = false
+bench = false

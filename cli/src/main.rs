@@ -7,8 +7,10 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use clap::{Parser, Subcommand};
-use op_core::vault::Item;
+use op_core::vault::{Item, MediaType};
 use op_core::{KdfParams, SecretKey, UnlockedVault, backup};
 use serde::Serialize;
 use zeroize::Zeroizing;
@@ -78,6 +80,7 @@ impl Credentials {
 
 #[derive(Serialize)]
 struct DecryptedBackup {
+    format_version: u32,
     vault_id: String,
     created_at: u64,
     items: Vec<DecryptedItem>,
@@ -89,6 +92,17 @@ struct DecryptedItem {
     revision: u64,
     #[serde(flatten)]
     item: Item,
+    attachments: Vec<DecryptedAttachment>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    missing_attachments: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct DecryptedAttachment {
+    id: String,
+    media_type: &'static str,
+    /// Base64 so the whole recovery stays in one readable JSON file.
+    data: String,
 }
 
 fn main() -> Result<()> {
@@ -118,19 +132,43 @@ fn decrypt(file: &PathBuf, creds: &Credentials) -> Result<()> {
     let bytes = read_file(file)?;
     let header = backup::read_header(&bytes)?;
     let (password, secret_key) = creds.read()?;
-    let (vault, items) = backup::open(&bytes, &password, &secret_key)?;
+    let (vault, items, attachments) = backup::open(&bytes, &password, &secret_key)?;
 
     let items = items
         .iter()
         .map(|enc| {
+            let item = vault.decrypt_item(enc)?;
+            let mut present = Vec::new();
+            let mut missing = Vec::new();
+            for id in item.details.image_ids()? {
+                match attachments
+                    .iter()
+                    .find(|a| a.item_id == enc.id && a.id == id)
+                {
+                    Some(attachment) => {
+                        let image = vault.decrypt_image(enc, attachment)?;
+                        present.push(DecryptedAttachment {
+                            id: hex::encode(id),
+                            media_type: match image.media_type {
+                                MediaType::Jpeg => "image/jpeg",
+                            },
+                            data: STANDARD.encode(&image.jpeg),
+                        });
+                    }
+                    None => missing.push(hex::encode(id)),
+                }
+            }
             Ok(DecryptedItem {
                 id: hex::encode(enc.id),
                 revision: enc.revision,
-                item: vault.decrypt_item(enc)?,
+                item,
+                attachments: present,
+                missing_attachments: missing,
             })
         })
         .collect::<Result<Vec<_>>>()?;
     let out = DecryptedBackup {
+        format_version: header.format_version,
         vault_id: hex::encode(vault.vault_id()),
         created_at: header.created_at,
         items,
@@ -171,7 +209,7 @@ fn sample(file: &PathBuf, creds: &Credentials) -> Result<()> {
         .iter()
         .map(|item| vault.encrypt_item(item))
         .collect::<op_core::Result<Vec<_>>>()?;
-    std::fs::write(file, backup::write(&vault, &items, now)?)?;
+    std::fs::write(file, backup::write(&vault, &items, &[], now)?)?;
     eprintln!(
         "Creado {} con {} elementos de ejemplo.",
         file.display(),

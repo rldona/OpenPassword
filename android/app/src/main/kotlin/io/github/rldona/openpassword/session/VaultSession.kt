@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.security.keystore.KeyPermanentlyInvalidatedException
+import io.github.rldona.openpassword.core.EncryptedAttachmentRecord
 import io.github.rldona.openpassword.core.EncryptedItemRecord
 import io.github.rldona.openpassword.core.FieldKindRecord
 import io.github.rldona.openpassword.core.ImportedItemRecord
@@ -13,8 +14,10 @@ import io.github.rldona.openpassword.core.ItemDetailsRecord
 import io.github.rldona.openpassword.core.ItemOverviewRecord
 import io.github.rldona.openpassword.core.KdfProfile
 import io.github.rldona.openpassword.core.InternalException
+import io.github.rldona.openpassword.core.NewImageRecord
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.core.Vault
+import io.github.rldona.openpassword.core.attachmentLimits
 import io.github.rldona.openpassword.core.normalizeSecretKey
 import io.github.rldona.openpassword.core.backupKdf
 import io.github.rldona.openpassword.core.openBackup
@@ -41,6 +44,9 @@ data class ExternalImportSummary(val added: Int, val duplicates: Int)
 
 /** What an import into the current vault did. */
 data class ImportSummary(val added: Int, val updated: Int, val unchanged: Int)
+
+/** The vault has reached the image space limit; nothing was written. */
+class ImageQuotaExceeded : Exception("No cabe más imágenes en la caja fuerte.")
 
 /** An item with its overview already decrypted, for the list and search. */
 data class VaultEntry(val record: EncryptedItemRecord, val overview: ItemOverviewRecord) {
@@ -112,6 +118,7 @@ class VaultSession(
             try {
                 val unlocked = Vault.unlock(storage.readHeader(), password, storage.loadSecretKey())
                 val entries = discardOnFailure(unlocked::discard) { loadEntries(storage.items(), unlocked::decryptOverview) }
+                storage.sweepOrphans()
                 attempts.recordSuccess()
                 recordPasswordUnlock()
                 replaceVault(unlocked, entries)
@@ -145,8 +152,8 @@ class VaultSession(
             val contents = openBackup(backup, password, normalizedKey)
             val entries = discardOnFailure(contents.vault::discard) { loadEntries(contents.items, contents.vault::decryptOverview) }
             try {
-                storage.clearItems()
-                contents.items.forEach(storage::upsert)
+                // One transaction: an interrupted restore never leaves items without images.
+                storage.replaceAll(contents.items, contents.attachments)
                 storage.saveSecretKey(normalizedKey)
                 // Header last: until it exists the device still counts as having no vault.
                 storage.writeHeader(contents.vault.headerJson())
@@ -175,26 +182,71 @@ class VaultSession(
                 val source = contents.vault
                 try {
                     val sameVault = vaultIdOf(source.headerJson()) == vaultIdOf(current.headerJson())
-                    val existing = storage.items().associateBy { it.id }
+                    val local = storage.items().associateBy { it.id }
+                    val byItem = contents.attachments.groupBy { it.itemId }
+                    val itemsToWrite = mutableListOf<EncryptedItemRecord>()
+                    val toInsert = mutableListOf<EncryptedAttachmentRecord>()
+                    val toDelete = mutableListOf<Pair<String, String>>()
                     var added = 0
                     var updated = 0
                     var unchanged = 0
-                    for (record in contents.items) {
-                        val mine = existing[record.id]
-                        when {
-                            !sameVault -> {
-                                storage.upsert(current.encryptItem(source.decryptOverview(record), source.decryptDetails(record)))
-                                added++
+
+                    if (sameVault) {
+                        for (record in contents.items) {
+                            val mine = local[record.id]
+                            val newRefs = runCatching { source.imageIds(record) }.getOrNull()
+                            val theirs = byItem[record.id].orEmpty()
+                                .filter { newRefs == null || it.id in newRefs }
+                            when {
+                                mine == null -> {
+                                    itemsToWrite += record
+                                    toInsert += theirs
+                                    added++
+                                }
+                                record.revision > mine.revision -> {
+                                    val oldRefs = runCatching { current.imageIds(mine) }.getOrNull()
+                                    itemsToWrite += record
+                                    toInsert += theirs
+                                    // Only remove images when the new revision is readable and
+                                    // says which ones it keeps: a damaged copy must not delete.
+                                    if (oldRefs != null && newRefs != null) {
+                                        oldRefs.filter { id -> id !in newRefs }
+                                            .forEach { toDelete += mine.id to it }
+                                    }
+                                    updated++
+                                }
+                                else -> {
+                                    // Keep the local revision; a copy can only fill gaps.
+                                    val oldRefs = runCatching { current.imageIds(mine) }.getOrNull().orEmpty()
+                                    toInsert += theirs.filter { it.id in oldRefs && storage.attachment(mine.id, it.id) == null }
+                                    unchanged++
+                                }
                             }
-                            mine == null -> { storage.upsert(record); added++ }
-                            record.revision > mine.revision -> { storage.upsert(record); updated++ }
-                            else -> unchanged++
                         }
+                    } else {
+                        for (record in contents.items) {
+                            val change = current.adoptItem(source, record, byItem[record.id].orEmpty())
+                            itemsToWrite += change.item
+                            toInsert += change.added
+                            added++
+                        }
+                    }
+
+                    val insertions = toInsert.distinctBy { it.itemId to it.id }
+                    val deletions = toDelete.distinct()
+                    val released = deletions.sumOf { (itemId, id) -> storage.attachmentSize(itemId, id) }
+                    val taken = insertions.sumOf { it.data.size.toLong() }
+                    if (storage.attachmentBytesTotal() - released + taken > attachmentLimits().maxVaultAttachmentBytes.toLong()) {
+                        throw ImageQuotaExceeded()
+                    }
+
+                    if (itemsToWrite.isNotEmpty() || insertions.isNotEmpty() || deletions.isNotEmpty()) {
+                        storage.applyImport(itemsToWrite, insertions, deletions)
                     }
                     val loaded = loadEntries(storage.items(), current::decryptOverview)
                     // A lock() during the import must not bring the state back to Unlocked without a key.
                     if (vault.current() === current) _state.value = SessionState.Unlocked(loaded.entries, loaded.unreadable)
-                    if (added + updated > 0) onChanged()
+                    if (added + updated > 0 || insertions.isNotEmpty() || deletions.isNotEmpty()) onChanged()
                     ImportSummary(added, updated, unchanged)
                 } finally {
                     source.lock()
@@ -296,6 +348,7 @@ class VaultSession(
             try {
                 val unlocked = Vault.unlockWithVaultKey(storage.readHeader(), key)
                 val entries = discardOnFailure(unlocked::discard) { loadEntries(storage.items(), unlocked::decryptOverview) }
+                storage.sweepOrphans()
                 replaceVault(unlocked, entries)
                 UnlockResult.Success
             } catch (e: OpException) {
@@ -329,18 +382,34 @@ class VaultSession(
 
     suspend fun details(entry: VaultEntry): ItemDetailsRecord = withVault { it.decryptDetails(entry.record) }
 
-    suspend fun save(existing: VaultEntry?, overview: ItemOverviewRecord, details: ItemDetailsRecord): VaultEntry =
+    suspend fun save(
+        existing: VaultEntry?,
+        overview: ItemOverviewRecord,
+        details: ItemDetailsRecord,
+        newImages: List<NewImageRecord> = emptyList(),
+    ): VaultEntry =
         withVault { v ->
-            val record = if (existing == null) {
-                v.encryptItem(overview, details)
+            val change = if (existing == null) {
+                v.encryptItemWithImages(overview, details, newImages)
             } else {
-                v.updateItem(existing.record, overview, details)
+                v.updateItemWithImages(existing.record, overview, details, newImages)
             }
-            storage.upsert(record)
-            VaultEntry(record, overview).also { saved ->
+            val released = change.removed.sumOf { storage.attachmentSize(change.item.id, it) }
+            val taken = change.added.sumOf { it.data.size.toLong() }
+            if (storage.attachmentBytesTotal() - released + taken > attachmentLimits().maxVaultAttachmentBytes.toLong()) {
+                throw ImageQuotaExceeded()
+            }
+            storage.applyChange(change.item, change.added, change.removed)
+            VaultEntry(change.item, overview).also { saved ->
                 updateEntries { entries -> entries.filterNot { it.id == saved.id } + saved }
             }
         }.also { onChanged() }
+
+    /** Decrypts one image. The caller owns the bytes and must wipe them as soon as it is done. */
+    suspend fun image(entry: VaultEntry, attachmentId: String): ByteArray? = withVault { v ->
+        val attachment = storage.attachment(entry.id, attachmentId) ?: return@withVault null
+        v.decryptImage(entry.record, attachment)
+    }
 
     suspend fun delete(entry: VaultEntry) = withVault {
         storage.delete(entry.id)
@@ -395,7 +464,11 @@ class VaultSession(
     }
 
     suspend fun exportBackup(): ByteArray = withVault { v ->
-        v.exportBackup(storage.items(), (System.currentTimeMillis() / 1000).toULong())
+        v.exportBackup(
+            storage.items(),
+            storage.allAttachments(),
+            (System.currentTimeMillis() / 1000).toULong(),
+        )
     }
 
     // ---- Auto-lock ----
@@ -523,7 +596,12 @@ fun OpException.toUserMessage(): String = when (this) {
     is OpException.WrongCredentials -> "Contraseña maestra incorrecta."
     is OpException.WrongSecretKey -> "La clave secreta no corresponde a esta caja fuerte."
     is OpException.InvalidSecretKey -> "La clave secreta no es válida. Revisa si hay erratas."
-    is OpException.InvalidInput -> "Dato no válido: $reason."
+    is OpException.InvalidInput -> when (reason) {
+        "backup too large" -> "La caja fuerte no cabe en una copia de 64 MiB. Borra alguna imagen o reduce su tamaño."
+        "image has metadata" -> "La imagen lleva datos de cámara que no se guardan. Prueba con otra foto."
+        "image too large" -> "La imagen es demasiado grande. Prueba con una foto más pequeña."
+        else -> "Dato no válido: $reason."
+    }
     is OpException.Corrupted -> "Los datos están dañados o han sido modificados."
     is OpException.UnsupportedVersion -> "Este fichero es de una versión más nueva de OpenPassword."
     is OpException.KdfTooExpensive ->

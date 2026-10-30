@@ -2,6 +2,7 @@ package io.github.rldona.openpassword.ui.vault
 
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,9 +19,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -28,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -49,19 +53,26 @@ import io.github.rldona.openpassword.core.ItemDetailsRecord
 import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.core.ItemOverviewRecord
 import io.github.rldona.openpassword.core.InternalException
+import io.github.rldona.openpassword.core.NewImageRecord
 import io.github.rldona.openpassword.core.OpException
+import io.github.rldona.openpassword.core.attachmentLimits
+import io.github.rldona.openpassword.core.newAttachmentId
 import io.github.rldona.openpassword.core.totpCode
 import io.github.rldona.openpassword.health.VaultHealth
+import io.github.rldona.openpassword.images.ImageCaptureScreen
+import io.github.rldona.openpassword.images.ImagePipeline
 import io.github.rldona.openpassword.qr.QrScanScreen
 import io.github.rldona.openpassword.qr.TotpScan
 import io.github.rldona.openpassword.qr.decodeQrImage
 import io.github.rldona.openpassword.security.PasswordGenerator
 import io.github.rldona.openpassword.security.Wordlist
 import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
+import io.github.rldona.openpassword.session.ImageQuotaExceeded
 import io.github.rldona.openpassword.session.VaultEntry
 import io.github.rldona.openpassword.session.VaultSession
 import io.github.rldona.openpassword.session.toUserMessage
 import io.github.rldona.openpassword.ui.PasswordField
+import io.github.rldona.openpassword.ui.SectionLabel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,6 +97,10 @@ fun ItemEditorScreen(
     var loadError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    // Drafts live only in memory: never in saved state, wiped when the screen goes away.
+    val drafts = remember { mutableStateListOf<ImageDraft>() }
+    var capturing by remember { mutableStateOf(false) }
+    var viewing by remember { mutableStateOf<Pair<ByteArray, String>?>(null) }
 
     LaunchedEffect(existing?.id) {
         if (existing == null) {
@@ -105,6 +120,76 @@ fun ItemEditorScreen(
                 loadError = INTERNAL_ERROR_MESSAGE
             }
         }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            drafts.forEach { it.jpeg.fill(0) }
+            viewing?.first?.fill(0)
+        }
+    }
+
+    fun addImage(jpeg: ByteArray) {
+        val limit = attachmentLimits().maxImagesPerItem.toInt()
+        if (fields.count { it.kind == FieldKindRecord.IMAGE } >= limit) {
+            jpeg.fill(0)
+            error = "Has llegado al máximo de $limit imágenes por elemento."
+            return
+        }
+        val id = try {
+            newAttachmentId()
+        } catch (_: OpException) {
+            jpeg.fill(0)
+            error = INTERNAL_ERROR_MESSAGE
+            return
+        } catch (_: InternalException) {
+            jpeg.fill(0)
+            error = INTERNAL_ERROR_MESSAGE
+            return
+        }
+        val position = fields.count { it.kind == FieldKindRecord.IMAGE } + 1
+        val label = when (position) {
+            1 -> "Anverso"
+            2 -> "Reverso"
+            else -> "Imagen $position"
+        }
+        fields.add(FieldRecord(label, FieldKindRecord.IMAGE, id))
+        drafts.add(ImageDraft(id, label, jpeg))
+    }
+
+    fun removeImage(id: String) {
+        fields.removeAll { it.kind == FieldKindRecord.IMAGE && it.value == id }
+        val draft = drafts.firstOrNull { it.id == id }
+        if (draft != null) {
+            drafts.remove(draft)
+            draft.jpeg.fill(0)
+        }
+    }
+
+    fun openImage(id: String, label: String) {
+        val draft = drafts.firstOrNull { it.id == id }
+        if (draft != null) {
+            viewing = draft.jpeg.copyOf() to label
+            return
+        }
+        val entry = existing ?: return
+        scope.launch {
+            val bytes = session.image(entry, id)
+            if (bytes == null) error = "Imagen no disponible." else viewing = bytes to label
+        }
+    }
+
+    val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val jpeg = ImagePipeline.fromUri(context, uri)
+            if (jpeg == null) error = "No se pudo leer esa imagen. Prueba con otra." else addImage(jpeg)
+        }
+    }
+
+    fun pickFromGallery() {
+        session.beforeSystemPicker()
+        galleryPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
 
     fun save() {
@@ -139,7 +224,18 @@ fun ItemEditorScreen(
                     createdAt = existing?.overview?.createdAt ?: now,
                     updatedAt = now,
                 )
-                onSaved(session.save(existing, overview, ItemDetailsRecord(kept, notes.trim())))
+                val saved = session.save(
+                    existing,
+                    overview,
+                    ItemDetailsRecord(kept, notes.trim()),
+                    drafts.map { NewImageRecord(it.id, it.jpeg) },
+                )
+                drafts.forEach { it.jpeg.fill(0) }
+                drafts.clear()
+                onSaved(saved)
+            } catch (e: ImageQuotaExceeded) {
+                error = "No cabe más imágenes: la caja fuerte llega a su límite. Borra alguna o usa fotos más pequeñas."
+                saving = false
             } catch (e: OpException) {
                 error = e.toUserMessage()
                 saving = false
@@ -186,6 +282,23 @@ fun ItemEditorScreen(
         return
     }
 
+    if (capturing) {
+        BackHandler { capturing = false }
+        ImageCaptureScreen(
+            onCaptured = { bytes ->
+                capturing = false
+                scope.launch {
+                    val jpeg = ImagePipeline.fromBytes(bytes)
+                    bytes.fill(0)
+                    if (jpeg == null) error = "No se pudo preparar la foto. Prueba otra vez o elige una de la galería."
+                    else addImage(jpeg)
+                }
+            },
+            onCancel = { capturing = false },
+        )
+        return
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -226,15 +339,51 @@ fun ItemEditorScreen(
                 )
             }
             fields.forEachIndexed { i, field ->
-                FieldEditor(
-                    field,
-                    onChange = { fields[i] = field.copy(value = it) },
-                    generators = generatorsFor(kind, field, context),
-                    onScanQr = if (field.kind == FieldKindRecord.TOTP) ({ qrMessage = null; scanningField = i }) else null,
-                    onQrImage = if (field.kind == FieldKindRecord.TOTP) ({ pickQrImage(i) }) else null,
-                    qrMessage = if (field.kind == FieldKindRecord.TOTP) qrMessage else null,
-                )
+                if (field.kind != FieldKindRecord.IMAGE) {
+                    FieldEditor(
+                        field,
+                        onChange = { fields[i] = field.copy(value = it) },
+                        generators = generatorsFor(kind, field, context),
+                        onScanQr = if (field.kind == FieldKindRecord.TOTP) ({ qrMessage = null; scanningField = i }) else null,
+                        onQrImage = if (field.kind == FieldKindRecord.TOTP) ({ pickQrImage(i) }) else null,
+                        qrMessage = if (field.kind == FieldKindRecord.TOTP) qrMessage else null,
+                    )
+                }
             }
+            val imageCount = fields.count { it.kind == FieldKindRecord.IMAGE }
+            SectionLabel("Imágenes")
+            fields.forEachIndexed { i, field ->
+                if (field.kind == FieldKindRecord.IMAGE) {
+                    val draft = drafts.firstOrNull { it.id == field.value }
+                    ImageFieldCard(
+                        label = field.label,
+                        isNew = draft != null,
+                        onLabelChange = { newLabel ->
+                            fields[i] = fields[i].copy(label = newLabel)
+                            draft?.label = newLabel
+                        },
+                        onView = { openImage(field.value, field.label) },
+                        onRemove = { removeImage(field.value) },
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = { capturing = true },
+                    enabled = imageCount < attachmentLimits().maxImagesPerItem.toInt(),
+                    modifier = Modifier.weight(1f),
+                ) { Text("Hacer foto") }
+                OutlinedButton(
+                    onClick = ::pickFromGallery,
+                    enabled = imageCount < attachmentLimits().maxImagesPerItem.toInt(),
+                    modifier = Modifier.weight(1f),
+                ) { Text("De la galería") }
+            }
+            Text(
+                "Se guardan cifradas y solo se ven dentro de la app. La foto original, si la eliges de la galería, sigue ahí: bórrala si quieres.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             OutlinedTextField(
                 value = notes,
                 onValueChange = { notes = it },
@@ -249,7 +398,46 @@ fun ItemEditorScreen(
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
     }
+
+    viewing?.let { (bytes, label) ->
+        ImageViewerDialog(bytes = bytes, label = label) {
+            viewing = null
+        }
+    }
 }
+
+@Composable
+private fun ImageFieldCard(
+    label: String,
+    isNew: Boolean,
+    onLabelChange: (String) -> Unit,
+    onView: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        OutlinedTextField(
+            value = label,
+            onValueChange = onLabelChange,
+            label = { Text(if (isNew) "Imagen nueva" else "Imagen guardada") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                if (isNew) "Se cifrará al guardar" else "Cifrada en la caja fuerte",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onView) { Text("Ver") }
+            TextButton(onClick = onRemove) { Text("Quitar", color = MaterialTheme.colorScheme.error) }
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+/** A picked image that is not in the vault yet. The byte array is wiped when it is discarded. */
+private class ImageDraft(val id: String, var label: String, val jpeg: ByteArray)
 
 @Composable
 private fun FieldEditor(

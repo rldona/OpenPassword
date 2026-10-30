@@ -15,6 +15,7 @@ import io.github.rldona.openpassword.autofill.PendingSaves
 import io.github.rldona.openpassword.backup.AutoBackup
 import io.github.rldona.openpassword.core.KdfProfile
 import io.github.rldona.openpassword.data.VaultStorage
+import io.github.rldona.openpassword.images.SensitiveImages
 import io.github.rldona.openpassword.security.AndroidDeviceProbe
 import io.github.rldona.openpassword.security.BiometricKeyStore
 import io.github.rldona.openpassword.security.RootDetector
@@ -72,7 +73,11 @@ class OpenPasswordApp : Application() {
         autoBackup = AutoBackup(this, session, getSharedPreferences("backup", MODE_PRIVATE), MainScope())
         session.onChanged = autoBackup::onVaultChanged
         session.onUnlocked = autoBackup::onUnlocked
-        session.onLocked = PendingSaves::clear
+        session.onLocked = {
+            PendingSaves::clear
+            // Decrypted images may still be composed: wipe their pixels, not just the key.
+            SensitiveImages.wipeAll()
+        }
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 session.onAppForegrounded()

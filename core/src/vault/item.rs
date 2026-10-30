@@ -3,6 +3,9 @@
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+use super::attachment::{AttachmentId, parse_id as parse_attachment_id};
+use crate::{Error, Result};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ItemKind {
@@ -27,6 +30,7 @@ pub enum FieldKind {
     Date,
     Url,
     Email,
+    Image,
 }
 
 /// What the vault list and search need. Decrypted for every item on unlock.
@@ -73,6 +77,22 @@ pub struct PasswordChange {
 impl ItemDetails {
     /// Previous passwords kept per item; older ones are dropped.
     pub const MAX_HISTORY: usize = 10;
+
+    /// Ids of every image field, in field order.
+    ///
+    /// The field list is the source of truth for which images an item has. The value is the
+    /// canonical lowercase hex id of the sealed attachment.
+    pub fn image_ids(&self) -> Result<Vec<AttachmentId>> {
+        let mut ids = Vec::new();
+        for field in self.fields.iter().filter(|f| f.kind == FieldKind::Image) {
+            let id = parse_attachment_id(&field.value)?;
+            if ids.contains(&id) {
+                return Err(Error::InvalidInput("duplicate image id"));
+            }
+            ids.push(id);
+        }
+        Ok(ids)
+    }
 
     /// Sets `self.history` to `previous.history` plus every concealed value of `previous`
     /// that `self` no longer has under the same label. Only for kinds whose concealed fields

@@ -91,12 +91,26 @@ fun ItemDetailScreen(
     val revealed = remember { mutableStateMapOf<Int, Boolean>() }
     var confirmDelete by remember { mutableStateOf(false) }
     var wifiQr by remember { mutableStateOf<String?>(null) }
+    var viewing by remember { mutableStateOf<Pair<ByteArray, String>?>(null) }
     val scope = rememberCoroutineScope()
     val o = entry.overview
 
     fun copy(field: FieldRecord) {
         clipboard.copy(field.value)
         scope.launch { snackbar.showSnackbar("${field.label} copiado. Se borrará en 30 s, o al volver a la app si sales.") }
+    }
+
+    fun viewImage(field: FieldRecord) {
+        scope.launch {
+            try {
+                val bytes = session.image(entry, field.value)
+                if (bytes == null) snackbar.showSnackbar("Imagen no disponible.") else viewing = bytes to field.label
+            } catch (e: OpException) {
+                snackbar.showSnackbar(e.toUserMessage())
+            } catch (_: InternalException) {
+                snackbar.showSnackbar(INTERNAL_ERROR_MESSAGE)
+            }
+        }
     }
 
     Scaffold(
@@ -141,6 +155,8 @@ fun ItemDetailScreen(
                                     clipboard.copy(code)
                                     scope.launch { snackbar.showSnackbar("Código copiado. Se borrará en 30 s, o al volver a la app si sales.") }
                                 })
+                            } else if (field.kind == FieldKindRecord.IMAGE) {
+                                ImageRow(field, onView = { viewImage(field) })
                             } else {
                                 FieldRow(
                                     field = field,
@@ -239,6 +255,25 @@ fun ItemDetailScreen(
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancelar") } },
         )
+    }
+
+    viewing?.let { (bytes, label) ->
+        ImageViewerDialog(bytes = bytes, label = label) { viewing = null }
+    }
+}
+
+/** An attached image: only the label and a way to see it. Never copied, shared or thumbnailed. */
+@Composable
+private fun ImageRow(field: FieldRecord, onView: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(field.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Imagen cifrada", style = MaterialTheme.typography.bodyLarge)
+        }
+        TextButton(onClick = onView) { Text("Ver") }
     }
 }
 

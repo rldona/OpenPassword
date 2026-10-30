@@ -15,7 +15,12 @@ pub mod vault;
 
 pub use crypto::{KdfParams, Key, SecretKey};
 pub use error::{Error, Result};
-pub use vault::{EncryptedItem, Item, ItemDetails, ItemOverview, UnlockedVault, VaultHeader};
+pub use vault::{
+    AttachmentId, EncryptedAttachment, EncryptedItem, Image, Item, ItemChange, ItemDetails,
+    ItemOverview, MAX_IMAGE_BYTES, MAX_IMAGES_PER_ITEM, MAX_SEALED_ATTACHMENT_LEN,
+    MAX_VAULT_ATTACHMENT_BYTES, MediaType, NewImage, PlainItem, UnlockedVault, VaultHeader,
+    new_attachment_id,
+};
 
 // Guard: `cargo fuzz build` keeps debug assertions on; a plain release build with `--cfg fuzzing` does not.
 #[cfg(all(fuzzing, not(debug_assertions)))]
@@ -32,6 +37,7 @@ pub mod fuzzing {
     use crate::{KdfParams, Key, UnlockedVault, VaultHeader};
 
     pub use crate::backup::fuzzing::{open_with_vault, seal_backup};
+    pub use crate::vault::attachment::fuzzing::check_jpeg;
     pub use crate::vault::fuzzing::seal_item_part;
 
     /// Marker for `fuzz/README.md`: dead-code elimination removes unreferenced hooks from the

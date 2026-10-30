@@ -101,6 +101,7 @@ aad(dominio, partes...) = UTF-8(dominio) ‖ 0x00 ‖ para cada parte: u32_le(le
 | IK | VK | `op/wrap/v1` | `"item_key"`, `vault_id`, `item_id` |
 | Resumen del elemento | IK | `op/item/v1` | `"overview"`, `vault_id`, `item_id`, `u64_le(revision)` |
 | Detalles del elemento | IK | `op/item/v1` | `"details"`, `vault_id`, `item_id`, `u64_le(revision)` |
+| Imagen adjunta | IK | `op/attachment/v1` | `"image"`, `vault_id`, `item_id`, `attachment_id` |
 | FK del respaldo | VK | `op/wrap/v1` | `"file_key"`, `vault_id`, `stream_nonce` |
 
 Consecuencias: no se puede intercambiar el resumen de un elemento con el de otro, ni mezclar el resumen de la revisión 3 con los detalles de la 2, ni reutilizar una IK envuelta en otro elemento o baúl.
@@ -115,6 +116,8 @@ padded = u32_le(len(json)) ‖ json ‖ 0x00…  (hasta un múltiplo de 64 bytes
 
 Al abrir, el relleno DEBE ser todo ceros y la longitud total múltiplo de 64.
 
+Las imágenes usan bloques de 4096 bytes. Su texto en claro es `u8 versión = 1 ‖ u8 tipo = 1 (JPEG) ‖ jpeg`. El bloque es más grueso porque una imagen ya oculta su tamaño aproximado y el relleno de 64 bytes no aportaría nada.
+
 ## 7. Elementos
 
 Cada elemento se guarda como:
@@ -128,6 +131,12 @@ Cada elemento se guarda como:
 | `details` | Sellado con la IK: campos, notas e historial de contraseñas. Se descifra solo al abrir el elemento |
 
 Una edición mantiene la IK, incrementa `revision` y vuelve a sellar `overview` y `details` con nonces nuevos.
+
+### Imágenes
+
+Un elemento puede llevar hasta 10 imágenes. Cada una es un campo `image` cuyo valor es el id del adjunto (hex de 16 bytes) y un registro `EncryptedAttachment` aparte, sellado con la IK del elemento y el AAD de la tabla de 6.2. El adjunto es inmutable: sustituir una imagen crea un id nuevo, por eso su AAD no incluye la revisión. La lista de campos `image` es la fuente de verdad; una referencia sin adjunto se conserva y la app la muestra como no disponible.
+
+Solo se aceptan JPEG sin metadatos (sin APP1/Exif, COM ni MPF) de hasta 1,5 MiB. La app los reescala y recodifica antes de sellarlos. Las imágenes no entran en el historial de contraseñas. El respaldo `.opvault` v2 las incluye; v1 no las tenía.
 
 ### Historial de contraseñas
 
@@ -152,11 +161,13 @@ Esta parte vive en la capa Android, no en `op-core`.
 - Los tipos de clave de `op-core` borran su contenido al liberarse (`zeroize`) y no imprimen su valor en `Debug`.
 - Los textos en claro descifrados se devuelven en tipos que se borran al liberarse.
 - Límite conocido: la JVM y Compose manejan `String` inmutables que no se pueden borrar. La capa Android DEBE minimizar su vida útil.
+- Sobrante aceptado: `decrypt_image` devuelve los bytes por UniFFI en un `RustBuffer` que se libera sin borrar. La app borra su copia; los mapas de bits se borran al salir del visor.
 
 ## 11. Versionado
 
 - Los dominios llevan sufijo de versión (`/v1`). Un cambio incompatible crea `/v2` y una nueva versión de formato.
 - Los vectores de prueba de `core/tests/vectors/op-v1.json` fijan esta versión. Si un cambio de código los rompe, el cambio es incompatible.
+- El formato `.opvault` v2 añade imágenes adjuntas. Un lector v1 rechaza una copia v2 por su byte de versión; un lector v2 abre v1 y v2.
 
 ## 12. Códigos TOTP
 
@@ -168,4 +179,4 @@ Esta parte vive en la capa Android, no en `op-core`.
 
 ## 13. Fuera de alcance de v1
 
-Compartir elementos entre usuarios, sincronización, passkeys y adjuntos. El diseño de IK por elemento deja preparado compartir.
+Compartir elementos entre usuarios, sincronización y passkeys. Las imágenes adjuntas entran en v2 (sección 7). El diseño de IK por elemento deja preparado compartir.
