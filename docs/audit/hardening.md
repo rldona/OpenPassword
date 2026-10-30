@@ -82,11 +82,11 @@ Existían antes de esta fase y siguen en el árbol. El commit es el primero que 
 
 | Prio. | ID | Medida | Estado |
 |---|---|---|---|
-| ~~P1~~ | ID-INT-16 | Aceptar `webDomain` solo de navegadores | **Hecho** en `2bd56ce` (`autofill/BrowserCheck.kt`, `StructureParser.targetFor`) y **completado sin commit**: la primera versión aceptaba cualquier app con un `intent-filter` `https`/`http`; ahora solo `KnownBrowsers.PACKAGES` o el navegador por defecto que atienda ambos esquemas (`BrowserCheck.kt:68-73`); host ASCII en `LoginMatcher.kt:67-76`; `PublicSuffix` falla cerrado ante `IOException`. `BrowserCheckTest` (13 `@Test`) y `LoginMatcherTest` (30), no ejecutados. Queda la hipótesis del `iframe` y la prueba en dispositivo |
+| ~~P1~~ | ID-INT-16 | Aceptar `webDomain` solo de navegadores | **Hecho** en `2bd56ce` (`autofill/BrowserCheck.kt`, `StructureParser.targetFor`) y **completado sin commit**: la primera versión aceptaba cualquier app con un `intent-filter` `https`/`http`; ahora solo `KnownBrowsers.PACKAGES` o el navegador por defecto que atienda ambos esquemas (`BrowserCheck.kt:68-73`); host ASCII en `LoginMatcher.kt:67-76`; `PublicSuffix` falla cerrado ante `IOException`. `BrowserCheckTest` (13 `@Test`) y `LoginMatcherTest` (30), no ejecutados. Queda la hipótesis del `iframe` y la prueba en dispositivo ([DT-05](device-tests.md#dt-05) a [DT-08](device-tests.md#dt-08), sin ejecutar) |
 | ~~P1~~ | ID-INT-26 | Que el destino del autorrelleno no viaje en extras del `PendingIntent` mutable | **Hecho, sin commit**: token aleatorio de 16 bytes, un solo uso, TTL 5 min (`AutofillRequestTokens.kt`); `AutofillAuthActivity.kt:87-98` borra los extras antiguos y falla cerrado; no se ofrece «recordar» en navegadores (`:102,124`). `AutofillRequestTokensTest` (7 `@Test`), no ejecutado. Sin prueba en dispositivo |
 | ~~P1~~ | ID-INT-05 | Cerrar el `Vault` en los tres caminos de desbloqueo que fallan tras abrirlo | **Hecho** en `2bd56ce` (`VaultSession.discardOnFailure`); `FfiFailureHandlingTest` prueba la función auxiliar, no los tres caminos. **Sin commit**: `create()` también libera el `Vault` si falla la persistencia (`VaultSession.kt:94-101`) |
 | ~~P1~~ | ID-INT-01 | Quitar la memoria cuadrática de `read_entries` y poner un tope de profundidad; semilla y test | **Hecho** en `2bd56ce` (`MAX_GROUP_DEPTH` 100, `MAX_XML_DEPTH` 256, `MAX_ENTRIES` 100 000); tests `deep_group_nesting_is_refused_before_it_costs_memory`, `nesting_and_entry_limits_accept_their_edge`; semillas en `fuzz/seeds/kdbx_xml/` |
-| **P1** | ID-INT-14 | Probar el borrado del portapapeles en API 29, 33 y 36 y corregirlo | **Pendiente** (sin verificar en dispositivo) |
+| **P1** | ID-INT-14 | Probar el borrado del portapapeles en API 29, 33 y 36 y corregirlo | **Pendiente** (sin verificar en dispositivo; prueba preparada: [DT-04](device-tests.md#dt-04), sin ejecutar) |
 | ~~P1~~ | ID-INT-25 | Gancho `cfg(fuzzing)` para `kdbx::parse` (contraseña y KDF fijas) y corregir el README | **Hecho** en `2bd56ce` (`kdbx_fuzzing::{file, container}`, objetivo `kdbx_container`); README corregido (sin commit todavía) |
 | ~~P2~~ | ID-INT-07 | Capturar `InternalException` en los 4 sitios y ampliar el test | **Hecho** en `2bd56ce` los 4 sitios; **pendiente** ampliar el test para detectar un sitio sin ningún `catch` |
 | **P2** | ID-INT-02 | Decidir la política de KDF de KeePass frente al techo móvil (decisión humana nº 3-4) | **Pendiente**: el presupuesto de KDBX está hecho (ahora 512 MiB / 3 GiB·pasada, sin commit), pero `parse_import` no pasa por `MOBILE_MAXIMUM` ni por la comprobación de RAM |
@@ -138,6 +138,10 @@ Existían antes de esta fase y siguen en el árbol. El commit es el primero que 
 | Borrado criptográfico de elementos | **No planificado** | [`threat-model-review.md`](threat-model-review.md) §3.4 | Requiere rotar la clave de elemento y reescribir el baúl |
 
 ## 6. Cómo comprobar lo «hecho»
+
+Lo que **no** se puede comprobar en la JVM ni en la CI (anti-tapjacking, portapapeles en segundo plano, lista de
+sufijos y navegadores en un dispositivo, biometría en API 28, KDBX 4 real, bloqueo automático…) tiene su plan en
+[`device-tests.md`](device-tests.md). Está en blanco: ninguna de esas pruebas se ha ejecutado.
 
 ```sh
 cargo test --workspace --locked                      # 95 pasan, 1 ignorada

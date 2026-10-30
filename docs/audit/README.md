@@ -41,6 +41,7 @@ solo el proyecto puede aportar), **sin verificar** (contiene datos externos no c
 | [`dependencies.md`](dependencies.md) | Inventario y política de dependencias | **hecho** (`cargo-deny`, verificación de Gradle, SBOM y Actions por SHA ya implementados; falta ejecutar el job `release` y una compilación con la verificación activa) |
 | [`fuzzing.md`](fuzzing.md) | Cobertura y resultados de fuzzing | **hecho** (11 objetivos, nocturno); sin ninguna ejecución del workflow nocturno ni cifras de ejecuciones de los objetivos nuevos |
 | [`hardening.md`](hardening.md) | Endurecimiento aplicado y pendiente | **hecho** (estado de los 19 pasos de ADR-AUD sobre `2bd56ce`); pasos pendientes: 9 en parte, 18 en parte y 19 |
+| [`device-tests.md`](device-tests.md) | Plan de pruebas manuales en dispositivo (DT-01 a DT-17) para lo que no se puede verificar en la JVM ni en la CI; sirve de evidencia para el auditor | **pendiente**: plan en blanco, **ninguna prueba ejecutada** (los resultados y la evidencia solo los puede aportar el proyecto con un dispositivo) |
 
 Todos los documentos del índice existen.
 
