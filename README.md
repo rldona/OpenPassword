@@ -50,6 +50,10 @@ clave secreta. Tres cosas lo cubren:
 3. **Restauración probada.** Una vez al año, o al cambiar de teléfono: exporta una copia, instala en un
    teléfono limpio y restaura con la clave secreta del kit. Si no lo has probado, no tienes copia.
 
+   > Ciclo completo verificado el 30-oct-2026 en un SM-S948B (Android 17): exportar, desinstalar,
+   > reinstalar y restaurar. Los cuatro elementos de prueba volvieron con su contraseña, usuario y URL
+   > intactos, y la copia exportada se descifró además con `opvault decrypt` desde el ordenador.
+
 **No desinstales la app para actualizarla**: instala la nueva versión encima (`./gradlew :app:installDebug`
 o `adb install -r`). Desinstalar borra la bóveda y las claves del Keystore, y ni una copia `.opvault`
 basta sin la clave secreta.
