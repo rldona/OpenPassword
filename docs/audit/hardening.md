@@ -4,6 +4,8 @@ Lista de las medidas de endurecimiento del proyecto con su prioridad, su estado 
 (commit, test o comando). Distingue lo **hecho** (confirmado en `git`), lo **hecho solo en parte**,
 lo **pendiente** y lo **pospuesto o descartado**.
 
+**Estado al cierre de la preparación de la Fase 3 (30-oct-2026): endurecimiento aplicado, 19 pasos tratados (16 hechos; 3 pendientes o parciales: 9, 18 y 19) y auditoría externa pendiente de contratar.** Lo que aquí figura como «sin commit» está ya en `b2e18ca` y `0ff88be`; el texto conserva la redacción original.
+
 Estado verificado el 2026-10-30 sobre `HEAD` `2bd56ce` («Fase 3: endurecimiento, cadena de suministro y
 paquete de auditoría») **más trabajo sin commit** (correcciones de autorrelleno, techo de KDBX, guardia de `cfg(fuzzing)`, y un tercer bloque de correcciones de ID-INT-02, 03, 06, 08, 09, 10, 11, 12, 14, 17, 18, 21 y 23; documentación; `git status` lo lista): lo que antes figuraba como «hecho, sin
 confirmar» está ya en ese commit (o en `3725741`, si se indica); lo marcado «sin commit» no. Los números de línea citados en
@@ -17,7 +19,7 @@ auditoría; **P3** después.
 **Estado**: **Hecho**, **Parcial**, **Pendiente**, **Pospuesto**, **Descartado**.
 
 Las pruebas de Rust se han ejecutado en esta revisión (`cargo test --workspace --locked`: 102 pasan,
-1 ignorada: 50 unitarios de `op-core`, 9 + 3 + 19 + 5 de integración y 16 de `op-ffi`; `cargo deny --locked check` y `cargo deny` sobre `fuzz/` con `fuzz/deny.toml`: `advisories ok, bans ok, licenses ok, sources ok`). **Las pruebas de Kotlin (186 `@Test` en `android/app/src/test`, contados, no ejecutados) no se han ejecutado; las instrumentadas (17 tests) sí, el 30-oct-2026 en un SM-S948B (API 37), y pasaron; de las manuales (DT) se ejecutaron DT-01, DT-04, DT-05 y DT-07 en ese dispositivo (DT-04 `falla`: ID-INT-14 confirmado; el resto de DT, sin ejecutar o bloqueado)** (no hay
+1 ignorada: 50 unitarios de `op-core`, 9 + 3 + 19 + 5 de integración y 16 de `op-ffi`; `cargo deny --locked check` y `cargo deny` sobre `fuzz/` con `fuzz/deny.toml`: `advisories ok, bans ok, licenses ok, sources ok`). **Las pruebas de Kotlin (186 `@Test` en `android/app/src/test`) se ejecutaron el 30-oct-2026 en macOS con JDK 17: 186 pasan, 0 fallan; las instrumentadas (17 tests) sí, el 30-oct-2026 en un SM-S948B (API 37), y pasaron; de las manuales (DT) se ejecutaron DT-01, DT-04, DT-05 y DT-07 en ese dispositivo (DT-04 `falla`: ID-INT-14 confirmado; el resto de DT, sin ejecutar o bloqueado)** (no hay
 JDK en esta máquina): las filas que dependen de ellas lo dicen.
 
 ## 1. Plan de ADR-AUD: los 19 pasos
@@ -62,7 +64,7 @@ Existían antes de esta fase y siguen en el árbol. El commit es el primero que 
 | Claves de Keystore (dispositivo y biométrica) con invalidación por alta biométrica | Hecho | `a46b8c9` (biometría) | `BiometricKeyStore.kt:40-56` |
 | Espera exponencial tras fallos | Hecho | `5490f62` | `VaultSession.kt:477-481`; `UnlockBackoffTest` |
 | Exclusión del autorrelleno del sistema en las ventanas propias | Hecho | `6383ec1` | `AutofillExclusion.kt:11-13` |
-| Marca de «sensible» (API 33+) y borrado del portapapeles | Hecho la marca; **el borrado: fallo confirmado en dispositivo** (30-oct-2026, API 37: no borra con la app en segundo plano; mitigación en código sin commit con plazo persistido y `Handler`, **no verificada**) | `e8a2c69`; mitigación sin commit (`ClipboardClearPolicy.kt`) | `SensitiveClipboard.kt`, [ID-INT-14](internal-review.md#id-int-14) (Confirmado en dispositivo, sin corregir) |
+| Marca de «sensible» (API 33+) y borrado del portapapeles | Hecho la marca; **el borrado: fallo confirmado en dispositivo y aceptado como riesgo residual** (30-oct-2026, API 37: no borra con la app en segundo plano; mitigación en código sin commit con plazo persistido y `Handler`, **no verificada**) | `e8a2c69`; mitigación sin commit (`ClipboardClearPolicy.kt`) | `SensitiveClipboard.kt`, [ID-INT-14](internal-review.md#id-int-14) (aceptado como riesgo residual) |
 | Autobloqueo para todo el proceso | Hecho | `55f9054` | `VaultSession.kt:386-425`, `OpenPasswordApp.kt:69-83` |
 | Token aleatorio para guardar logins | Hecho | `938761d` | `PendingSaves.kt` (caducidad con barrido y vaciado al bloquear, sin commit: [ID-INT-17](internal-review.md#id-int-17), corregido) |
 | Fuzzing de 5 objetivos y `SECURITY.md` | Hecho | `8063fd1` | `fuzz/`, `SECURITY.md` |
@@ -86,10 +88,10 @@ Existían antes de esta fase y siguen en el árbol. El commit es el primero que 
 | ~~P1~~ | ID-INT-26 | Que el destino del autorrelleno no viaje en extras del `PendingIntent` mutable | **Hecho, sin commit**: token aleatorio de 16 bytes, un solo uso, TTL 5 min (`AutofillRequestTokens.kt`); `AutofillAuthActivity.kt:87-98` borra los extras antiguos y falla cerrado; no se ofrece «recordar» en navegadores (`:102,124`). `AutofillRequestTokensTest` (7 `@Test`), no ejecutado. Sin prueba en dispositivo |
 | ~~P1~~ | ID-INT-05 | Cerrar el `Vault` en los tres caminos de desbloqueo que fallan tras abrirlo | **Hecho** en `2bd56ce` (`VaultSession.discardOnFailure`); `FfiFailureHandlingTest` prueba la función auxiliar, no los tres caminos; `failedRestoreLeavesNoVaultBehind` (instrumentado) en verde en SM-S948B, API 37, 30-oct-2026. **Sin commit**: `create()` también libera el `Vault` si falla la persistencia (`VaultSession.kt:94-101`) |
 | ~~P1~~ | ID-INT-01 | Quitar la memoria cuadrática de `read_entries` y poner un tope de profundidad; semilla y test | **Hecho** en `2bd56ce` (`MAX_GROUP_DEPTH` 100, `MAX_XML_DEPTH` 256, `MAX_ENTRIES` 100 000); tests `deep_group_nesting_is_refused_before_it_costs_memory`, `nesting_and_entry_limits_accept_their_edge`; semillas en `fuzz/seeds/kdbx_xml/` |
-| **P1** | ID-INT-14 | Probar el borrado del portapapeles en API 29, 33 y 36 y corregirlo | **Probado en API 37: fallo confirmado en dispositivo** ([DT-04](device-tests.md#dt-04), 30-oct-2026: no se borra con la app en segundo plano; sí en primer plano). **No corregido.** Mitigación en código sin commit (`ClipboardClearPolicy.kt`, plazo persistido y `Handler`; `ClipboardClearPolicyTest` 7, no ejecutado), no verificada; mensaje de la app corregido (sin commit). Pendiente: API 29, 33 y 36, DT-04c/d, y la decisión humana de corregir o aceptar el riesgo residual |
+| ~~P1~~ | ID-INT-14 | Probar el borrado del portapapeles en API 29, 33 y 36 y corregirlo | **Aceptado como riesgo residual** (decisión del responsable, 30-oct-2026). Fallo **confirmado en dispositivo** en API 37 ([DT-04](device-tests.md#dt-04): no se borra con la app en segundo plano; sí en primer plano): limitación de Android, `clearPrimaryClip()` no surte efecto en segundo plano. Mitigaciones: marca de sensible, borrado a los 30 s en primer plano, borrado al volver a la app y al apagar la pantalla (`ClipboardClearPolicy.kt`, `ClipboardClearPolicyTest` 7, no ejecutado; estos dos últimos **no verificados en dispositivo**), mensaje honesto en la app; no se quita el botón de copiar. No se probó en API 29, 33 y 36 ni DT-04c/d |
 | ~~P1~~ | ID-INT-25 | Gancho `cfg(fuzzing)` para `kdbx::parse` (contraseña y KDF fijas) y corregir el README | **Hecho** en `2bd56ce` (`kdbx_fuzzing::{file, container}`, objetivo `kdbx_container`); README corregido (sin commit todavía) |
 | ~~P2~~ | ID-INT-07 | Capturar `InternalException` en los 4 sitios y ampliar el test | **Hecho** en `2bd56ce` los 4 sitios; **pendiente** ampliar el test para detectar un sitio sin ningún `catch` |
-| ~~P2~~ | ID-INT-02 | Decidir la política de KDF de KeePass frente al techo móvil (decisión humana nº 3-4) | **Hecho, sin commit**: techo de KDBX igual al móvil (512 MiB / 3 GiB·pasada), `importKdf`/`kdbx_argon2_cost` y `checkImportKdfFits` antes de pedir la contraseña. **Pendiente de aprobación humana** (decisión nº 4); `KdfMemoryTest` sin ejecutar |
+| ~~P2~~ | ID-INT-02 | Decidir la política de KDF de KeePass frente al techo móvil (decisión humana nº 3-4) | **Hecho, sin commit**: techo de KDBX igual al móvil (512 MiB / 3 GiB·pasada), `importKdf`/`kdbx_argon2_cost` y `checkImportKdfFits` antes de pedir la contraseña. **Aprobada el 30-oct-2026** (decisión nº 4); `KdfMemoryTest` ejecutado y en verde |
 | ~~P2~~ | ID-INT-08 | `lock()` coordinado con `mutex`, o `IllegalStateException` como `Locked` | **Hecho, sin commit** (`KeyHolder.kt`, `AtomicReference`; `KeyHolderTest` 7, no ejecutado; test instrumentado `locksInTheBackgroundWithoutComingBack` en verde en SM-S948B, API 37, 30-oct-2026) |
 | ~~P2~~ | ID-INT-17 | Vaciar `PendingSaves` al bloquear y caducidad real | **Hecho, sin commit** (`PendingStore`, barrido, `session.onLocked`; `PendingStoreTest` 6, no ejecutado) |
 | ~~P2~~ | ID-INT-21 | Sustituir la comprobación de símbolos del README por la del `.so` con control positivo | **Hecho, sin commit** (`HOOKS_MARKER`, `scripts/check-no-fuzzing-hooks.sh`, CI; **no ejecutado en la CI**) |
@@ -99,7 +101,7 @@ Existían antes de esta fase y siguen en el árbol. El commit es el primero que 
 | **P2** | ID-INT-13 | Banner en las actividades de autorrelleno y pruebas instrumentadas de actividades y diálogos | **Corregido y verificado en dispositivo** (30-oct-2026): 4 `@Test` instrumentados en verde y DT-01 `pasa` en `MainActivity`; el banner en las actividades de autorrelleno sigue **pendiente**, y DT-02/DT-03 bloqueados o sin ejecutar |
 | ~~P3~~ | ID-INT-03 | Documentar los residuos de los importadores | **Hecho, sin commit** (`Zeroizing` y borrado en `import/mod.rs`, `kdbx.rs`, `totp.rs`; residuos en `docs/threat-model.md`) |
 | ~~P3~~ | ID-INT-18 | Recorrido iterativo con tope en `StructureParser` | **Hecho, sin commit** (`TreeWalker.kt`, 100 de profundidad y 20 000 nodos; `TreeWalkerTest` 6, no ejecutado) |
-| **P3** | ID-INT-10, 11, 22, 23 | Robustez menor y limpieza | **Hecho, sin commit**: ID-INT-10 (`AtomicWrite.kt`, `fd.sync()`; residuo: fsync de directorio) y 11 (`AutoBackup` relanza `CancellationException`). **Parcial**: 23 (`fuzz/deny.toml` y paso de CI hechos, **pendiente de aprobación humana** por la licencia NCSA). **Pendiente**: 22 |
+| **P3** | ID-INT-10, 11, 22, 23 | Robustez menor y limpieza | **Hecho, sin commit**: ID-INT-10 (`AtomicWrite.kt`, `fd.sync()`; residuo: fsync de directorio) y 11 (`AutoBackup` relanza `CancellationException`). **Parcial**: 23 (`fuzz/deny.toml` y paso de CI hechos; la licencia NCSA fue **aprobada por el responsable el 30-oct-2026**). **Pendiente**: 22 (abierto) |
 | P3 | ID-INT-24 | Corregir `fuzz/README.md` (30 s y límites de KDBX) | **Hecho** (documentación, sin commit todavía) |
 
 ### 4.2 Pendiente del plan y de la congelación
@@ -110,11 +112,11 @@ Existían antes de esta fase y siguen en el árbol. El commit es el primero que 
 | **P1** | Ejecutar una vez el job `release` con `v0.2.0-rc1` y `gh attestation verify` | **Pendiente** |
 | **P1** | Ejecutar una vez `fuzz-nightly.yml` con `workflow_dispatch` | **Pendiente** |
 | **P1** | Compilar con la verificación de Gradle activa en Linux y macOS; alterar una suma y ver el fallo | **Pendiente** |
-| **P1** | Ejecutar `./gradlew :app:testDebugUnitTest` y las pruebas instrumentadas de `OverlayProtectionTest` y `VaultSessionTest` en un emulador | **Parcial** (`:app:testDebugUnitTest` sin ejecutar; las instrumentadas `OverlayProtectionTest` y `VaultSessionTest` se ejecutaron el 30-oct-2026 en un SM-S948B, API 37, y pasaron; no en un emulador) |
+| **P1** | Ejecutar `./gradlew :app:testDebugUnitTest` y las pruebas instrumentadas de `OverlayProtectionTest` y `VaultSessionTest` en un emulador | **Hecho** (`:app:testDebugUnitTest` ejecutado el 30-oct-2026: 186 pasan, 0 fallan; las instrumentadas `OverlayProtectionTest` y `VaultSessionTest` se ejecutaron el 30-oct-2026 en un SM-S948B, API 37, y pasaron; no en un emulador) |
 | **P1** | Actualizar `docs/threat-model.md` según [`threat-model-review.md`](threat-model-review.md) §5 | **Hecho en parte**: A7 y A10 implementados, fila A17 y residuos de secretos; el resto de [`threat-model-review.md`](threat-model-review.md) §5 no se ha revisado aquí |
 | **P1** | `docs/crypto-spec.md` §10 (`SecretString`, residuos) | **Pendiente** (`SECURITY.md` ya menciona `release/0.2`) |
 | **P1** | Versión `0.2.0`, rama `release/0.2`, etiqueta firmada, `retention-days` o adjuntar a la release | **Pendiente** (pasos 19 y migración de ADR-AUD-01) |
-| **P1** | Decisiones humanas de la lista final de [`decisions.md`](decisions.md): nº 1-10 (el nº 3 se marca ya «sigue pendiente de aprobación humana») | **Pendiente** |
+| **P1** | Decisiones humanas de la lista final de [`decisions.md`](decisions.md): nº 1-10 (el nº 3 se marca ya «sigue pendiente de aprobación humana») | **Pendiente**, salvo las tomadas el 30-oct-2026 fuera de esa lista (licencia NCSA, ID-INT-14 aceptado, F-Droid en pausa; ver [`README.md`](README.md)) |
 | **P1** | Decisión sobre JNA y CC BY 3.0 US frente a GPL-3.0 | **Pendiente** ([`dependencies.md`](dependencies.md) §3.4) |
 | **P2** | Quitar de `deny.toml` `Unlicense`, `Apache-2.0 WITH LLVM-exception` y `LGPL-2.1-or-later`; `publish = false` y `wildcards = "deny"` | **Pendiente** |
 | ~~P2~~ | Borrar o ignorar `core/op-core.cdx.json` y `cli/opvault-cli.cdx.json` | **Hecho** en `2bd56ce` (`.gitignore:5`) |
@@ -141,7 +143,7 @@ Existían antes de esta fase y siguen en el árbol. El commit es el primero que 
 
 Lo que **no** se puede comprobar en la JVM ni en la CI (anti-tapjacking, portapapeles en segundo plano, lista de
 sufijos y navegadores en un dispositivo, biometría en API 28, KDBX 4 real, bloqueo automático…) tiene su plan en
-[`device-tests.md`](device-tests.md). Está **parcialmente ejecutado** (30-oct-2026, un solo dispositivo, API 37): DT-01, DT-04 (`falla` en segundo plano), DT-05 y DT-07 tienen resultado; DT-02 y DT-12 están bloqueados y el resto sin ejecutar.
+[`device-tests.md`](device-tests.md). Está **parcialmente ejecutado** (sesión cerrada el 30-oct-2026, un solo dispositivo, API 37): DT-01, DT-04 (`falla` en segundo plano: ID-INT-14, aceptado como riesgo residual), DT-05 (solo depuración) y DT-07 tienen resultado; DT-02 y DT-12 están bloqueados y el resto, pendiente. Lo pendiente requiere emulador o dispositivo API 28 y no bloquea la contratación de la auditoría.
 
 ```sh
 cargo test --workspace --locked                      # 102 pasan, 1 ignorada

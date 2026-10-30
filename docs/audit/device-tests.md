@@ -5,14 +5,34 @@ verificar en dispositivo» ([`internal-review.md`](internal-review.md), [`harden
 [`threat-model.md`](../threat-model.md)) y que no se puede comprobar en la JVM ni en la CI. Está escrito
 para que lo ejecute una persona sin contexto previo y sirva de **evidencia para el auditor**.
 
-> **Estado: ejecución parcial (sesión del 30-oct-2026, dos partes, ver [«Sesión del 30-oct-2026»](#sesion-2026-10-30)
-> y [«segunda parte»](#sesion-2026-10-30-b)).** Tienen resultado DT-01 (`pasa`, con límites), DT-02 y DT-12
-> (`bloqueado`), DT-04a (`pasa`) y **DT-04b (`falla`: confirma [ID-INT-14](internal-review.md#id-int-14))**,
-> DT-05 (`pasa`, solo build de depuración) y DT-07 (`pasa`), más la fila de las pruebas instrumentadas
-> (sección 3.2). Todo en **un único dispositivo, API 37**. **El resto de pruebas no se ha ejecutado** (DT-03,
-> DT-04c, DT-04d, DT-06, DT-08 a DT-11 y DT-13 a DT-17) y sus celdas siguen vacías. Los «resultados
+> **Estado: sesión cerrada el 30-oct-2026; lo pendiente requiere emulador o dispositivo API 28 y no bloquea la contratación de la auditoría.**
+> Ejecución parcial en **un único dispositivo, API 37** (ver [«Sesión del 30-oct-2026»](#sesion-2026-10-30)
+> y [«segunda parte»](#sesion-2026-10-30-b)). **Pasan** DT-01 (con límites), DT-04a, DT-05 (solo depuración),
+> DT-07 y las pruebas instrumentadas (17 tests, sección 3.2). **Falla DT-04b**, que confirma
+> [ID-INT-14](internal-review.md#id-int-14), **aceptado como riesgo residual** por el responsable el
+> 30-oct-2026. **Pendientes, con su motivo** (resumen en [«Pendientes al cierre de la sesión»](#pendientes-al-cierre)):
+> DT-02 y DT-03 (emulador API 28-30), DT-12 (emulador o dispositivo API 28), DT-11 (emulador `userdebug`),
+> la variante R8 de DT-05, DT-06 (navegador real), DT-08 (navegador predeterminado) y el resto sin ejecutar
+> (DT-04c, DT-04d, DT-09, DT-10, DT-13 a DT-17), cuyas celdas dicen «pendiente». Los «resultados
 > esperados» describen lo que el código pretende hacer (con `fichero:línea`); no son resultados. Si el
 > dispositivo hace otra cosa, eso es lo que se anota.
+
+<a id="pendientes-al-cierre"></a>
+### Pendientes al cierre de la sesión (30-oct-2026)
+
+| Prueba | Estado | Motivo | Necesita |
+|---|---|---|---|
+| DT-02 | Pendiente (`bloqueado`) | Sin imágenes de sistema API 28/30 ni binario de emulador en el equipo | Emulador API 28-30 |
+| DT-03 | Pendiente | Diálogos en API 28-30, sin ejecutar | Emulador API 28-30 |
+| DT-04c, DT-04d | Pendiente | Pantalla apagada y marca de sensible, sin ejecutar; DT-04 en API 29, 33 y 36 tampoco | Dispositivos API 29, 33 y 36 |
+| DT-05, variante R8 | Pendiente | Solo se ejecutó la build de depuración | Build de release con R8 |
+| DT-06 | Pendiente | Navegador real (Chrome), sin ejecutar | Dispositivo con Chrome |
+| DT-08 | Pendiente | Navegador predeterminado malicioso, sin ejecutar | Dispositivo físico |
+| DT-09, DT-10 | Pendiente | Autorrelleno completo y «recordar», sin ejecutar | Dispositivo físico |
+| DT-11 | Pendiente | Root: requiere emulador `userdebug` | Emulador `google_apis` `userdebug` |
+| DT-12 | Pendiente (`bloqueado`) | Android 9: sin emulador ni imagen; el teléfono es API 37 | Emulador o dispositivo API 28 |
+| DT-13 | Pendiente | KDBX 4 real, sin ejecutar | KeePassXC y dispositivo |
+| DT-14, DT-15, DT-16, DT-17 | Pendiente | KDF/RAM, copias, bloqueo automático y TOTP, sin ejecutar | Dispositivo físico |
 
 Redactado el 2026-10-30 sobre `HEAD` `6c9a587` («Docs: pausar la publicación en F-Droid»). Las líneas
 citadas son de ese commit y se desplazan si el código cambia: el nombre del símbolo es la referencia
@@ -306,36 +326,36 @@ cita ficheros de la carpeta de evidencia (2.8).
 |---|---|---|---|---|---|
 | DT-01 | 2026-10-30 | SM-S948B, Android 17 (API 37), físico | **pasa** (con límites) | `/tmp/dt-00-launcher.png`, `/tmp/dt-01.png`, `/tmp/dt-02.png`, salida de `dumpsys window` (ver «Sesión del 30-oct-2026»; no archivada en la carpeta de evidencia) | Control positivo: overlay `full` visible sobre el lanzador. Con OpenPassword al frente (`MainActivity`, `FLAG_SECURE`): overlay con `Surface: shown=false`, `isVisible=false`, `isOnScreen=false` y SurfaceFlinger «hidden»; al volver al lanzador, `shown=true`. `HIDE_OVERLAY_WINDOWS` `granted=true`. Un toque sobre «Crear mi baúl» cambió de pantalla. Sin `FATAL EXCEPTION` ni errores de `AndroidRuntime`. **No** se observó el aviso de «toque tapado» (con `setHideOverlayWindows` el toque no llega tapado; límite conocido). **Límites**: solo `MainActivity` y un toque; no `AutofillAuthActivity` ni `SaveLoginActivity`, ni el overlay parcial, ni los pasos 4-8 completos con baúl desbloqueado |
 | DT-02 | 2026-10-30 | — | **bloqueado** | — | Sin binario de emulador ni imágenes de sistema API 28/30 en el equipo (solo `android-36` y `android-37.0`); el teléfono es API 37 |
-| DT-03 | | | | | |
+| DT-03 | — | — | **pendiente** | — | Emulador API 28-30; sin ejecutar |
 | DT-04a (primer plano) | 2026-10-30 | SM-S948B, Android 17 (API 37), físico | **pasa** | Salida del lector de portapapeles (`CLIPBOARD_EMPTY`); sin fichero archivado (ver «segunda parte») | Copiar y esperar 35 s **con OpenPassword en primer plano**: `CLIPBOARD_EMPTY`. El borrado a los 30 s **sí** funciona con la app enfocada. Solo API 37 (ID-INT-14 pide también 29, 33 y 36). Método distinto del plan: el portapapeles se leyó con un lector propio, no pegando en `test.fakebrowser` |
-| DT-04b (segundo plano) | 2026-10-30 | SM-S948B, Android 17 (API 37), físico | **falla** (confirma ID-INT-14) | Salida del lector de portapapeles (`CLIPBOARD_HAS_TEXT`); sin fichero archivado | Copiar la contraseña, pulsar Inicio, esperar 36 s y abrir el lector: **`CLIPBOARD_HAS_TEXT` a los 45 s**; el borrado **no** ocurre con la app en segundo plano. Controles: copiar y leer a los 5 s da `CLIPBOARD_HAS_TEXT` (el copiado funciona y el lector lee bien, en `onWindowFocusChanged`), y el 04a da `CLIPBOARD_EMPTY` (el borrado funciona en primer plano). **No** se probó el paso 5 del plan (volver a OpenPassword y ver si se borra al volver): lo que hace `onForeground` sigue **sin verificar en dispositivo**. No se distinguió cuál de las tres hipótesis de ID-INT-14 explica el síntoma (descripción `null`, `clearPrimaryClip()` denegado o `Handler` sin ejecutar); solo consta que, en API 37, el portapapeles sigue con texto tras salir de la app |
-| DT-04c (pantalla apagada) | | | | | |
-| DT-04d (marca sensible) | | | | | |
+| DT-04b (segundo plano) | 2026-10-30 | SM-S948B, Android 17 (API 37), físico | **falla** (confirma ID-INT-14; **aceptado como riesgo residual** por el responsable, 30-oct-2026) | Salida del lector de portapapeles (`CLIPBOARD_HAS_TEXT`); sin fichero archivado | Copiar la contraseña, pulsar Inicio, esperar 36 s y abrir el lector: **`CLIPBOARD_HAS_TEXT` a los 45 s**; el borrado **no** ocurre con la app en segundo plano. Controles: copiar y leer a los 5 s da `CLIPBOARD_HAS_TEXT` (el copiado funciona y el lector lee bien, en `onWindowFocusChanged`), y el 04a da `CLIPBOARD_EMPTY` (el borrado funciona en primer plano). **No** se probó el paso 5 del plan (volver a OpenPassword y ver si se borra al volver): lo que hace `onForeground` sigue **sin verificar en dispositivo**. No se distinguió cuál de las tres hipótesis de ID-INT-14 explica el síntoma (descripción `null`, `clearPrimaryClip()` denegado o `Handler` sin ejecutar); solo consta que, en API 37, el portapapeles sigue con texto tras salir de la app |
+| DT-04c (pantalla apagada) | — | — | **pendiente** | — | Sin ejecutar |
+| DT-04d (marca sensible) | — | — | **pendiente** | — | Sin ejecutar |
 | DT-05 | 2026-10-30 | SM-S948B, Android 17 (API 37), físico; build de **depuración** (sin R8) | **pasa** (solo depuración; variante R8 sin ejecutar) | Salida de la sesión (tabla en «segunda parte»); sin capturas archivadas | Con `test.fakebrowser` como navegador predeterminado. `alice.github.io` → «COINCIDEN» solo `alice.github.io` (`github.io` en «OTROS LOGINS»); `evil.github.io` → «ELIGE UN LOGIN», sin coincidencias y con «Ningún login tiene guardado evil.github.io» (repetido con el baúl desbloqueado); `x.alice.github.io` → ofrece `alice.github.io`; `en.wikipedia.org` → ofrece `wikipedia`; `github.io` → ofrece `sufijo-github-io` (exacta). Los dos controles positivos (`x.alice.github.io`, `en.wikipedia.org`) ofrecen el elemento: **la lista se cargó y se aplicó**. No prueban que la app falle cerrada si la lista no cargara. Baúl de 4 logins, no los 7 de 2.4 |
-| DT-06 | | | | | |
+| DT-06 | — | — | **pendiente** | — | Navegador real; sin ejecutar |
 | DT-07 | 2026-10-30 | SM-S948B, Android 17 (API 37), físico | **pasa** | Salida de la sesión; sin capturas archivadas | Con Chrome como navegador predeterminado, `test.fakebrowser` declarando `bank.example` produce «Para: test.fakebrowser»; el `webDomain` se ignora y no hay coincidencias web. **No se anotó** si había casilla «Recordar…» ni se hicieron los pasos 4 (baúl bloqueado) y 5 (caché de 5 min) del plan |
-| DT-08 | | | | | |
-| DT-09a (guardar) | | | | | |
-| DT-09b (rellenar) | | | | | |
-| DT-09c (actualizar contraseña) | | | | | |
-| DT-09d (token y rotación) | | | | | |
-| DT-10 | | | | | |
-| DT-11 | | | | | |
+| DT-08 | — | — | **pendiente** | — | Navegador predeterminado; sin ejecutar |
+| DT-09a (guardar) | — | — | **pendiente** | — | Sin ejecutar |
+| DT-09b (rellenar) | — | — | **pendiente** | — | Sin ejecutar |
+| DT-09c (actualizar contraseña) | — | — | **pendiente** | — | Sin ejecutar |
+| DT-09d (token y rotación) | — | — | **pendiente** | — | Sin ejecutar |
+| DT-10 | — | — | **pendiente** | — | Sin ejecutar |
+| DT-11 | — | — | **pendiente** | — | Requiere emulador `userdebug`; sin ejecutar |
 | DT-12 | 2026-10-30 | — | **bloqueado** | — | Necesita Android 9 (API 28); no hay emulador ni imagen de sistema y el teléfono es API 37 |
-| DT-13a (ChaCha20 + Argon2id) | | | | | |
-| DT-13b (AES-256 + Argon2d) | | | | | |
-| DT-13c (con archivo de clave) | | | | | |
-| DT-13d (Twofish: rechazo) | | | | | |
-| DT-13e (KDF demasiado costosa: rechazo) | | | | | |
-| DT-14a (por encima del techo) | | | | | |
-| DT-14b (en el techo) | | | | | |
-| DT-15 | | | | | |
-| DT-16a (inactividad 5 min) | | | | | |
-| DT-16b (30 s tras salir) | | | | | |
-| DT-16c (pantalla apagada) | | | | | |
-| DT-17a (QR con la cámara) | | | | | |
-| DT-17b (QR desde una imagen) | | | | | |
-| DT-17c (pegar `otpauth://` o secreto) | | | | | |
+| DT-13a (ChaCha20 + Argon2id) | — | — | **pendiente** | — | KDBX 4 real; sin ejecutar |
+| DT-13b (AES-256 + Argon2d) | — | — | **pendiente** | — | KDBX 4 real; sin ejecutar |
+| DT-13c (con archivo de clave) | — | — | **pendiente** | — | KDBX 4 real; sin ejecutar |
+| DT-13d (Twofish: rechazo) | — | — | **pendiente** | — | KDBX 4 real; sin ejecutar |
+| DT-13e (KDF demasiado costosa: rechazo) | — | — | **pendiente** | — | KDBX 4 real; sin ejecutar |
+| DT-14a (por encima del techo) | — | — | **pendiente** | — | Sin ejecutar |
+| DT-14b (en el techo) | — | — | **pendiente** | — | Sin ejecutar |
+| DT-15 | — | — | **pendiente** | — | Sin ejecutar |
+| DT-16a (inactividad 5 min) | — | — | **pendiente** | — | Sin ejecutar |
+| DT-16b (30 s tras salir) | — | — | **pendiente** | — | Sin ejecutar |
+| DT-16c (pantalla apagada) | — | — | **pendiente** | — | Sin ejecutar |
+| DT-17a (QR con la cámara) | — | — | **pendiente** | — | Sin ejecutar |
+| DT-17b (QR desde una imagen) | — | — | **pendiente** | — | Sin ejecutar |
+| DT-17c (pegar `otpauth://` o secreto) | — | — | **pendiente** | — | Sin ejecutar |
 | Instrumentados (`./gradlew :app:connectedDebugAndroidTest`) | 2026-10-30 | SM-S948B, Android 17 (API 37), arm64-v8a, físico | **pasa** | `android/app/build/outputs/androidTest-results/connected/debug/TEST-SM-S948B - 17.xml` (ver «Sesión del 30-oct-2026») | 17 tests, 0 fallos, 0 errores, 0 omitidos, 47 s: `EmergencyKitTest` (2), `OverlayProtectionTest` (4), `VaultSessionTest` (11). Sobre el commit `b2e18ca` con el árbol sucio (`fuzz/deny.toml` modificado). Versión instalada `0.1.0` (`io.github.rldona.openpassword.debug`). Los tests son de banderas y de sesión con baúles aislados: no sustituyen a las pruebas DT sobre comportamiento real |
 
 <a id="sesion-2026-10-30"></a>
