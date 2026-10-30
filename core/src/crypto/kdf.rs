@@ -46,11 +46,21 @@ impl KdfParams {
     /// Checks the parameters are usable and not above [`Self::MAXIMUM`].
     /// Applied to every header read from disk.
     pub fn check_bounds(&self) -> Result<()> {
-        let max = Self::MAXIMUM;
-        if self.m_kib > max.m_kib || self.t > max.t || self.p > max.p {
+        self.check_within(&Self::MAXIMUM)
+    }
+
+    /// Checks the parameters are usable and not above `maximum` on any axis. Lets a
+    /// platform apply a ceiling lower than the format's [`Self::MAXIMUM`].
+    pub fn check_within(&self, maximum: &Self) -> Result<()> {
+        if self.exceeds(maximum) {
             return Err(Error::KdfParams("cost above the accepted maximum"));
         }
         self.argon2().map(|_| ())
+    }
+
+    /// True if any cost axis is above `maximum`.
+    pub fn exceeds(&self, maximum: &Self) -> bool {
+        self.m_kib > maximum.m_kib || self.t > maximum.t || self.p > maximum.p
     }
 
     /// True if the parameters reach [`Self::MINIMUM`] on every axis.
@@ -139,5 +149,29 @@ mod tests {
         assert!(KdfParams::argon2id(262_144, 0, 4).check_bounds().is_err());
         // Argon2 needs at least 8 KiB per lane.
         assert!(KdfParams::argon2id(16, 1, 4).check_bounds().is_err());
+    }
+
+    #[test]
+    fn check_within_applies_each_axis_of_a_lower_ceiling() {
+        let ceiling = KdfParams::argon2id(524_288, 6, 8);
+        assert!(ceiling.check_within(&ceiling).is_ok());
+        assert!(KdfParams::RECOMMENDED.check_within(&ceiling).is_ok());
+        for above in [
+            KdfParams::argon2id(524_289, 6, 8),
+            KdfParams::argon2id(524_288, 7, 8),
+            KdfParams::argon2id(524_288, 6, 9),
+        ] {
+            assert_eq!(
+                above.check_within(&ceiling),
+                Err(Error::KdfParams("cost above the accepted maximum"))
+            );
+            assert!(above.check_bounds().is_ok());
+        }
+        // Still rejects what Argon2 cannot run, even under the ceiling.
+        assert!(
+            KdfParams::argon2id(16, 1, 4)
+                .check_within(&ceiling)
+                .is_err()
+        );
     }
 }

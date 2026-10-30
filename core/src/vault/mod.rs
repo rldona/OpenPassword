@@ -268,3 +268,43 @@ impl UnlockedVault {
         serde_json::from_slice(json).map_err(|_| Error::Malformed("item JSON"))
     }
 }
+
+/// Fuzzing hook, compiled only with `--cfg fuzzing` (see `crate::fuzzing`).
+#[cfg(fuzzing)]
+pub mod fuzzing {
+    use super::*;
+    use crate::crypto::{NONCE_LEN, seal_with_nonce};
+
+    /// Item key of [`seal_item_part`]. A public constant, for tests only.
+    const TEST_ITEM_KEY: [u8; 32] = [9; 32];
+
+    /// Builds an item whose `overview` and `details` are both `plaintext` (any bytes) padded
+    /// and sealed with fixed keys and nonces, so decrypting reaches `unpad` and the JSON parsers.
+    pub fn seal_item_part(vault: &UnlockedVault, plaintext: &[u8]) -> Result<EncryptedItem> {
+        let id: ItemId = [2; 16];
+        let revision = 1;
+        let item_key = Key::from_bytes(TEST_ITEM_KEY);
+        let nonce = [5; NONCE_LEN];
+        let padded = padding::pad(plaintext)?;
+        let part = |name: &[u8]| {
+            seal_with_nonce(
+                &item_key,
+                &nonce,
+                &padded,
+                &item_part_aad(name, vault.vault_id(), &id, revision),
+            )
+        };
+        Ok(EncryptedItem {
+            id,
+            revision,
+            wrapped_item_key: seal_with_nonce(
+                vault.vault_key(),
+                &nonce,
+                item_key.expose(),
+                &item_key_aad(vault.vault_id(), &id),
+            ),
+            overview: part(b"overview"),
+            details: part(b"details"),
+        })
+    }
+}

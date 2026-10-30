@@ -5,6 +5,7 @@ import javax.inject.Inject
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.cyclonedx.bom)
 }
 
 // Release signing lives outside the repository. Without this file the release APK is unsigned
@@ -208,4 +209,12 @@ androidComponents.onVariants { variant ->
     }
     tasks.matching { it.name == "assemble${variant.name.replaceFirstChar(Char::uppercase)}" }
         .configureEach { dependsOn(verify) }
+}
+
+// SBOM of what ships in the APK (CycloneDX): only the release runtime classpath. The release job
+// runs `./gradlew :app:cyclonedxDirectBom` and reads build/reports/cyclonedx-direct/.
+tasks.cyclonedxDirectBom {
+    includeConfigs.set(listOf("releaseRuntimeClasspath"))
+    jsonOutput.set(layout.buildDirectory.file("reports/cyclonedx-direct/bom.json"))
+    xmlOutput.unsetConvention()
 }

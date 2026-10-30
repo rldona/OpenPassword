@@ -11,6 +11,8 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 op-core = { path = "../core" }
+op-ffi = { path = "../ffi" }
+serde_json = "1"
 
 # Not part of the main workspace: it needs nightly and libFuzzer.
 [workspace]
@@ -25,6 +27,13 @@ bench = false
 [[bin]]
 name = "kdbx_xml"
 path = "fuzz_targets/kdbx_xml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "kdbx_container"
+path = "fuzz_targets/kdbx_container.rs"
 test = false
 doc = false
 bench = false
@@ -46,6 +55,41 @@ bench = false
 [[bin]]
 name = "totp"
 path = "fuzz_targets/totp.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "vault_json"
+path = "fuzz_targets/vault_json.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "item_open"
+path = "fuzz_targets/item_open.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "item_plaintext"
+path = "fuzz_targets/item_plaintext.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "backup_body"
+path = "fuzz_targets/backup_body.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ffi_records"
+path = "fuzz_targets/ffi_records.rs"
 test = false
 doc = false
 bench = false

@@ -21,19 +21,40 @@ object LoginMatcher {
 
     fun matches(savedUrls: List<String>, target: FillTarget): Boolean = savedUrls.any { url ->
         when (target) {
-            is FillTarget.App -> url.trim() == appUrl(target.packageName)
+            is FillTarget.App -> {
+                val trimmed = url.trim()
+                target.packageName.isNotBlank() &&
+                    trimmed.startsWith(APP_SCHEME, ignoreCase = true) &&
+                    trimmed.substring(APP_SCHEME.length) == target.packageName
+            }
             is FillTarget.Web -> {
                 val saved = hostOf(url) ?: return@any false
                 val visited = normalizeHost(target.domain) ?: return@any false
-                visited == saved || visited.endsWith(".$saved")
+                hostMatches(saved, visited)
             }
         }
     }
 
+    /**
+     * Exact host, or a real subdomain of a saved *registrable* domain. IP literals and public
+     * suffixes ("co.uk", "github.io") only match themselves; without the suffix list we fail
+     * closed to exact match.
+     */
+    private fun hostMatches(saved: String, visited: String): Boolean {
+        if (visited == saved) return true
+        if (isIpLiteral(saved) || isIpLiteral(visited)) return false
+        if (!visited.endsWith(".$saved")) return false
+        return PublicSuffix.isAvailable && !PublicSuffix.isPublicSuffix(saved)
+    }
+
+    private val IPV4 = Regex("""\d{1,3}(\.\d{1,3}){3}""")
+
+    private fun isIpLiteral(host: String) = IPV4.matches(host) || ':' in host || host.startsWith("[")
+
     /** "https://Accounts.Google.com/login" → "accounts.google.com". Null for app links and junk. */
     fun hostOf(url: String): String? {
         val trimmed = url.trim()
-        if (trimmed.isEmpty() || trimmed.startsWith(APP_SCHEME)) return null
+        if (trimmed.isEmpty() || trimmed.startsWith(APP_SCHEME, ignoreCase = true)) return null
         val withScheme = if ("://" in trimmed) trimmed else "https://$trimmed"
         val host = try {
             URI(withScheme).host

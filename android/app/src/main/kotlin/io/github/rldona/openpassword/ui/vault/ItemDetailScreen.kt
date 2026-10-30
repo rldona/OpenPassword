@@ -47,13 +47,17 @@ import androidx.compose.ui.unit.sp
 import io.github.rldona.openpassword.autofill.LoginMatcher
 import io.github.rldona.openpassword.core.FieldKindRecord
 import io.github.rldona.openpassword.core.FieldRecord
+import io.github.rldona.openpassword.core.InternalException
+import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.core.totpCode
 import io.github.rldona.openpassword.core.ItemDetailsRecord
 import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.qr.WifiQr
 import io.github.rldona.openpassword.security.SensitiveClipboard
+import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
 import io.github.rldona.openpassword.session.VaultEntry
 import io.github.rldona.openpassword.session.VaultSession
+import io.github.rldona.openpassword.session.toUserMessage
 import io.github.rldona.openpassword.ui.Avatar
 import io.github.rldona.openpassword.ui.SectionLabel
 import io.github.rldona.openpassword.ui.initialOf
@@ -74,11 +78,19 @@ fun ItemDetailScreen(
     onEdit: () -> Unit,
     onDeleted: () -> Unit,
 ) {
-    val details by produceState<ItemDetailsRecord?>(null, entry.record.revision) { value = session.details(entry) }
+    val snackbar = remember { SnackbarHostState() }
+    val details by produceState<ItemDetailsRecord?>(null, entry.record.revision) {
+        try {
+            value = session.details(entry)
+        } catch (e: OpException) {
+            snackbar.showSnackbar(e.toUserMessage())
+        } catch (_: InternalException) {
+            snackbar.showSnackbar(INTERNAL_ERROR_MESSAGE)
+        }
+    }
     val revealed = remember { mutableStateMapOf<Int, Boolean>() }
     var confirmDelete by remember { mutableStateOf(false) }
     var wifiQr by remember { mutableStateOf<String?>(null) }
-    val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val o = entry.overview
 
@@ -214,8 +226,14 @@ fun ItemDetailScreen(
                 TextButton(onClick = {
                     confirmDelete = false
                     scope.launch {
-                        session.delete(entry)
-                        onDeleted()
+                        try {
+                            session.delete(entry)
+                            onDeleted()
+                        } catch (e: OpException) {
+                            snackbar.showSnackbar(e.toUserMessage())
+                        } catch (_: InternalException) {
+                            snackbar.showSnackbar(INTERNAL_ERROR_MESSAGE)
+                        }
                     }
                 }) { Text("Borrar", color = MaterialTheme.colorScheme.error) }
             },

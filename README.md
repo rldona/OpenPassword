@@ -55,3 +55,4 @@ OpenPassword es software libre bajo la [GNU General Public License v3.0 o poster
 ### Componentes de terceros
 
 - Lista de palabras para frases de paso: [EFF Large Wordlist](https://www.eff.org/dice) de la Electronic Frontier Foundation, bajo [CC BY 3.0 US](https://creativecommons.org/licenses/by/3.0/us/). Se incluye solo la columna de palabras, sin otros cambios (`android/app/src/main/assets/eff_large_wordlist.txt`).
+- Lista de sufijos públicos: [Public Suffix List](https://publicsuffix.org/list/public_suffix_list.dat) de Mozilla y colaboradores, bajo [MPL 2.0](https://mozilla.org/MPL/2.0/). Se incluye sin modificar (`android/app/src/main/resources/public_suffix_list.dat`) y el autorrelleno la usa para no ofrecer una credencial de `github.io` o `co.uk` a cualquier subdominio.

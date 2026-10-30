@@ -48,14 +48,18 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.rldona.openpassword.OpenPasswordApp
+import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.ItemKindRecord
+import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.security.excludeFromAutofill
 import io.github.rldona.openpassword.security.protectFromOverlays
 import io.github.rldona.openpassword.security.warnIfObscured
 import io.github.rldona.openpassword.security.strongBiometricsAvailable
+import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
 import io.github.rldona.openpassword.session.SessionState
 import io.github.rldona.openpassword.session.VaultEntry
 import io.github.rldona.openpassword.session.VaultSession
+import io.github.rldona.openpassword.session.toUserMessage
 import io.github.rldona.openpassword.ui.Avatar
 import io.github.rldona.openpassword.ui.SectionLabel
 import io.github.rldona.openpassword.ui.initialOf
@@ -155,6 +159,7 @@ private fun PickLogin(
     var query by remember { mutableStateOf("") }
     var remember by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
+    var pickError by remember { mutableStateOf<String?>(null) }
     val matching = remember(entries) { entries.filter { LoginMatcher.matches(it.overview.urls, target) } }
     val others = remember(entries, query) {
         val key = query.searchKey().trim()
@@ -169,13 +174,19 @@ private fun PickLogin(
 
     fun pick(entry: VaultEntry, isMatch: Boolean) {
         scope.launch {
-            val details = session.details(entry)
-            // Linking a login to an app: only for apps (package names are verified by Android).
-            if (!isMatch && remember && target is FillTarget.App) {
-                val urls = entry.overview.urls + LoginMatcher.appUrl(target.packageName)
-                session.save(entry, entry.overview.copy(urls = urls, updatedAt = (System.currentTimeMillis() / 1000).toULong()), details)
+            try {
+                val details = session.details(entry)
+                // Linking a login to an app: only for apps (package names are verified by Android).
+                if (!isMatch && remember && target is FillTarget.App) {
+                    val urls = entry.overview.urls + LoginMatcher.appUrl(target.packageName)
+                    session.save(entry, entry.overview.copy(urls = urls, updatedAt = (System.currentTimeMillis() / 1000).toULong()), details)
+                }
+                onPicked(entry, details.credentials())
+            } catch (e: OpException) {
+                pickError = e.toUserMessage()
+            } catch (_: InternalException) {
+                pickError = INTERNAL_ERROR_MESSAGE
             }
-            onPicked(entry, details.credentials())
         }
     }
 
@@ -194,6 +205,7 @@ private fun PickLogin(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
+            pickError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
             LazyColumn(Modifier.fillMaxSize()) {
                 if (matching.isNotEmpty()) {
                     item { SectionLabel("Coinciden", Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp)) }

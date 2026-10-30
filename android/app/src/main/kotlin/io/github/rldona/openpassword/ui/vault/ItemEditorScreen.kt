@@ -83,6 +83,7 @@ fun ItemEditorScreen(
     var loaded by remember { mutableStateOf(existing == null) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var loadError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -90,12 +91,19 @@ fun ItemEditorScreen(
         if (existing == null) {
             fields.addAll(kind.template())
         } else {
-            val d = session.details(existing)
-            // Keep stored fields; add template fields that are missing so they can be filled in.
-            fields.addAll(d.fields)
-            kind.template().filter { t -> d.fields.none { it.label == t.label } }.forEach(fields::add)
-            notes = d.notes
-            loaded = true
+            // On failure the form stays closed: saving an empty form would overwrite the item.
+            try {
+                val d = session.details(existing)
+                // Keep stored fields; add template fields that are missing so they can be filled in.
+                fields.addAll(d.fields)
+                kind.template().filter { t -> d.fields.none { it.label == t.label } }.forEach(fields::add)
+                notes = d.notes
+                loaded = true
+            } catch (e: OpException) {
+                loadError = e.toUserMessage()
+            } catch (_: InternalException) {
+                loadError = INTERNAL_ERROR_MESSAGE
+            }
         }
     }
 
@@ -191,7 +199,10 @@ fun ItemEditorScreen(
             )
         },
     ) { padding ->
-        if (!loaded) return@Scaffold
+        if (!loaded) {
+            loadError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(padding).padding(16.dp)) }
+            return@Scaffold
+        }
         Column(
             Modifier.padding(padding).imePadding().fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

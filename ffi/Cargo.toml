@@ -25,6 +25,7 @@ op-core = { path = "../core" }
 serde_json = "1"
 thiserror = "2"
 uniffi = "0.32"
+zeroize = "1"
 
 [lints]
 workspace = true
