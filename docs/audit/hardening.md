@@ -44,7 +44,7 @@ Reproduce la tabla de «Plan de implementación» de [`decisions.md`](decisions.
 | 16 | Verificación de dependencias de Gradle | **Hecho** en `2bd56ce` | `android/gradle/verification-metadata.xml` (478 componentes, 918 sumas, `aapt2` de Linux y macOS) | **No se ha ejecutado** una compilación con la verificación activa; falta probar que falla con una suma alterada |
 | 17 | Job `release`: SBOM y atestación | **Hecho** en `2bd56ce` | `ci.yml` (job `release`), `build.gradle.kts` (plugin CycloneDX 3.5.1) | **Nunca ejecutado.** Falta `v0.2.0-rc1` y `gh attestation verify` |
 | 18 | Documentación | **Parcial** | `docs/crypto-spec.md` §5 (techo de plataforma, `2bd56ce`); `android/README.md` (permisos y anti-tapjacking, `3725741`; `2bd56ce`); `docs/threat-model.md` (A7 y A10 implementados, nuevas filas A17 y A18 y residuos de secretos), `SECURITY.md` (`release/0.2`) y `fuzz/README.md` (30 s, 11 objetivos, presupuesto de KDBX): actualizados con este paquete de documentación (sin commit todavía) | **Pendiente**: `docs/crypto-spec.md` §10 (`SecretString`, residuos) |
-| 19 | Versión 0.2.0, rama `release/0.2`, etiqueta firmada y paquete | **Pendiente** | `Cargo.toml` sigue en `0.1.0` (`version.workspace`), `build.gradle.kts:29-30` en `versionCode = 1`, `versionName = "0.1.0"` | `git branch --list 'release/*'` vacío |
+| 19 | Versión 0.2.0, rama `release/0.2`, etiqueta firmada y paquete | **Pendiente** (no depende de la publicación en F-Droid, que está en pausa: la auditoría usa una pre-release de GitHub) | `Cargo.toml` sigue en `0.1.0` (`version.workspace`), `build.gradle.kts:29-30` en `versionCode = 1`, `versionName = "0.1.0"` | `git branch --list 'release/*'` vacío |
 
 ## 2. Medidas ejecutadas que se heredan del trabajo anterior
 

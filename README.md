@@ -2,7 +2,7 @@
 
 Gestor de contraseñas, tarjetas, PINs y secretos, de código abierto, offline y sin servidor. Android primero.
 
-> **Estado: Fase 2 terminada, pendiente de publicar en F-Droid.** La app Android ya es de uso diario (autorrelleno, TOTP, copias automáticas, importadores), pero no ha pasado ninguna auditoría externa. No guardes datos reales todavía. Para avisar de un fallo de seguridad, ver [SECURITY.md](SECURITY.md).
+> **Estado: Fase 2 funcionalmente terminada, publicación en F-Droid en pausa; Fase 3 en marcha.** La app Android ya es de uso diario (autorrelleno, TOTP, copias automáticas, importadores) y no ha pasado ninguna auditoría externa. **No guardes datos reales todavía.** La publicación en F-Droid está pausada por decisión del responsable del proyecto (30-oct-2026): el trabajo está preparado en [`docs/fdroid/README.md`](docs/fdroid/README.md) y se retomará cuando se indique. Para avisar de un fallo de seguridad, ver [SECURITY.md](SECURITY.md).
 
 ## Qué hay en el repositorio
 

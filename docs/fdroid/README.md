@@ -1,5 +1,13 @@
 # Publicar OpenPassword en F-Droid
 
+> **Estado: pausado** por decisión del responsable del proyecto el **30-oct-2026**. No hay etiqueta
+> `v0.1.0` ni release publicada, y no se ha enviado ninguna receta a `fdroiddata`. Este documento
+> es el punto de retorno: todo lo preparado sigue en el repositorio y los pasos manuales no han
+> cambiado. No hace falta deshacer nada para retomarlo; basta con empezar por «Pasos que te tocan a
+> ti».
+>
+> La auditoría externa (Fase 3) **no depende** de esta publicación.
+
 F-Droid compila la app desde el código fuente. Con la **build reproducible** compila el APK y,
 si es idéntico al que publicas tú en GitHub (salvo la firma), distribuye el tuyo, firmado con tu
 clave. Así los usuarios reciben siempre la misma firma, vengan de F-Droid o de GitHub.
