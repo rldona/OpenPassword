@@ -15,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -63,6 +62,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
+import io.github.rldona.openpassword.ui.ProtectedAlertDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -192,7 +192,7 @@ fun ItemDetailScreen(
 
     wifiQr?.let { payload ->
         val qr = remember(payload) { WifiQr.bitmap(payload, 720).asImageBitmap() }
-        AlertDialog(
+        ProtectedAlertDialog(
             onDismissRequest = { wifiQr = null },
             title = { Text(o.title) },
             text = {
@@ -206,7 +206,7 @@ fun ItemDetailScreen(
     }
 
     if (confirmDelete) {
-        AlertDialog(
+        ProtectedAlertDialog(
             onDismissRequest = { confirmDelete = false },
             title = { Text("¿Borrar «${o.title}»?") },
             text = { Text("Se borrará de este teléfono. Las copias de seguridad que ya hayas exportado lo conservan.") },

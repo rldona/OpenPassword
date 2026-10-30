@@ -5,7 +5,7 @@
 //! plaintext cross the boundary as JVM `String`s, which the JVM cannot wipe;
 //! see docs/crypto-spec.md section 10.
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use op_core::vault::{Field, FieldKind, ItemDetails, ItemKind, ItemOverview, PasswordChange};
 use op_core::{EncryptedItem, Item, KdfParams, Key, SecretKey, UnlockedVault, VaultHeader, backup};
@@ -273,10 +273,25 @@ impl Vault {
         })
     }
 
+    /// Takes the lock even if a panic poisoned it: the key must stay wipeable.
+    fn guard(&self) -> MutexGuard<'_, Option<UnlockedVault>> {
+        self.inner.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Runs `f` with the unlocked vault. If a previous panic poisoned the mutex, the key
+    /// is wiped, the poison is cleared and this call returns [`OpError::Internal`]; later
+    /// calls answer [`OpError::Locked`].
     fn with<T>(&self, f: impl FnOnce(&UnlockedVault) -> op_core::Result<T>) -> Result<T> {
-        let guard = self.inner.lock().map_err(|_| OpError::Internal {
-            reason: "poisoned lock".into(),
-        })?;
+        let guard = match self.inner.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                poisoned.into_inner().take();
+                self.inner.clear_poison();
+                return Err(OpError::Internal {
+                    reason: "poisoned lock".into(),
+                });
+            }
+        };
         let vault = guard.as_ref().ok_or(OpError::Locked)?;
         f(vault).map_err(OpError::from)
     }
@@ -378,13 +393,11 @@ impl Vault {
 
     /// Wipes the vault key. Every later call fails with [`OpError::Locked`].
     pub fn lock(&self) {
-        if let Ok(mut guard) = self.inner.lock() {
-            guard.take();
-        }
+        self.guard().take();
     }
 
     pub fn is_locked(&self) -> bool {
-        self.inner.lock().map(|g| g.is_none()).unwrap_or(true)
+        self.guard().is_none()
     }
 }
 
@@ -576,6 +589,41 @@ mod tests {
         vault.lock();
         assert!(vault.is_locked());
         assert!(matches!(vault.decrypt_overview(enc2), Err(OpError::Locked)));
+    }
+
+    fn poisoned_vault() -> (Arc<Vault>, EncryptedItemRecord) {
+        let sk = generate_secret_key().unwrap();
+        let vault =
+            Vault::create("contraseña larga de prueba".into(), sk, KdfProfile::Minimum).unwrap();
+        let enc = vault.encrypt_item(overview("Alarma"), details()).unwrap();
+        let v = Arc::clone(&vault);
+        let result = std::thread::spawn(move || {
+            let _guard = v.inner.lock().unwrap();
+            panic!("boom");
+        })
+        .join();
+        assert!(result.is_err());
+        assert!(vault.inner.is_poisoned());
+        (vault, enc)
+    }
+
+    #[test]
+    fn lock_wipes_key_after_poisoned_mutex() {
+        let (vault, _) = poisoned_vault();
+        vault.lock();
+        assert!(vault.is_locked());
+        assert!(vault.guard().is_none());
+    }
+
+    #[test]
+    fn with_after_poison_returns_internal_and_locks() {
+        let (vault, enc) = poisoned_vault();
+        assert!(matches!(
+            vault.decrypt_overview(enc.clone()),
+            Err(OpError::Internal { .. })
+        ));
+        assert!(vault.is_locked());
+        assert!(matches!(vault.decrypt_overview(enc), Err(OpError::Locked)));
     }
 
     #[test]

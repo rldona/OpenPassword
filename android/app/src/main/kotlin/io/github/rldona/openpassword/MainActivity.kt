@@ -2,6 +2,7 @@ package io.github.rldona.openpassword
 
 import android.os.Build
 import android.os.Bundle
+import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,6 +11,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import io.github.rldona.openpassword.security.excludeFromAutofill
+import io.github.rldona.openpassword.security.protectFromOverlays
+import io.github.rldona.openpassword.security.warnIfObscured
 import io.github.rldona.openpassword.ui.AppRoot
 import io.github.rldona.openpassword.ui.theme.OpenPasswordTheme
 import kotlinx.coroutines.delay
@@ -40,6 +43,12 @@ class MainActivity : ComponentActivity() {
             }
         }
         excludeFromAutofill(this)
+        protectFromOverlays(this)
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        warnIfObscured(this, ev)
+        return super.dispatchTouchEvent(ev)
     }
 
     override fun onUserInteraction() {

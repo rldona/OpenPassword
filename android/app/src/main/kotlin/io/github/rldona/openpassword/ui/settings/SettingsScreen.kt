@@ -19,7 +19,6 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -49,9 +48,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.rldona.openpassword.BuildConfigInfo
 import io.github.rldona.openpassword.backup.AutoBackup
+import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.security.EmergencyKit
 import io.github.rldona.openpassword.security.strongBiometricsAvailable
+import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
 import io.github.rldona.openpassword.session.VaultSession
 import io.github.rldona.openpassword.session.toUserMessage
 import io.github.rldona.openpassword.ui.PasswordField
@@ -68,6 +69,8 @@ import kotlinx.coroutines.withContext
 import java.text.DateFormat
 import java.time.LocalDate
 import java.util.Date
+import io.github.rldona.openpassword.ui.ProtectedAlertDialog
+import io.github.rldona.openpassword.ui.RootWarning
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -145,6 +148,8 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                     context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(bytes) } ?: error("no output")
                 }
                 "Copia cifrada guardada. Para abrirla necesitarás tu contraseña maestra y tu clave secreta."
+            } catch (_: InternalException) {
+                INTERNAL_ERROR_MESSAGE
             } catch (e: OpException) {
                 e.toUserMessage()
             } catch (_: Exception) {
@@ -227,6 +232,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
             )
             HorizontalDivider()
             SectionLabel("Seguridad", Modifier.padding(start = 16.dp, top = 16.dp))
+            RootWarning(dismissable = false, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
             ListItem(
                 headlineContent = { Text("Autorrelleno") },
                 supportingContent = {
@@ -336,7 +342,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
     }
 
     shownSecretKey?.let { key ->
-        AlertDialog(
+        ProtectedAlertDialog(
             onDismissRequest = { shownSecretKey = null },
             title = { Text("Tu clave secreta") },
             text = {
@@ -368,7 +374,7 @@ private fun ConfirmPasswordDialog(onDismiss: () -> Unit, onConfirm: suspend (Str
         }
     }
 
-    AlertDialog(
+    ProtectedAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Confirma que eres tú") },
         text = {
@@ -412,11 +418,15 @@ private fun ImportDialog(onDismiss: () -> Unit, onImport: suspend (password: Str
                 }
                 password = ""
                 busy = false
+            } catch (_: InternalException) {
+                error = "No se pudo leer la copia. Vuelve a desbloquear el baúl e inténtalo de nuevo."
+                password = ""
+                busy = false
             }
         }
     }
 
-    AlertDialog(
+    ProtectedAlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text("Importar copia") },
         text = {

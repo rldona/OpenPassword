@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.rldona.openpassword.session.UnlockResult
 import io.github.rldona.openpassword.ui.PasswordField
+import io.github.rldona.openpassword.ui.RootWarning
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -141,6 +142,7 @@ fun UnlockScreen(
                     Text("Usar huella")
                 }
             }
+            RootWarning(dismissable = true)
             if (waitSeconds > 0) {
                 Text(
                     "Demasiados intentos. Espera $waitSeconds s para volver a probar.",

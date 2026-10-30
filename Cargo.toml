@@ -20,7 +20,9 @@ all = { level = "warn", priority = -1 }
 [profile.release]
 lto = true
 codegen-units = 1
-panic = "abort"
+# panic = "unwind": see docs/audit/decisions.md ADR-AUD-03. A hostile .opvault must not
+# kill the app; UniFFI turns a panic into InternalException, which Kotlin catches.
+panic = "unwind"
 
 # Argon2 is unusably slow unoptimized; keep tests and debug builds fast.
 [profile.dev.package.argon2]

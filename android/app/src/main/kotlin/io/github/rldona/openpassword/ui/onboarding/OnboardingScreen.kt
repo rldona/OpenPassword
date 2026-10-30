@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.core.generateSecretKey
 import io.github.rldona.openpassword.security.EmergencyKit
@@ -53,6 +54,7 @@ import io.github.rldona.openpassword.security.PasswordGenerator
 import io.github.rldona.openpassword.security.Wordlist
 import io.github.rldona.openpassword.ui.EMERGENCY_KIT_FILE_NAME
 import io.github.rldona.openpassword.ui.writeDocument
+import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
 import io.github.rldona.openpassword.session.toUserMessage
 import io.github.rldona.openpassword.ui.PasswordField
 import io.github.rldona.openpassword.ui.SectionLabel
@@ -245,6 +247,9 @@ private fun SecretKeyStep(secretKey: String, onCreate: suspend () -> Unit) {
                     onCreate()
                 } catch (e: OpException) {
                     error = e.toUserMessage()
+                    busy = false
+                } catch (_: InternalException) {
+                    error = INTERNAL_ERROR_MESSAGE
                     busy = false
                 }
             }

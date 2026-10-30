@@ -48,6 +48,7 @@ import io.github.rldona.openpassword.core.FieldRecord
 import io.github.rldona.openpassword.core.ItemDetailsRecord
 import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.core.ItemOverviewRecord
+import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.core.totpCode
 import io.github.rldona.openpassword.health.VaultHealth
@@ -56,6 +57,7 @@ import io.github.rldona.openpassword.qr.TotpScan
 import io.github.rldona.openpassword.qr.decodeQrImage
 import io.github.rldona.openpassword.security.PasswordGenerator
 import io.github.rldona.openpassword.security.Wordlist
+import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
 import io.github.rldona.openpassword.session.VaultEntry
 import io.github.rldona.openpassword.session.VaultSession
 import io.github.rldona.openpassword.session.toUserMessage
@@ -132,6 +134,9 @@ fun ItemEditorScreen(
                 onSaved(session.save(existing, overview, ItemDetailsRecord(kept, notes.trim())))
             } catch (e: OpException) {
                 error = e.toUserMessage()
+                saving = false
+            } catch (_: InternalException) {
+                error = INTERNAL_ERROR_MESSAGE
                 saving = false
             }
         }

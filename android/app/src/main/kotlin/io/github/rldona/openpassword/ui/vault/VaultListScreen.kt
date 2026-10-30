@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -49,6 +48,7 @@ import io.github.rldona.openpassword.ui.Avatar
 import io.github.rldona.openpassword.ui.initialOf
 import java.text.Collator
 import java.util.Locale
+import io.github.rldona.openpassword.ui.ProtectedAlertDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -133,7 +133,7 @@ fun VaultListScreen(
     }
 
     if (choosingKind) {
-        AlertDialog(
+        ProtectedAlertDialog(
             onDismissRequest = { choosingKind = false },
             title = { Text("¿Qué quieres guardar?") },
             text = {

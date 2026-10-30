@@ -13,10 +13,19 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import io.github.rldona.openpassword.backup.AutoBackup
 import io.github.rldona.openpassword.core.KdfProfile
 import io.github.rldona.openpassword.data.VaultStorage
+import io.github.rldona.openpassword.security.AndroidDeviceProbe
 import io.github.rldona.openpassword.security.BiometricKeyStore
+import io.github.rldona.openpassword.security.RootDetector
+import io.github.rldona.openpassword.security.RootSignal
 import io.github.rldona.openpassword.security.SensitiveClipboard
 import io.github.rldona.openpassword.session.VaultSession
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class OpenPasswordApp : Application() {
     lateinit var session: VaultSession
@@ -26,8 +35,25 @@ class OpenPasswordApp : Application() {
     lateinit var autoBackup: AutoBackup
         private set
 
+    private val _rootSignals = MutableStateFlow<Set<RootSignal>>(emptySet())
+    /** Heuristic root / debug-build signals, computed once at startup. Advisory only. */
+    val rootSignals: StateFlow<Set<RootSignal>> = _rootSignals.asStateFlow()
+
+    private val _rootWarningDismissed = MutableStateFlow<Set<String>>(emptySet())
+    /** The signals the user already dismissed the notice for; a new signal shows it again. */
+    val rootWarningDismissed: StateFlow<Set<String>> = _rootWarningDismissed.asStateFlow()
+
+    fun dismissRootWarning() {
+        val names = _rootSignals.value.map { it.name }.toSet()
+        getSharedPreferences("device_warning", MODE_PRIVATE).edit().putStringSet("dismissed", names).apply()
+        _rootWarningDismissed.value = names
+    }
+
     override fun onCreate() {
         super.onCreate()
+        _rootWarningDismissed.value = getSharedPreferences("device_warning", MODE_PRIVATE).getStringSet("dismissed", emptySet()).orEmpty().toSet()
+        val probe = AndroidDeviceProbe(this)
+        MainScope().launch { _rootSignals.value = withContext(Dispatchers.IO) { RootDetector.evaluate(probe) } }
         clipboard = SensitiveClipboard(this)
         session = VaultSession(
             storage = VaultStorage(this),

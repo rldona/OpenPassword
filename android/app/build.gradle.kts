@@ -170,6 +170,10 @@ abstract class VerifyManifest : DefaultTask() {
         val forbidden = listOf("android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE")
             .filter { text.contains("\"$it\"") }
         if (forbidden.isNotEmpty()) throw GradleException("El manifiesto declara permisos prohibidos: $forbidden")
+        val required = listOf("android.permission.HIDE_OVERLAY_WINDOWS")
+            .filterNot { text.contains("\"$it\"") }
+        if (required.isNotEmpty()) throw GradleException("El manifiesto debe declarar los permisos de protección: $required")
+        if (text.contains("\"android.permission.QUERY_ALL_PACKAGES\"")) throw GradleException("QUERY_ALL_PACKAGES está prohibido: usa <queries> con paquetes concretos")
         if (!text.contains("android:allowBackup=\"false\"")) throw GradleException("android:allowBackup debe ser false")
     }
 }
