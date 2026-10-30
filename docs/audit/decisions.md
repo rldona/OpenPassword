@@ -1,14 +1,14 @@
 # Decisiones técnicas previas a la auditoría externa
 
-Estado: **propuesta**, parcialmente implementada. `3725741` y `2bd56ce` implementan ADR-AUD-02 a 07 (estado
-paso a paso en [`hardening.md`](hardening.md)); ADR-AUD-01 no (`release/0.2` y la etiqueta firmada no existen). Hay
-trabajo adicional **sin commit** sobre `2bd56ce`. El texto de cada ADR describe la decisión tal como se
-redactó, con la base `3e94bce`, y **no** se ha reescrito. Las que aparecen en la
-[lista final](#decisiones-que-requieren-aprobación-humana) siguen necesitando aprobación humana.
+Estado: **implementada**, salvo ADR-AUD-01 (rama `release/0.2` y etiqueta firmada: no existen). Los
+commits `3725741`, `2bd56ce` y `0ff88be` implementan ADR-AUD-02 a 07; el estado paso a paso está en
+[`hardening.md`](hardening.md). El texto de cada ADR describe la decisión tal como se redactó, con la base
+`3e94bce`, y **no** se ha reescrito: donde el código ha quedado distinto (por ejemplo, el presupuesto de
+KDBX, que quedó en 512 MiB y 3 GiB·pase en vez de 16 GiB·pase), manda el código.
 
 Base inspeccionada al redactar las decisiones: `main` en `3e94bce` («CI: fuzzing con el target gnu del runner»).
-Estado actual: `main` en `2bd56ce` más el trabajo sin commit. Versión de
-espacio de trabajo `0.1.0` (`Cargo.toml`, `android/app/build.gradle.kts:28-29`).
+Estado actual: `main` en `0ff88be`. Versión de espacio de trabajo `0.1.0`
+(`Cargo.toml`, `android/app/build.gradle.kts:28-29`); la `0.2.0` es el siguiente paso, al congelar.
 
 Alcance de la auditoría: `op-core`, `op-ffi`, la app Android y el formato `.opvault` v1. La CLI
 `opvault` (`cli/`) **queda fuera**. Las decisiones que tocan el perfil de Cargo compartido la
@@ -767,23 +767,23 @@ Los pasos 1-8, 9-10, 11-13 y 14-17 forman bloques independientes y pueden avanza
 
 ## Decisiones que requieren aprobación humana
 
-1. **ADR-AUD-01**: firmar etiquetas (qué clave), la congelación blanda de `core/` y `ffi/` en `main`, y
-   añadir `release/0.2` a las versiones con soporte de `SECURITY.md`.
-2. **ADR-AUD-03**: cambiar `panic = "abort"` por `"unwind"`, y el umbral de tamaño (+15 %) a partir
-   del cual se vuelve al perfil separado.
-3. **ADR-AUD-07**: el valor del techo móvil (512 MiB / 6 / 8, o un techo por ABI: 32 bits
-   256 MiB / 3 / 4 y 64 bits 512 MiB / 6 / 8), y que haya respaldos válidos según v1 que no se abran en
-   Android. **Sigue pendiente de aprobación humana.**
-4. **ADR-AUD-07**: el presupuesto de KDBX (`memory × iterations ≤ 16 GiB·pasada`), que puede rechazar
-   bases de KeePass legítimas.
-5. **ADR-AUD-06**: **avisar sin bloquear** cuando se detecta root; y el bloque `<queries>` con los
-   nombres de paquetes de root (es visible en el manifiesto publicado).
-6. **ADR-AUD-06**: el permiso `HIDE_OVERLAY_WINDOWS` en el manifiesto (aparece en F-Droid como permiso
-   nuevo) y la actualización de `android/README.md`, que hoy dice que solo hay dos permisos.
-7. **ADR-AUD-04**: la lista de licencias admitidas en `deny.toml`, y añadir el plugin de CycloneDX
-   (una dependencia de build nueva).
-8. **ADR-AUD-04**: usar atestaciones de Sigstore (registro público) y conceder `id-token: write` al
-   job de release.
-9. **ADR-AUD-05**: no adoptar Jazzer ni ClusterFuzzLite antes de la auditoría.
-10. **ADR-AUD-02**: aplazar la sesión opaca (opción D) a después de la auditoría y aceptar los
-    residuos documentados.
+Todas se aprobaron el **30-oct-2026**, salvo la nº 1, que depende del momento de publicar.
+
+| # | ADR | Decisión | Estado |
+|---|---|---|---|
+| 1 | ADR-AUD-01 | Qué clave firma las etiquetas, congelación blanda de `core/` y `ffi/` en `main`, y `release/0.2` en `SECURITY.md` | **Pendiente**: la rama y la etiqueta se crean al congelar la `0.2.0` |
+| 2 | ADR-AUD-03 | `panic = "unwind"` y umbral de tamaño (+15 %) | Aprobada e implementada (creció 9,3 %) |
+| 3 | ADR-AUD-07 | Techo móvil de 512 MiB / 6 / 8, aceptando que algún respaldo válido según v1 no se abra en Android | Aprobada e implementada |
+| 4 | ADR-AUD-07 | Presupuesto de KDBX | Aprobada e implementada en 512 MiB / 3 GiB·pase |
+| 5 | ADR-AUD-06 | Avisar sin bloquear ante root y publicar el `<queries>` con los paquetes de root | Aprobada e implementada |
+| 6 | ADR-AUD-06 | `HIDE_OVERLAY_WINDOWS` en el manifiesto y actualización de `android/README.md` | Aprobada e implementada; verificado en dispositivo (DT-01) |
+| 7 | ADR-AUD-04 | Lista de licencias de `deny.toml`, plugin CycloneDX y excepción NCSA de `libfuzzer-sys` | Aprobada e implementada |
+| 8 | ADR-AUD-04 | Atestaciones de Sigstore e `id-token: write` en el job de release | Aprobada e implementada; el job no se ha ejecutado |
+| 9 | ADR-AUD-05 | No adoptar Jazzer ni ClusterFuzzLite antes de la auditoría | Aprobada |
+| 10 | ADR-AUD-02 | Aplazar la sesión opaca y aceptar los residuos documentados | Aprobada |
+
+Otras decisiones del responsable, fuera de los ADR:
+
+- **ID-INT-06**: un elemento ilegible se omite con aviso; no bloquea el desbloqueo ni se toca la fila.
+- **ID-INT-14**: el borrado del portapapeles en segundo plano se acepta como riesgo residual de Android.
+- **F-Droid**: publicación en pausa desde el 30-oct-2026 (ver [`docs/fdroid/README.md`](../fdroid/README.md)).

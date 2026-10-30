@@ -13,14 +13,14 @@ hallazgos corregidos. Un segundo bloque de correcciones, **todavía sin commit**
 completa ID-INT-16 (su primera corrección era eludible), además de ajustar ID-INT-02, ID-INT-05 y ID-INT-21; está descrito en cada hallazgo. Un tercer bloque, también **sin commit** y
 **sin hash todavía** («en el bloque sin commit»), corrige o mitiga ID-INT-02, 03, 06, 08, 09, 10, 11, 12, 14, 17, 18, 21 y 23 y amplía la prueba instrumentada de ID-INT-13; cada hallazgo indica
 qué quedó **sin verificar en dispositivo**. Las líneas pueden cambiar si el código cambia: el auditor trabajará sobre el SHA
-congelado ([`decisions.md`](decisions.md), ADR-AUD-01).
+congelado ([`decisions.md`](decisions.md), ADR-AUD-01). **Nota (30-oct-2026)**: lo que aquí figura como «sin commit» está ya en `b2e18ca` y `0ff88be`; el texto conserva la redacción original.
 
 **Alcance de esta revisión**: lectura de `core/src`, `ffi/src`, `android/app/src/main`, los workflows y
 la configuración de build, más una ejecución de `cargo test --workspace --locked` sobre el árbol con el
 tercer bloque (**102 pasan, 0 fallan, 1 ignorado**: 50 unitarios de `op-core`, 9 + 3 + 19 + 5 de
 integración y 16 de `op-ffi`; en la redacción original, sobre `2bd56ce`, eran 95), y `cargo deny --locked check` (`advisories ok, bans ok, licenses ok, sources ok`) más
 `cargo deny --manifest-path fuzz/Cargo.toml --locked --config fuzz/deny.toml check` (mismo resultado, ver ID-INT-23). **No** se han ejecutado los tests de Kotlin
-(no hay JDK en el `PATH` de esta máquina; el recuento de **186** `@Test` en `android/app/src/test` es de lectura, no de ejecución), ni los instrumentados en la revisión original. **Actualización del 30-oct-2026**: los instrumentados (17 tests) se ejecutaron después en un SM-S948B (API 37) y pasaron; en una segunda parte de la sesión se ejecutaron DT-05 y DT-07 (`pasan`) y DT-04 (**`falla`**: confirma ID-INT-14); sigue sin ejecutarse el resto de pruebas en dispositivo (ver [`device-tests.md`](device-tests.md), secciones 3.3 y 3.4). **No es una revisión
+(en la revisión original no había JDK en el `PATH`; después se ejecutaron el 30-oct-2026 en macOS con JDK 17: **186 pasan, 0 fallan**), ni los instrumentados en la revisión original. **Actualización del 30-oct-2026**: los instrumentados (17 tests) se ejecutaron después en un SM-S948B (API 37) y pasaron; en una segunda parte de la sesión se ejecutaron DT-05 y DT-07 (`pasan`) y DT-04 (**`falla`**: confirma ID-INT-14, aceptado después como riesgo residual); sigue sin ejecutarse el resto de pruebas en dispositivo (ver [`device-tests.md`](device-tests.md), secciones 3.3 y 3.4). **No es una revisión
 criptográfica**: no se han comprobado la derivación ni los vectores más allá de lo que cubren los tests.
 
 ## Escala de severidad
@@ -35,21 +35,21 @@ criterio de la escala y la explotabilidad real apuntan a niveles distintos, se e
 |---|---|---|---|---|---|---|
 | Crítica | 0 | 0 | 0 | 0 | 0 | 0 |
 | Alta | 2 | 2 | 0 | 0 | 0 | 0 |
-| Media | 3 | 2 | 0 | 1 | 0 | 0 |
+| Media | 3 | 2 | 0 | 0 | 1 | 0 |
 | Baja | 11 | 11 | 0 | 0 | 0 | 0 |
 | Info | 10 | 4 | 1 | 0 | 3 | 2 |
-| **Total** | **26** | **19** | **1** | **1** | **3** | **2** |
+| **Total** | **26** | **19** | **1** | **0** | **4** | **2** |
 
 «Corregido» significa que el código lo trata y hay tests (JVM o Rust) escritos; **no** significa verificado en dispositivo salvo donde se indica (ID-INT-05, 08, 09 y 13, 30-oct-2026, SM-S948B API 37; y, en parte, ID-INT-16, ver abajo). Las correcciones del bloque sin commit
-no se han ejecutado en la JVM de Kotlin (sin JDK en la revisión original). **«Confirmado en dispositivo»** significa que el fallo descrito se reprodujo en un dispositivo: **no** es «corregido» y el hallazgo sigue abierto hasta que haya corrección y se repita la prueba. Lo que sigue pendiente de dispositivo o de aprobación humana:
+se ejecutaron después en la JVM de Kotlin (186 pasan, 0 fallan, 30-oct-2026). **«Confirmado en dispositivo»** significa que el fallo descrito se reprodujo en un dispositivo: **no** es «corregido» y el hallazgo sigue abierto hasta que haya corrección y se repita la prueba. Lo que sigue pendiente de dispositivo o de aprobación humana:
 
-- **Dispositivo**: ID-INT-14 (confirmado en API 37; faltan API 29, 33 y 36, DT-04c y la comprobación de «al volver a la app»; [DT-04](device-tests.md#dt-04)), ID-INT-26 (autorrelleno) y ID-INT-16 (el `webDomain` de una app no navegador se ignora: **verificado en dispositivo** con DT-07 en API 37; faltan DT-06 con Chrome, DT-08 y la hipótesis del `iframe`), ID-INT-20 (la carga de la lista de sufijos **verificada en dispositivo** en la build de depuración con DT-05; falta la variante con R8 y la actualización automática). ID-INT-13 se verificó el 30-oct-2026 en un SM-S948B (API 37) con los instrumentados y DT-01; los instrumentados de ID-INT-05, 08 y 09 también pasaron ahí. Sigue pendiente DT-02/DT-03 (API 28-30 y diálogos), DT-12 (Android 9) y todo lo que dependa de un baúl real.
-- **Aprobación humana**: ID-INT-23 (licencia NCSA de `libfuzzer-sys` en `fuzz/deny.toml`), la política de KDBX de ID-INT-02 (decisión nº 4 de [`decisions.md`](decisions.md)) y **qué hacer con ID-INT-14** (corregir el borrado o aceptar el riesgo residual): no está decidido y no se ha tomado aquí.
+- **Dispositivo**: ID-INT-14 (confirmado en API 37 y **aceptado como riesgo residual**; no se probaron API 29, 33 y 36, DT-04c ni «al volver a la app»; [DT-04](device-tests.md#dt-04)), ID-INT-26 (autorrelleno) y ID-INT-16 (el `webDomain` de una app no navegador se ignora: **verificado en dispositivo** con DT-07 en API 37; faltan DT-06 con Chrome, DT-08 y la hipótesis del `iframe`), ID-INT-20 (la carga de la lista de sufijos **verificada en dispositivo** en la build de depuración con DT-05; falta la variante con R8 y la actualización automática). ID-INT-13 se verificó el 30-oct-2026 en un SM-S948B (API 37) con los instrumentados y DT-01; los instrumentados de ID-INT-05, 08 y 09 también pasaron ahí. Sigue pendiente DT-02/DT-03 (API 28-30 y diálogos), DT-12 (Android 9) y todo lo que dependa de un baúl real.
+- **Aprobación humana**: la política de KDBX de ID-INT-02 (decisión nº 4 de [`decisions.md`](decisions.md)) sigue pendiente. **Decididas el 30-oct-2026**: la licencia NCSA de `libfuzzer-sys` en `fuzz/deny.toml` (ID-INT-23, **aprobada**) e ID-INT-14 (**aceptado como riesgo residual**).
 
 | ID | Sev. | Área | Título | Estado |
 |---|---|---|---|---|
 | [ID-INT-01](#id-int-01) | Media | Rust | KDBX: el XML consume memoria cuadrática (DoS reproducido) | **Corregido** (`2bd56ce`) |
-| [ID-INT-02](#id-int-02) | Baja | Rust | KDBX: la KDF de KeePass no pasa por el techo móvil de `.opvault` | **Corregido** (en el bloque sin commit; política de KDBX pendiente de aprobación humana; Kotlin sin ejecutar) |
+| [ID-INT-02](#id-int-02) | Baja | Rust | KDBX: la KDF de KeePass no pasa por el techo móvil de `.opvault` | **Corregido** (política de KDBX aprobada el 30-oct-2026; `KdfMemoryTest` en verde) |
 | [ID-INT-03](#id-int-03) | Baja | Rust | Importadores: secretos en búferes que no se borran | **Corregido** (en el bloque sin commit; residuos documentados) |
 | [ID-INT-04](#id-int-04) | Info | FFI | Residuos de salida de UniFFI aceptados | Aceptado |
 | [ID-INT-05](#id-int-05) | Media | Android | El desbloqueo no cierra el `Vault` si falla después de `Vault.unlock` (conocido) | **Corregido** (`2bd56ce`; test instrumentado en verde en dispositivo, 30-oct-2026) |
@@ -61,7 +61,7 @@ no se han ejecutado en la JVM de Kotlin (sin JDK en la revisión original). **«
 | [ID-INT-11](#id-int-11) | Info | Android | `AutoBackup` traga `CancellationException` | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar) |
 | [ID-INT-12](#id-int-12) | Baja | Android | `readBackupFile` deja una copia en claro sin borrar | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar) |
 | [ID-INT-13](#id-int-13) | Info | Android | A7: la implementación y sus pruebas no alcanzan lo que describe el ADR | **Corregido y verificado en dispositivo** (30-oct-2026; DT-01 solo `MainActivity`; banner en autorrelleno sin hacer) |
-| [ID-INT-14](#id-int-14) | Media | Portapapeles | El borrado de los 30 s no actúa si la app perdió el foco | **Confirmado en dispositivo** (DT-04, 30-oct-2026, SM-S948B API 37: el borrado no ocurre en segundo plano; **no corregido**; no consta que la mitigación en código sin commit lo evite) |
+| [ID-INT-14](#id-int-14) | Media | Portapapeles | El borrado de los 30 s no actúa si la app perdió el foco | **Aceptado como riesgo residual** (decisión del responsable, 30-oct-2026; fallo confirmado en dispositivo, DT-04, SM-S948B API 37: el borrado no ocurre en segundo plano) |
 | [ID-INT-15](#id-int-15) | Info | Portapapeles | Sin marca de «sensible» en API 28-32 | Aceptado |
 | [ID-INT-16](#id-int-16) | Alta | Autorrelleno | El dominio de una página lo declara cualquier app: no se exige un navegador | **Corregido** (`2bd56ce`, completado en el bloque sin commit; **verificado en dispositivo** solo que una app no navegador no recibe datasets web, DT-07 en API 37; sin probar con Chrome ni el `iframe`) |
 | [ID-INT-17](#id-int-17) | Baja | Autorrelleno | `PendingSaves`: caducidad perezosa y sin vaciado al bloquear | **Corregido** (en el bloque sin commit; Kotlin sin ejecutar) |
@@ -70,7 +70,7 @@ no se han ejecutado en la JVM de Kotlin (sin JDK en la revisión original). **«
 | [ID-INT-20](#id-int-20) | Info | Autorrelleno | La lista de sufijos públicos: sin prueba con R8 y sin actualización | Abierto (carga y aplicación **verificadas en dispositivo** en la build de depuración, DT-05; sin R8 ni actualización automática) |
 | [ID-INT-21](#id-int-21) | Baja | Herramientas | La comprobación de que `cfg(fuzzing)` no entra en release no detecta nada | **Corregido** (en el bloque sin commit; CI sin ejecutar) |
 | [ID-INT-22](#id-int-22) | Info | Herramientas | `cargoBuild` no declara `rust-toolchain.toml` ni `.cargo/config.toml` como entradas | Abierto |
-| [ID-INT-23](#id-int-23) | Info | Herramientas | Ficheros generados y *lockfiles* fuera de cobertura | Parcial (`.gitignore`; `fuzz/deny.toml` y paso de CI hechos en el bloque sin commit, **pendiente de aprobación humana** por la licencia NCSA) |
+| [ID-INT-23](#id-int-23) | Info | Herramientas | Ficheros generados y *lockfiles* fuera de cobertura | Parcial (`.gitignore`; `fuzz/deny.toml` y paso de CI hechos en el bloque sin commit; licencia NCSA **aprobada** el 30-oct-2026) |
 | [ID-INT-24](#id-int-24) | Info | Herramientas | `fuzz/README.md` está desactualizado respecto a la CI y a los límites | **Corregido** (documentación) |
 | [ID-INT-25](#id-int-25) | Baja | Herramientas | El objetivo `import` no llega al analizador de la cabecera de KDBX | **Corregido** (`2bd56ce`) |
 | [ID-INT-26](#id-int-26) | Alta | Autorrelleno | Una app rellenada puede inyectar el dominio en el `PendingIntent` mutable y recibir credenciales de cualquier sitio | **Corregido** (sin commit; sin probar en dispositivo) |
@@ -529,7 +529,7 @@ Código: `security/SensitiveClipboard.kt` (45 líneas), usado desde la UI y limp
 | Severidad | **Media** (la escala diría **Alta**: «una defensa descrita en el modelo de amenazas … se salta»; se mantiene Media: la propuesta del proyecto antes de confirmarlo, que decide el auditor) |
 | Componente | Android, portapapeles |
 | Evidencia | `SensitiveClipboard.kt:34-39`: `if (clipboard.primaryClipDescription?.label == LABEL) clipboard.clearPrimaryClip()`, con el comentario «Android 10+ may deny clipboard access in the background: then the description is null»; `OpenPasswordApp.kt:78-79`; **DT-04 en dispositivo** (ver abajo) |
-| Estado | **Confirmado en dispositivo** (30-oct-2026, SM-S948B, Android 17 / API 37): el borrado **no** ocurre con la app en segundo plano. **No corregido.** Se observó con la build instalada desde el árbol de trabajo (commit y huella no registrados); no consta que la mitigación en código sin commit lo evite. Sin probar en API 29, 33 y 36. |
+| Estado | **Aceptado como riesgo residual** (decisión del responsable del proyecto, 30-oct-2026). El fallo está **confirmado en dispositivo** (SM-S948B, Android 17 / API 37): el borrado **no** ocurre con la app en segundo plano; no se corrigió. Se observó con la build instalada desde el árbol de trabajo (commit y huella no registrados). Sin probar en API 29, 33 y 36. |
 
 **Confirmación en dispositivo (30-oct-2026, [DT-04](device-tests.md#dt-04), segunda parte de la sesión).** Se leyó el portapapeles con un lector propio (en `onWindowFocusChanged`):
 
@@ -543,12 +543,12 @@ Conclusión (de la sesión): es una **limitación de la plataforma** en API 37: 
 
 **Nota del mensaje (sin commit).** La app prometía «Se borrará del portapapeles en 30 s» también en segundo plano. El mensaje ahora dice «Se borrará en 30 s, o al volver a la app si sales.» (`ui/vault/ItemDetailScreen.kt:99,142,184`). Esto corrige lo que se promete al usuario, **no** el borrado; y «o al volver a la app» es el diseño de la mitigación, **no verificado en dispositivo**.
 
-**Decisión pendiente (humana)**: corregir el borrado o **aceptar el riesgo residual** y documentarlo. No se ha decidido ni se ha identificado una vía de corrección; el hallazgo se queda en «Confirmado en dispositivo» hasta entonces.
+**Decisión del responsable (30-oct-2026): se acepta como riesgo residual.** Es una limitación de Android (`clearPrimaryClip()` no surte efecto en segundo plano) y no se ha identificado una vía de corrección. **Mitigaciones actuales**: marca de «sensible» (API 33+); borrado a los 30 s con la app en primer plano (verificado, DT-04a); borrado al volver a la app y al apagar la pantalla (diseño de la mitigación, **no verificado en dispositivo**); y un mensaje honesto en la interfaz. **No se quita el botón de copiar.** Referencia: [DT-04](device-tests.md#dt-04) (04b `falla`). El hallazgo se reabre si el auditor o una prueba posterior encuentra una vía de corrección.
 
 **Mitigación en código (en el bloque sin commit), no verificada.** `security/ClipboardClearPolicy.kt` es la decisión pura (qué hacer según plazo, etiqueta y si se puede leer el portapapeles) y `SensitiveClipboard` la aplica con el plazo **persistido** en `SharedPreferences` y un `Handler` del hilo principal del proceso que intenta el borrado al vencer;
 si el portapapeles no se puede leer en ese momento no se toca nada y el borrado queda **pendiente** hasta que la app vuelva a primer plano (`onForeground`, llamado desde `OpenPasswordApp.kt:63,79`) o se apague la pantalla (`clearIfOurs`). Tests: `ClipboardClearPolicyTest` (7 `@Test`, no ejecutados).
 **Lo que sigue sin saberse** (lo dice el propio comentario de `SensitiveClipboard.kt`): (1) si `primaryClipDescription` es de verdad `null` en segundo plano; (2) si `clearPrimaryClip()` está denegado desde segundo plano; (3) si el `Handler` se ejecuta con el proceso en caché. DT-04 confirma el síntoma en API 37 sin distinguirlas.
-Mientras no se corrija, una contraseña copiada y pegada en otra app puede seguir en el portapapeles hasta que el usuario vuelva a OpenPassword, se apague la pantalla o se copie otra cosa; **no** debe afirmarse «con borrado» en A7 (ya corregido en [`threat-model.md`](../threat-model.md)).
+Al aceptarse el riesgo, una contraseña copiada y pegada en otra app puede seguir en el portapapeles hasta que el usuario vuelva a OpenPassword, se apague la pantalla o se copie otra cosa; **no** debe afirmarse «con borrado» en A7 (ya corregido en [`threat-model.md`](../threat-model.md)).
 
 **Qué pasa.** El uso típico es copiar una contraseña y **cambiar a la otra app** para pegarla: en ese
 momento OpenPassword ya no tiene el foco. Desde Android 10 solo la app con foco y el teclado por
@@ -826,11 +826,11 @@ antiguo en local. No afecta a la CI (partida limpia). Relevante para quien repro
 | Severidad | **Info** |
 | Componente | Herramientas |
 | Evidencia | `git status --short` muestra `core/op-core.cdx.json` (78 084 B) y `cli/opvault-cli.cdx.json` (95 577 B) sin seguimiento ni ignorados (`git check-ignore` no devuelve nada); `fuzz/Cargo.lock` (132 paquetes) tiene su propio espacio de trabajo y no lo recorre `cargo deny` (que corre en la raíz) |
-| Estado | **Parcial**: `*.cdx.json` está en `.gitignore` (`2bd56ce`) y los dos ficheros ya no existen; `fuzz/deny.toml` y el paso de CI para `fuzz/Cargo.lock` están hechos en el bloque sin commit, **pendientes de aprobación humana** (licencia NCSA) |
+| Estado | **Parcial**: `*.cdx.json` está en `.gitignore` (`2bd56ce`) y los dos ficheros ya no existen; `fuzz/deny.toml` y el paso de CI para `fuzz/Cargo.lock` están hechos en el bloque sin commit; la licencia NCSA fue **aprobada por el responsable el 30-oct-2026** |
 
 **Corrección (en el bloque sin commit).** `fuzz/deny.toml` aplica las mismas reglas que el `deny.toml` raíz más **una** excepción: `libfuzzer-sys` es «(MIT OR Apache-2.0) AND NCSA», una licencia permisiva de la Universidad de Illinois del código de LLVM que incluye; es solo del arnés de desarrollo y no entra en ningún binario distribuido.
 El job `audit` ejecuta `cargo deny --manifest-path fuzz/Cargo.toml --locked --config fuzz/deny.toml check` (`ci.yml:44-45`). Ejecutado en esta revisión: `advisories ok, bans ok, licenses ok, sources ok`.
-**Pendiente de aprobación humana**: aceptar la licencia NCSA (ADR-AUD-04). Mientras no se apruebe, el propio fichero indica quitar el paso `fuzz` del job `audit`.
+La licencia NCSA (ADR-AUD-04) fue **aprobada por el responsable el 30-oct-2026**; el hallazgo sigue «parcial» (ver el estado).
 
 Riesgo de confirmar por error dos SBOM que no se publican, y que el entorno de *fuzzing* no tenga
 revisión de avisos. El segundo es de desarrollo y no entra en el binario.
@@ -888,4 +888,4 @@ la cabecera interna y el XML; semillas en `fuzz/seeds/kdbx_container/` (5). Los 
 - La **interfaz Compose** en general (estados, navegación); solo las llamadas a `session.*`.
 - `FieldClassifier` y `SavePlanner`: leídos por encima, con tests.
 - El **proceso de publicación** completo (F-Droid, firma) más allá de lo citado.
-- Cualquier **prueba en dispositivo** salvo las ejecutadas el 30-oct-2026 (ID-INT-14 está confirmado como fallo en API 37 pero sin corregir; ID-INT-16 y 20 solo en parte; ID-INT-18 y 26 siguen necesitándola).
+- Cualquier **prueba en dispositivo** salvo las ejecutadas el 30-oct-2026 (ID-INT-14 está confirmado como fallo en API 37 y aceptado como riesgo residual; ID-INT-16 y 20 solo en parte; ID-INT-18 y 26 siguen necesitándola).

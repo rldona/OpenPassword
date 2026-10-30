@@ -37,4 +37,4 @@ Lo que el [modelo de amenazas](docs/threat-model.md) deja fuera: un teléfono co
 
 ## Versiones con soporte
 
-Solo la última versión publicada, la rama `main` y la rama `release/0.2` (la versión que se somete a auditoría externa; se crea al congelar `v0.2.0` y solo recibe correcciones).
+Solo la última versión publicada y la rama `main`. La rama `release/0.2` (la versión que se someterá a auditoría externa) **todavía no existe**: se creará al congelar `v0.2.0`, cuando se contrate la auditoría, y entonces solo recibirá correcciones.
