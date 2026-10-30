@@ -64,9 +64,14 @@ object LoginMatcher {
         return normalizeHost(host)
     }
 
+    private val HOSTNAME = Regex("""[a-z0-9.-]+""")
+
     private fun normalizeHost(host: String?): String? {
         val h = host?.trim()?.trimEnd('.')?.lowercase(Locale.ROOT)?.removePrefix("www.") ?: return null
-        // A single label ("localhost", "com") or an IP literal is never matched by suffix.
-        return h.takeIf { it.contains('.') && it.isNotBlank() }
+        // A bare ASCII host name only (Unicode hosts are never converted: they fail closed): no
+        // scheme, port, path, query, userinfo or whitespace.
+        if (!HOSTNAME.matches(h) || h.split('.').any { it.isEmpty() }) return null
+        // A single label ("localhost", "com") is never matched by suffix.
+        return h.takeIf { it.contains('.') }
     }
 }

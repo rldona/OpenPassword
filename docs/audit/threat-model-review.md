@@ -3,8 +3,10 @@
 Revisión de [`../threat-model.md`](../threat-model.md) (v1, 48 líneas) contra el código del repositorio.
 No modifica `threat-model.md`: la sección 5 lista los cambios que habría que aplicar.
 
-Estado verificado el 2026-10-30 sobre el árbol de trabajo (`HEAD` `3725741` más cambios sin confirmar;
-ver [`hardening.md`](hardening.md) para saber qué está confirmado). Los hallazgos `ID-INT-nn` están en
+> **Actualización posterior a `2bd56ce`.** Se han aplicado en `threat-model.md` los cambios 1 (A7), 3 (A10), 4 (con una fila nueva A17 en lugar de ampliar A12; ID-INT-16 está corregido) y 13 (residuos de secretos y de importadores). Siguen sin aplicar los demás. Las secciones que describen ID-INT-01 y ID-INT-16 (y la fila A12 de la sección 2) reflejan el estado **antes** de `2bd56ce`, donde ambos quedaron corregidos. La numeración de filas nuevas de la sección 5 (punto 10) ya no es válida: A17 es ahora «App que declara el dominio de una web». Se añadió también A18 («App rellenada que dispara el `PendingIntent` de autenticación», ID-INT-26), también sin commit.
+
+Estado verificado el 2026-10-30 sobre el árbol de trabajo (`HEAD` `3725741` más cambios sin confirmar,
+que desde entonces están en `2bd56ce`; ver [`hardening.md`](hardening.md)). Los hallazgos `ID-INT-nn` están en
 [`internal-review.md`](internal-review.md). Las afirmaciones que no se pueden comprobar sin un
 dispositivo se marcan **sin verificar**.
 
@@ -79,7 +81,7 @@ Cada entrada: **qué es**, **lo que hay hoy** (con evidencia), **brecha** y **pr
   JSON, `.1pux`, QR, imagen o `AssistStructure`. Un *panic* de Rust y una falta de memoria no son lo mismo.
 - **Hoy**: `panic = "unwind"` (`Cargo.toml:25`) más captura de `InternalException` convierten el
   *panic* en un error (`VaultSession.kt:434-443`); el techo móvil de KDF 512 MiB / 6 / 8
-  (`ffi/src/lib.rs:33`) y el presupuesto KDBX de 16 GiB·pasada (`kdbx.rs:36-40`) acotan el coste; el
+  (`ffi/src/lib.rs:33`) y el presupuesto KDBX (hoy 512 MiB y 3 GiB·pasada, `kdbx.rs:36-42`; antes 16 GiB·pasada) acotan el coste; el
   límite de entrada es de 32 MiB (`import/mod.rs:34`) y de 64 MiB en Kotlin (`Components.kt:171`).
 - **Brecha**: una **falta de memoria aborta el proceso** con cualquier estrategia de *panic*
   (ADR-AUD-03; riesgo abierto en [`decisions.md`](decisions.md)). Y hay un DoS real, reproducido:
@@ -162,7 +164,7 @@ Cada entrada: **qué es**, **lo que hay hoy** (con evidencia), **brecha** y **pr
   el token de guardado son 16 bytes aleatorios con vida de 5 min (`PendingSaves.kt:15-24`); el
   `PendingIntent` de autorrelleno es mutable pero de `Intent` explícito (`Datasets.kt:50-55`). Detalle
   en [`attack-surface.md`](attack-surface.md) §2.9.
-- **Brecha**: ninguna conocida; el documento no lo dice. **Matiz**: la caducidad del token es perezosa y
+- **Brecha** (corregida después de esta revisión): este análisis dio por bueno el `PendingIntent` mutable de autorrelleno, pero la app rellenada recibe el `IntentSender` y puede añadirle extras: ver [ID-INT-26](internal-review.md#id-int-26), corregido sin commit con un token de un solo uso, y la fila A18 de `threat-model.md`. **Matiz**: la caducidad del token es perezosa y
   no hay vaciado al bloquear (ID-INT-17).
 - **Propuesta**: fila **A20 «App que envía intents»**, «Mitigado»: actividades no exportadas, token
   aleatorio, sin datos en el intent.
@@ -187,7 +189,7 @@ Cada entrada: **qué es**, **lo que hay hoy** (con evidencia), **brecha** y **pr
 ### 3.8 CI y GitHub Actions comprometidas
 
 - **Qué es**: que el APK que firma el mantenedor no sea el del código fuente.
-- **Hoy** (árbol de trabajo, **sin confirmar**): Actions fijadas por SHA, `cargo-deny@0.20.2` y
+- **Hoy** (commit `2bd56ce`): Actions fijadas por SHA, `cargo-deny@0.20.2` y
   `cargo-fuzz@0.13.2` con versión, `dependabot.yml`, `verification-metadata.xml` de Gradle y un job
   `release` con atestación de procedencia (`ci.yml`, `.github/dependabot.yml`,
   `android/gradle/verification-metadata.xml`). Permisos de la CI: `contents: read`, y

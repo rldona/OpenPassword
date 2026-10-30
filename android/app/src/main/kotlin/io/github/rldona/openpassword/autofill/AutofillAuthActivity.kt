@@ -46,6 +46,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.activity.viewModels
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.rldona.openpassword.OpenPasswordApp
 import io.github.rldona.openpassword.core.InternalException
@@ -82,14 +84,22 @@ class AutofillAuthActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setResult(Activity.RESULT_CANCELED)
 
-        val usernameId = extra<AutofillId>(Datasets.EXTRA_USERNAME_ID)
-        val passwordId = extra<AutofillId>(Datasets.EXTRA_PASSWORD_ID)
-        val target = intent.getStringExtra(Datasets.EXTRA_WEB_DOMAIN)?.let { FillTarget.Web(it) }
-            ?: intent.getStringExtra(Datasets.EXTRA_PACKAGE)?.let { FillTarget.App(it) }
-        if (target == null || (usernameId == null && passwordId == null)) {
+        // The Intent can come from the app being filled (it holds our IntentSender), so none of
+        // its extras is trusted: drop the legacy target extras and resolve everything by token.
+        Datasets.LEGACY_EXTRAS.forEach(intent::removeExtra)
+        val holder by viewModels<RequestHolder>()
+        if (savedInstanceState == null) {
+            holder.request = AutofillRequestTokens.shared.take(intent.getStringExtra(Datasets.EXTRA_TOKEN))
+        }
+        val request = holder.request
+        if (request == null || (request.username == null && request.password == null)) {
             finish()
             return
         }
+        val usernameId = request.username
+        val passwordId = request.password
+        val target = request.target
+        val isBrowserApp = target is FillTarget.App && CachedBrowserCheck.forPackageManager(packageManager).isBrowser(target.packageName)
         val session = (application as OpenPasswordApp).session
 
         setContent {
@@ -111,6 +121,7 @@ class AutofillAuthActivity : ComponentActivity() {
                     is SessionState.Unlocked -> PickLogin(
                         entries = s.entries.filter { it.overview.kind == ItemKindRecord.LOGIN },
                         target = target,
+                        canRemember = target is FillTarget.App && !isBrowserApp,
                         session = session,
                         onPicked = { entry, credentials -> finishWith(usernameId, passwordId, entry, credentials) },
                         onCancel = ::finish,
@@ -120,6 +131,12 @@ class AutofillAuthActivity : ComponentActivity() {
         }
         excludeFromAutofill(this)
         protectFromOverlays(this)
+    }
+
+    override fun onDestroy() {
+        // Success, cancel or error: nothing of the request outlives the activity.
+        if (isFinishing) viewModels<RequestHolder>().value.request = null
+        super.onDestroy()
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
@@ -133,18 +150,15 @@ class AutofillAuthActivity : ComponentActivity() {
         finish()
     }
 
-    private inline fun <reified T : android.os.Parcelable> extra(name: String): T? =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(name, T::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            intent.getParcelableExtra(name)
-        }
-
     companion object {
-        fun intent(context: Context, request: LoginRequest): Intent =
-            Datasets.toIntentExtras(Intent(context, AutofillAuthActivity::class.java), request)
+        fun intent(context: Context, token: String): Intent =
+            Datasets.toIntentExtras(Intent(context, AutofillAuthActivity::class.java), token)
     }
+}
+
+/** Keeps the resolved request across rotation: the token itself is single use. */
+class RequestHolder : ViewModel() {
+    var request: LoginRequest? = null
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -152,6 +166,7 @@ class AutofillAuthActivity : ComponentActivity() {
 private fun PickLogin(
     entries: List<VaultEntry>,
     target: FillTarget,
+    canRemember: Boolean,
     session: VaultSession,
     onPicked: (VaultEntry, Credentials) -> Unit,
     onCancel: () -> Unit,
@@ -177,7 +192,7 @@ private fun PickLogin(
             try {
                 val details = session.details(entry)
                 // Linking a login to an app: only for apps (package names are verified by Android).
-                if (!isMatch && remember && target is FillTarget.App) {
+                if (!isMatch && remember && canRemember && target is FillTarget.App) {
                     val urls = entry.overview.urls + LoginMatcher.appUrl(target.packageName)
                     session.save(entry, entry.overview.copy(urls = urls, updatedAt = (System.currentTimeMillis() / 1000).toULong()), details)
                 }
@@ -222,7 +237,7 @@ private fun PickLogin(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        if (target is FillTarget.App) {
+                        if (canRemember) {
                             Row(
                                 Modifier.fillMaxWidth().toggleable(value = remember, role = Role.Checkbox, onValueChange = { remember = it }),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -230,7 +245,7 @@ private fun PickLogin(
                                 Checkbox(checked = remember, onCheckedChange = null)
                                 Text("Recordar el login elegido para esta app", Modifier.padding(start = 12.dp))
                             }
-                        } else if (matching.isEmpty()) {
+                        } else if (target is FillTarget.Web && matching.isEmpty()) {
                             Text(
                                 "Ningún login tiene guardado $where. Comprueba que es el sitio que esperas antes de rellenar.",
                                 style = MaterialTheme.typography.bodySmall,

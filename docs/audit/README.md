@@ -14,7 +14,7 @@ proyecto necesita para contratar, seguir y cerrar esa auditoría. Cubre la Fase 
 | Versión | `v0.2.0`, congelada tras el endurecimiento ([ADR-AUD-01](decisions.md#adr-aud-01--estrategia-de-congelación)) |
 | Rama | `release/0.2` (todavía no existe) |
 | Commit base inspeccionado al redactar las decisiones | `3e94bce` («CI: fuzzing con el target gnu del runner») |
-| Commit de `main` al redactar este paquete | `3725741` («Fase 3: frontera FFI robusta y defensas A7/A10»), con cambios sin confirmar en el árbol de trabajo |
+| Commit de `main` que contiene este paquete | `2bd56ce` («Fase 3: endurecimiento, cadena de suministro y paquete de auditoría»), sobre `3725741` («Fase 3: frontera FFI robusta y defensas A7/A10»). Hay además trabajo **sin commit** sobre `2bd56ce` (correcciones de autorrelleno ID-INT-16 y ID-INT-26, techo de KDBX, guardia de `cfg(fuzzing)` y documentación): `git status` lo lista |
 | **Commit que se auditará** | **PENDIENTE**: SHA de 40 caracteres de la punta de `release/0.2` etiquetada `v0.2.0`. Se rellena al crear la etiqueta firmada |
 | Etiqueta firmada | **PENDIENTE** (`git tag -l` no muestra ninguna etiqueta en el clon local; la clave de firma está pendiente de aprobación, ver [decisions.md](decisions.md#decisiones-que-requieren-aprobación-humana)) |
 | Dentro del alcance | `op-core`, `op-ffi`, app Android, formato `.opvault` v1, builds reproducibles y firma |
@@ -26,30 +26,29 @@ Lo que se audita es el SHA, no el nombre de la etiqueta.
 ## Índice y estado
 
 Estados: **hecho** (escrito y contrastado con el repositorio), **pendiente** (falta contenido que
-solo el proyecto puede aportar), **sin verificar** (contiene datos externos no comprobados),
-**en preparación** (lo redacta otra persona o agente).
+solo el proyecto puede aportar), **sin verificar** (contiene datos externos no comprobados).
 
 | Documento | Para qué sirve | Estado |
 |---|---|---|
-| [`decisions.md`](decisions.md) | ADR-AUD-01 a 07: decisiones técnicas previas a la auditoría | **hecho** como propuesta; su cabecera aún dice «ninguna decisión está implementada», pero el commit `3725741` ya incluye cambios de ADR-AUD-03 y ADR-AUD-06. Hay 10 decisiones que esperan aprobación humana |
+| [`decisions.md`](decisions.md) | ADR-AUD-01 a 07: decisiones técnicas previas a la auditoría | **hecho** como propuesta; su cabecera refleja ya que `3725741` y `2bd56ce` implementan ADR-AUD-02 a 07 (ver [`hardening.md`](hardening.md)), con el texto de los ADR sin tocar. Hay 10 decisiones que esperan aprobación humana |
 | [`scope.md`](scope.md) | *Scope of work* para el auditor | **pendiente**: faltan el SHA congelado, los plazos y los contactos. El resto está contrastado con el repositorio |
 | [`vendors.md`](vendors.md) | Shortlist de proveedores y vías de financiación | **sin verificar** en disponibilidad y precios; especialidades e informes públicos contrastados en las webs de cada proveedor (fuente y fecha en el documento) |
 | [`budget-timeline.md`](budget-timeline.md) | Plantilla de presupuesto por proveedor y calendario | **pendiente**: todos los importes y fechas son huecos a propósito |
 | [`findings-process.md`](findings-process.md) | Severidad, seguimiento, correcciones, re-test y criterios de `1.0.0` | **hecho** como propuesta; los plazos y criterios nuevos necesitan aprobación |
-| [`attack-surface.md`](attack-surface.md) | Superficie de ataque por componente | **en preparación** |
-| [`threat-model-review.md`](threat-model-review.md) | Revisión del [modelo de amenazas](../threat-model.md) antes de la auditoría | **en preparación** |
-| [`internal-review.md`](internal-review.md) | Revisión interna previa | **en preparación** |
-| [`dependencies.md`](dependencies.md) | Inventario y política de dependencias | **en preparación** |
-| [`fuzzing.md`](fuzzing.md) | Cobertura y resultados de fuzzing | **en preparación** (los objetivos existentes ya se describen en [`fuzz/README.md`](../../fuzz/README.md)) |
-| [`hardening.md`](hardening.md) | Endurecimiento aplicado y pendiente | **en preparación** |
+| [`attack-surface.md`](attack-surface.md) | Superficie de ataque por componente | **hecho**, sin recontrastar línea a línea tras `2bd56ce` (se corrigieron las afirmaciones de ID-INT-01, 16, 25 y 26) |
+| [`threat-model-review.md`](threat-model-review.md) | Revisión del [modelo de amenazas](../threat-model.md) antes de la auditoría | **hecho**, con una nota de actualización posterior a `2bd56ce`: se aplicó parte de su sección 5 a `threat-model.md`, y las secciones que describen ID-INT-01 e ID-INT-16 reflejan el estado anterior a su corrección |
+| [`internal-review.md`](internal-review.md) | Revisión interna previa | **hecho**: 26 hallazgos; **corregidos** ID-INT-01, 05, 07, 16, 24, 25 y 26 (16 y 26 sin commit); el resto, abiertos, aceptados o parciales. Las pruebas de Kotlin y en dispositivo no se han ejecutado |
+| [`dependencies.md`](dependencies.md) | Inventario y política de dependencias | **hecho** (`cargo-deny`, verificación de Gradle, SBOM y Actions por SHA ya implementados; falta ejecutar el job `release` y una compilación con la verificación activa) |
+| [`fuzzing.md`](fuzzing.md) | Cobertura y resultados de fuzzing | **hecho** (11 objetivos, nocturno); sin ninguna ejecución del workflow nocturno ni cifras de ejecuciones de los objetivos nuevos |
+| [`hardening.md`](hardening.md) | Endurecimiento aplicado y pendiente | **hecho** (estado de los 19 pasos de ADR-AUD sobre `2bd56ce`); pasos pendientes: 9 en parte, 18 en parte y 19 |
 
-Los enlaces a los seis documentos «en preparación» apuntan a ficheros que pueden no existir todavía.
+Todos los documentos del índice existen.
 
 Documentos del repositorio que el auditor debe leer y que **no** se copian aquí:
 
 - [`docs/crypto-spec.md`](../crypto-spec.md): primitivas, claves, AAD, STREAM, KDF.
 - [`docs/opvault-format.md`](../opvault-format.md): formato `.opvault` v1.
-- [`docs/threat-model.md`](../threat-model.md): activos, atacantes A1–A16 y riesgos residuales.
+- [`docs/threat-model.md`](../threat-model.md): activos, atacantes A1–A18 y riesgos residuales.
 - [`SECURITY.md`](../../SECURITY.md): cómo se notifican vulnerabilidades y plazos.
 - [`android/README.md`](../../android/README.md) y [`docs/fdroid/README.md`](../fdroid/README.md): compilación y build reproducible.
 - [`core/tests/vectors/op-v1.json`](../../core/tests/vectors/op-v1.json): vectores dorados del formato.

@@ -28,7 +28,7 @@ Publicaremos el aviso (GitHub Security Advisory, con CVE si procede) cuando haya
 
 - La criptografía y su implementación: [especificación](docs/crypto-spec.md), derivación de claves, cifrado por elemento, formato de respaldo.
 - Lectura de datos no confiables: copias `.opvault`, importadores (KeePass, 1Password, Bitwarden, CSV), enlaces `otpauth://` y códigos QR.
-- La app Android: autorrelleno (coincidencia de dominios y paquetes), bloqueo automático, desbloqueo biométrico, portapapeles, permisos.
+- La app Android: autorrelleno (coincidencia de dominios y paquetes; el objetivo de cada solicitud viaja por un token aleatorio, de un solo uso y en memoria, y no en extras del `Intent`), bloqueo automático, desbloqueo biométrico, portapapeles, permisos.
 - Builds reproducibles y firma del APK.
 
 ## Fuera del alcance
@@ -37,4 +37,4 @@ Lo que el [modelo de amenazas](docs/threat-model.md) deja fuera: un teléfono co
 
 ## Versiones con soporte
 
-Solo la última versión publicada y la rama `main`.
+Solo la última versión publicada, la rama `main` y la rama `release/0.2` (la versión que se somete a auditoría externa; se crea al congelar `v0.2.0` y solo recibe correcciones).

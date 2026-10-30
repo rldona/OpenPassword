@@ -1,6 +1,6 @@
 # Fuzzing
 
-Objetivos de [`cargo-fuzz`](https://github.com/rust-fuzz/cargo-fuzz) para todo lo que lee datos no confiables. Necesitan nightly:
+Once objetivos de [`cargo-fuzz`](https://github.com/rust-fuzz/cargo-fuzz) para todo lo que lee datos no confiables. Necesitan nightly:
 
 | Objetivo | Qué recibe |
 |---|---|
@@ -24,7 +24,7 @@ Con entradas aleatorias el AEAD no deja pasar nada, así que los cuatro últimos
 cargo build -p op-core --release && ! strings target/release/libop_core.rlib | grep -E 'seal_backup|seal_item_part|TEST_VAULT_KEY'
 ```
 
-Las derivaciones de claves no se fuzzean: su coste lo fija el fichero y está acotado (Argon2 ≤ 1 GiB y 1000 pasadas en KDBX, `KdfParams::MAXIMUM` en `.opvault`, AES-KDF ≤ 200 millones de rondas).
+Las derivaciones de claves no se fuzzean: su coste lo fija el fichero y está acotado (en KDBX, Argon2 ≤ 512 MiB, 1000 pasadas y 64 carriles con `memoria × pasadas ≤ 3 GiB·pasada`, y AES-KDF ≤ 200 millones de rondas; en `.opvault`, `KdfParams::MAXIMUM`).
 
 ```sh
 rustup toolchain install nightly --profile minimal
@@ -34,6 +34,6 @@ mkdir -p corpus/import && cp seeds/import/* corpus/import/
 cargo +nightly fuzz run -O import corpus/import -- -max_len=65536 -rss_limit_mb=2048 -timeout=10
 ```
 
-`seeds/` son las entradas iniciales de cada objetivo. `corpus/` y `artifacts/` (los fallos encontrados) no se suben. La CI ejecuta cada objetivo 60 s en cada push. `.github/workflows/fuzz-nightly.yml` los ejecuta 10 min cada noche (y a mano con `workflow_dispatch`), con el corpus en `actions/cache` y minimizado con `cargo fuzz cmin` los domingos; si un objetivo falla, sube sus artefactos.
+`seeds/` son las entradas iniciales de cada objetivo. `corpus/` y `artifacts/` (los fallos encontrados) no se suben. La CI ejecuta cada objetivo 30 s en cada push (`-max_total_time=30`). `.github/workflows/fuzz-nightly.yml` los ejecuta 10 min cada noche (y a mano con `workflow_dispatch`), con el corpus en `actions/cache` y minimizado con `cargo fuzz cmin` los domingos; si un objetivo falla, sube sus artefactos.
 
 Los seeds de los objetivos nuevos están hechos a mano (con un generador temporal que usa los ganchos), no minimizados.
