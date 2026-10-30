@@ -2,7 +2,7 @@
 
 Estado: **implementada**, salvo ADR-AUD-01 (rama `release/0.2` y etiqueta firmada: no existen). Los
 commits `3725741`, `2bd56ce` y `0ff88be` implementan ADR-AUD-02 a 07; el estado paso a paso está en
-[`hardening.md`](hardening.md). El texto de cada ADR describe la decisión tal como se redactó, con la base
+[`hardening.md`](hardening.md)). El texto de cada ADR describe la decisión tal como se redactó, con la base
 `3e94bce`, y **no** se ha reescrito: donde el código ha quedado distinto (por ejemplo, el presupuesto de
 KDBX, que quedó en 512 MiB y 3 GiB·pase en vez de 16 GiB·pase), manda el código.
 
@@ -786,4 +786,4 @@ Otras decisiones del responsable, fuera de los ADR:
 
 - **ID-INT-06**: un elemento ilegible se omite con aviso; no bloquea el desbloqueo ni se toca la fila.
 - **ID-INT-14**: el borrado del portapapeles en segundo plano se acepta como riesgo residual de Android.
-- **F-Droid**: publicación en pausa desde el 30-oct-2026 (ver [`docs/fdroid/README.md`](../fdroid/README.md)).
+- **F-Droid**: publicación en pausa desde el 30-oct-2026 (ver [`docs/fdroid/README.md`](../fdroid/README.md))).

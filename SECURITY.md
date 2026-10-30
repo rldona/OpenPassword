@@ -1,40 +1,39 @@
 # Seguridad
 
-OpenPassword guarda contraseñas, así que cualquier fallo de seguridad se trata antes que cualquier otra cosa.
+OpenPassword guarda mis contraseñas, así que un fallo de seguridad se trata antes que cualquier otra cosa.
 
-> El proyecto aún no ha pasado una auditoría externa (Fase 3 de la [propuesta](docs/propuesta.html)). No guardes datos reales todavía.
+> **Proyecto personal, sin auditoría externa.** No hay usuarios a los que dar soporte, ni programa de
+> recompensas, ni plazos de divulgación pactados. Los riesgos que conozco y he decidido aceptar están
+> en el [modelo de amenazas](docs/threat-model.md).
 
-## Cómo avisar de una vulnerabilidad
+## Si encuentras un fallo
 
-**No abras un issue público.** Usa el aviso privado de GitHub: pestaña *Security* → *Report a vulnerability* en [rldona/OpenPassword](https://github.com/rldona/OpenPassword/security/advisories/new).
+Abre un issue en el repositorio con:
 
-Incluye, si puedes:
-
-- qué componente falla (`op-core`, `op-ffi`, la app Android, la CLI o el formato `.opvault`) y en qué versión o commit;
+- qué componente falla (`op-core`, `op-ffi`, la app Android, la CLI o el formato `.opvault`) y en qué
+  commit o versión;
 - los pasos o el fichero para reproducirlo;
 - qué puede conseguir un atacante y bajo qué supuestos (ver el [modelo de amenazas](docs/threat-model.md)).
 
-## Qué esperar
-
-| Paso | Plazo orientativo |
-|---|---|
-| Acuse de recibo | 3 días |
-| Primera valoración | 10 días |
-| Corrección publicada | 90 días como máximo desde el aviso; antes si es grave |
-
-Publicaremos el aviso (GitHub Security Advisory, con CVE si procede) cuando haya versión corregida, y te citaremos salvo que prefieras no aparecer. No hay programa de recompensas por ahora.
+No hay nada que proteger con divulgación privada: el repositorio no tiene usuarios externos.
 
 ## Dentro del alcance
 
-- La criptografía y su implementación: [especificación](docs/crypto-spec.md), derivación de claves, cifrado por elemento, formato de respaldo.
-- Lectura de datos no confiables: copias `.opvault`, importadores (KeePass, 1Password, Bitwarden, CSV), enlaces `otpauth://` y códigos QR.
-- La app Android: autorrelleno (coincidencia de dominios y paquetes; el objetivo de cada solicitud viaja por un token aleatorio, de un solo uso y en memoria, y no en extras del `Intent`), bloqueo automático, desbloqueo biométrico, portapapeles, permisos.
-- Builds reproducibles y firma del APK.
+- La criptografía y su implementación: [especificación](docs/crypto-spec.md), derivación de claves,
+  cifrado por elemento y formato de copia.
+- Lectura de datos no confiables: copias `.opvault`, importadores (KeePass, 1Password, Bitwarden, CSV),
+  enlaces `otpauth://` y códigos QR.
+- La app Android: autorrelleno (dominios, sufijos públicos y paquetes), bloqueo automático, biometría,
+  portapapeles, permisos y copias.
 
 ## Fuera del alcance
 
-Lo que el [modelo de amenazas](docs/threat-model.md) deja fuera: un teléfono con root o malware con privilegios, un *keylogger*, o alguien que conoce tu contraseña maestra y tiene tu clave secreta.
+Lo que el [modelo de amenazas](docs/threat-model.md) deja fuera: un teléfono con root o malware con
+privilegios, un *keylogger*, o alguien que conoce la contraseña maestra y tiene la clave secreta.
 
-## Versiones con soporte
+## Fallos conocidos y aceptados
 
-Solo la última versión publicada y la rama `main`. La rama `release/0.2` (la versión que se someterá a auditoría externa) **todavía no existe**: se creará al congelar `v0.2.0`, cuando se contrate la auditoría, y entonces solo recibirá correcciones.
+Están en el [modelo de amenazas](docs/threat-model.md) y en la revisión interna archivada
+([`docs/archive/audit/internal-review.md`](docs/archive/audit/internal-review.md)). El más relevante
+para el uso diario: en Android, la contraseña copiada al portapapeles no se borra a los 30 s si la app
+está en segundo plano; se borra al volver a la app o al apagar la pantalla.

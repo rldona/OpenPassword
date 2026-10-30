@@ -29,7 +29,7 @@ Kotlin, Jetpack Compose y Material 3. Toda la criptografía la hace `op-core` (R
 - Guardar logins nuevos desde el autorrelleno: al enviar un formulario con contraseña, Android ofrece «Guardar en OpenPassword». Si ya existe un login de ese sitio con el mismo usuario, se ofrece actualizar su contraseña. La contraseña tecleada se queda en la memoria de la app; la ventana de confirmación solo recibe un token, y nada se guarda sin confirmar.
 - Autorrelleno en otras apps y en el navegador (Chrome: *Ajustes → Servicios de autocompletar → Autocompletar con otro servicio*).
 
-**Publicación en F-Droid: en pausa** por decisión del responsable del proyecto (30-oct-2026). La funcionalidad prevista para la v0.1.0 está hecha y la receta, los metadatos y el flujo de firma están preparados; no hay etiqueta `v0.1.0` ni release publicada. Al retomarlo, empezar por [`docs/fdroid/README.md`](../docs/fdroid/README.md), que tiene los pasos y lo que queda por confirmar.
+**Publicación en tiendas: archivada.** El proyecto es de uso personal; la receta de F-Droid, los metadatos y el flujo de firma quedan en [`docs/archive/fdroid/`](../docs/archive/fdroid) por si algún día vuelve a plantearse como producto público. No hay etiqueta ni release publicada.
 
 ## Seguridad que impone la build
 

@@ -3,9 +3,9 @@
 Cómo se registran, corrigen, verifican y publican los hallazgos de la auditoría de `v0.2.0`, y qué
 hace falta para publicar `1.0.0`.
 
-Estado: **propuesta**. Respeta [`SECURITY.md`](../../SECURITY.md) (acuse a 3 días, valoración a 10,
+Estado: **propuesta**. Respeta [`SECURITY.md`](../../../SECURITY.md)) (acuse a 3 días, valoración a 10,
 corrección a 90 como máximo) y la política de ramas de
-[ADR-AUD-01](decisions.md#adr-aud-01--estrategia-de-congelación). Lo que **añade** a `SECURITY.md`
+[ADR-AUD-01](decisions.md#adr-aud-01--estrategia-de-congelación)). Lo que **añade** a `SECURITY.md`
 (severidades con plazo, criterios de `1.0.0`) necesita aprobación y se lista en la sección 9.
 
 ## 1. Escala de severidad
@@ -27,7 +27,7 @@ Reglas:
 - El auditor propone la severidad; el proyecto la discute con el auditor **por escrito en el
   hallazgo**. Si no hay acuerdo, prevalece la más alta hasta el re-test, y el desacuerdo consta en el
   informe público.
-- El vector CVSS se calcula considerando el [modelo de amenazas](../threat-model.md): un ataque que
+- El vector CVSS se calcula considerando el [modelo de amenazas](../../threat-model.md)): un ataque que
   exige root malicioso (A10) está fuera de alcance y se clasifica Info salvo que el auditor
   justifique otro impacto.
 - Se anotan también el componente (`op-core`, `op-ffi`, Android, formato, build) y la **versión
@@ -55,7 +55,7 @@ comunica al auditor; no se amplía en silencio.
 ## 2. Registro: GitHub Security Advisories privados
 
 - **Un aviso privado por hallazgo**, creado desde el repositorio en la pestaña *Security →
-  Advisories*, con el mismo canal que usa [`SECURITY.md`](../../SECURITY.md). No se abren issues
+  Advisories*, con el mismo canal que usa [`SECURITY.md`](../../../SECURITY.md)). No se abren issues
   públicos ni se comentan hallazgos en PR públicos.
 - El auditor se añade como colaborador del aviso (o lo crea con *Report a vulnerability*).
 - Título: `AUD-nn · <resumen>`. El identificador `AUD-nn` es el del informe del auditor si lo tiene;
@@ -95,8 +95,8 @@ Cada hallazgo aceptado se corrige con:
    - si es imposible automatizarlo (p. ej. un ajuste de manifiesto), una comprobación en la build
      (como `VerifyManifest`) o, como última opción, un paso manual escrito en el hallazgo.
 3. **Cambio de documentación** si el hallazgo desmiente una afirmación de
-   [`docs/threat-model.md`](../threat-model.md), [`docs/crypto-spec.md`](../crypto-spec.md) o
-   [`android/README.md`](../../android/README.md): se corrige el texto **o** el código.
+   [`docs/threat-model.md`](../../threat-model.md)), [`docs/crypto-spec.md`](../../crypto-spec.md)) o
+   [`android/README.md`](../../../android/README.md)): se corrige el texto **o** el código.
 4. **`cherry-pick -x` a `release/0.2`** (política de ADR-AUD-01) y etiqueta firmada `v0.2.N`.
 5. **Entrega al auditor** del diff `git diff v0.2.(N-1)..v0.2.N` y del enlace al test de regresión.
 
@@ -116,10 +116,10 @@ Cuando el auditor está en desacuerdo con la corrección, se discute en el aviso
 
 Un hallazgo puede cerrarse sin corregir solo si:
 
-- es Baja o Info, **o** es el residuo ya documentado en [`decisions.md`](decisions.md) (p. ej. `String`
+- es Baja o Info, **o** es el residuo ya documentado en [`decisions.md`](decisions.md)) (p. ej. `String`
   de JVM, `RustBuffer` de salida, aborto por falta de memoria en Argon2);
 - consta el motivo, el impacto residual y quién lo decide (el mantenedor);
-- se enumera en «Riesgos residuales» del [modelo de amenazas](../threat-model.md) y en el informe
+- se enumera en «Riesgos residuales» del [modelo de amenazas](../../threat-model.md)) y en el informe
   público;
 - el auditor ha tenido ocasión de discrepar.
 
@@ -128,10 +128,10 @@ informe público; en ese caso `1.0.0` queda bloqueada hasta revisarla (sección 
 
 ## 6. Publicación
 
-1. **Informe.** El informe final (sección 8 de [`scope.md`](scope.md)) se publica con el
+1. **Informe.** El informe final (sección 8 de [`scope.md`](scope.md))) se publica con el
    permiso del proveedor, en el repositorio o en la release. Debe incluir alcance, metodología,
    hallazgos con su estado final y las limitaciones. Si OSTIF o un financiador lo pide, se coordina
-   su calendario (ver [`vendors.md`](vendors.md)).
+   su calendario (ver [`vendors.md`](vendors.md))).
 2. **Orden.** Se publica **después** de que las correcciones estén en una versión firmada y publicada y
    de que los avisos se hayan publicado. Un hallazgo no corregido y no acordado no se publica con
    detalle técnico sin la fecha pactada con el auditor.
@@ -157,9 +157,9 @@ Propuesta, a aprobar. `1.0.0` solo se etiqueta cuando se cumple **todo**:
 | 3 | Cada hallazgo corregido tiene test de regresión referenciado | Revisión de los PR `AUD-nn` |
 | 4 | Informe final **publicado** con permiso del proveedor | Enlace en el repositorio |
 | 5 | Avisos y CVE publicados para lo que afecta a versiones publicadas | Pestaña *Security* del repositorio |
-| 6 | La CI de la etiqueta `1.0.0` está en verde, el APK es reproducible en Linux y el SHA-256 coincide con el de una build independiente | `ci.yml`, [`docs/fdroid/README.md`](../fdroid/README.md) |
-| 7 | [`docs/threat-model.md`](../threat-model.md), [`docs/crypto-spec.md`](../crypto-spec.md) y [`android/README.md`](../../android/README.md) coinciden con el código | Revisión final; nada «previsto» descrito como hecho |
-| 8 | Las decisiones pendientes de aprobación de [`decisions.md`](decisions.md) están resueltas | Lista final de `decisions.md` sin elementos abiertos |
+| 6 | La CI de la etiqueta `1.0.0` está en verde, el APK es reproducible en Linux y el SHA-256 coincide con el de una build independiente | `ci.yml`, [`docs/fdroid/README.md`](../fdroid/README.md)) |
+| 7 | [`docs/threat-model.md`](../../threat-model.md)), [`docs/crypto-spec.md`](../../crypto-spec.md)) y [`android/README.md`](../../../android/README.md)) coinciden con el código | Revisión final; nada «previsto» descrito como hecho |
+| 8 | Las decisiones pendientes de aprobación de [`decisions.md`](decisions.md)) están resueltas | Lista final de `decisions.md` sin elementos abiertos |
 | 9 | `SECURITY.md` actualizado (versiones con soporte, referencia al informe) | Revisión |
 | 10 | Una persona independiente del mantenedor revisa la lista de comprobación (si existe esa persona; si no, se anota) | Constancia en el PR de la release |
 
@@ -171,7 +171,7 @@ decide caso por caso si hace falta nueva ronda de re-test.
 - El informe final y las notas de release citan al proveedor y a las personas auditoras con su permiso.
 - Los avisos publicados incluyen los créditos de GitHub (aviso → *Credits*).
 - Se citan también a quienes envíen hallazgos por fuera de la auditoría, salvo que prefieran no
-  aparecer (ya lo promete [`SECURITY.md`](../../SECURITY.md)).
+  aparecer (ya lo promete [`SECURITY.md`](../../../SECURITY.md))).
 - No hay programa de recompensas por ahora.
 
 ## 9. Cambios propuestos (no se han aplicado)
@@ -182,7 +182,7 @@ Este paquete **no modifica** `SECURITY.md` ni el código. Cambios propuestos, a 
 |---|---|
 | `SECURITY.md`, «Versiones con soporte» | Añadir «la rama `release/0.2` hasta el cierre de la auditoría» (ya lo exige ADR-AUD-01) |
 | `SECURITY.md`, «Qué esperar» | Añadir la tabla de objetivos de corrección por severidad (sección 1) y mantener el máximo de 90 días |
-| `SECURITY.md`, «Dentro del alcance» | Comprobar que lo que figura ahí coincide con [`scope.md`](scope.md); al redactar esto coincidía en lo esencial |
+| `SECURITY.md`, «Dentro del alcance» | Comprobar que lo que figura ahí coincide con [`scope.md`](scope.md)); al redactar esto coincidía en lo esencial |
 | `SECURITY.md`, aviso inicial | Sustituir «El proyecto aún no ha pasado una auditoría externa» por un enlace al informe publicado **solo** al cumplir la sección 7 |
 | `docs/threat-model.md` | Enlazar al informe y reflejar los riesgos residuales aceptados |
 | Repositorio (GitHub) | Activar la notificación privada de vulnerabilidades si no lo está (ver `SECURITY.md`) y definir las etiquetas `security`, `AUD` |

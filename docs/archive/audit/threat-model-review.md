@@ -1,13 +1,13 @@
 # Revisión crítica del modelo de amenazas
 
-Revisión de [`../threat-model.md`](../threat-model.md) (v1, 48 líneas) contra el código del repositorio.
+Revisión de [`../threat-model.md`](../../threat-model.md)) (v1, 48 líneas) contra el código del repositorio.
 No modifica `threat-model.md`: la sección 5 lista los cambios que habría que aplicar.
 
 > **Actualización posterior a `2bd56ce`.** Se han aplicado en `threat-model.md` los cambios 1 (A7), 3 (A10), 4 (con una fila nueva A17 en lugar de ampliar A12; ID-INT-16 está corregido) y 13 (residuos de secretos y de importadores). Siguen sin aplicar los demás. Las secciones que describen ID-INT-01 y ID-INT-16 (y la fila A12 de la sección 2) reflejan el estado **antes** de `2bd56ce`, donde ambos quedaron corregidos. La numeración de filas nuevas de la sección 5 (punto 10) ya no es válida: A17 es ahora «App que declara el dominio de una web». Se añadió también A18 («App rellenada que dispara el `PendingIntent` de autenticación», ID-INT-26), también sin commit.
 
 Estado verificado el 2026-10-30 sobre el árbol de trabajo (`HEAD` `3725741` más cambios sin confirmar,
-que desde entonces están en `2bd56ce`; ver [`hardening.md`](hardening.md)). Los hallazgos `ID-INT-nn` están en
-[`internal-review.md`](internal-review.md). Las afirmaciones que no se pueden comprobar sin un
+que desde entonces están en `2bd56ce`; ver [`hardening.md`](hardening.md))). Los hallazgos `ID-INT-nn` están en
+[`internal-review.md`](internal-review.md)). Las afirmaciones que no se pueden comprobar sin un
 dispositivo se marcan **sin verificar**.
 
 ## 1. Resumen
@@ -52,7 +52,7 @@ código), **Incorrecto** (el código lo contradice) o **Sin verificar**.
 | A6 | Aceptado | Parcial | Aceptado, pero la **importación** de una copia antigua del mismo baúl **resucita elementos borrados** (3.2). No es solo «un elemento a una versión anterior» |
 | A7 | Parcial («Previsto, aún no implementado» `filterTouchesWhenObscured`) | **Desactualizado** | Implementado en `3725741`: `filterTouchesWhenObscured`, `setHideOverlayWindows` (API 31+), diálogos protegidos (`ProtectedAlertDialog`, `Components.kt:187-205`), y exigencia del permiso en `VerifyManifest` (`build.gradle.kts:174-176`). Quedan límites reales: un toque parcialmente tapado (`PARTIAL`) se entrega y en API 28-30 no existe `setHideOverlayWindows`; el aviso es un `Toast` una sola vez por proceso en las actividades de autorrelleno (`OverlayProtection.kt:39,57-62`). **«Portapapeles sensible con borrado»: sin verificar y probablemente ineficaz en segundo plano** (ID-INT-14) |
 | A8 | Mitigado | Cierto | `PasswordVisualTransformation` y revelado por campo (`Components.kt:79`) |
-| A9 | Mitigado | **Parcial** | «`cargo audit`»: ya se sustituyó por `cargo deny` en el árbol de trabajo (`ci.yml`, job `audit`). «Builds reproducibles»: `docs/fdroid/README.md:59-61` dice que **solo se confirma cuando F-Droid compile**; no hay comprobación independiente hoy. «Pocas dependencias»: 136 crates de terceros en el `Cargo.lock` y 144 componentes Gradle en la SBOM de `releaseRuntimeClasspath` ([`dependencies.md`](dependencies.md)). Cubre dependencias, **no** CI ni la clave de firma (3.8 y 3.7) |
+| A9 | Mitigado | **Parcial** | «`cargo audit`»: ya se sustituyó por `cargo deny` en el árbol de trabajo (`ci.yml`, job `audit`). «Builds reproducibles»: `docs/fdroid/README.md:59-61` dice que **solo se confirma cuando F-Droid compile**; no hay comprobación independiente hoy. «Pocas dependencias»: 136 crates de terceros en el `Cargo.lock` y 144 componentes Gradle en la SBOM de `releaseRuntimeClasspath` ([`dependencies.md`](dependencies.md))). Cubre dependencias, **no** CI ni la clave de firma (3.8 y 3.7) |
 | A10 | Fuera de alcance («Previsto, aún no implementado» el aviso) | **Desactualizado** | Aviso heurístico implementado (`RootSignals.kt`, `RootWarning` en `Components.kt:226-237`, `<queries>` en el manifiesto). El texto debe decir «aviso heurístico, sin red, que se puede eludir», como pide ADR-AUD-06 |
 | A11 | Fuera de alcance | Cierto | No hay señuelo ni contraseña de coacción |
 | A12 | Mitigado | **Incorrecto en parte** | La coincidencia de hosts es estricta y usa la lista de sufijos públicos (`LoginMatcher.kt:43-48`, `PublicSuffix.kt`). Pero un `webDomain` lo declara **cualquier app** y no se comprueba que sea un navegador (`StructureParser.kt:35,53`, ID-INT-16). «Verificado por Android» vale para el **paquete**, no para el dominio |
@@ -84,7 +84,7 @@ Cada entrada: **qué es**, **lo que hay hoy** (con evidencia), **brecha** y **pr
   (`ffi/src/lib.rs:33`) y el presupuesto KDBX (hoy 512 MiB y 3 GiB·pasada, `kdbx.rs:36-42`; antes 16 GiB·pasada) acotan el coste; el
   límite de entrada es de 32 MiB (`import/mod.rs:34`) y de 64 MiB en Kotlin (`Components.kt:171`).
 - **Brecha**: una **falta de memoria aborta el proceso** con cualquier estrategia de *panic*
-  (ADR-AUD-03; riesgo abierto en [`decisions.md`](decisions.md)). Y hay un DoS real, reproducido:
+  (ADR-AUD-03; riesgo abierto en [`decisions.md`](decisions.md))). Y hay un DoS real, reproducido:
   **memoria cuadrática en el XML de KeePass** (ID-INT-01: 180 KB de XML → 757 MB de RSS). La KDF de
   KeePass no pasa por el techo móvil (ID-INT-02). El cuerpo de una copia `.opvault` no tiene tope en Rust.
 - **Propuesta**: nueva fila **A17 «Fichero hostil»**, estado «Parcial», con la lista de límites y la
@@ -163,8 +163,8 @@ Cada entrada: **qué es**, **lo que hay hoy** (con evidencia), **brecha** y **pr
 - **Hoy**: solo `MainActivity` está exportada y no lee el intent; las otras dos no (`AndroidManifest.xml:39-64`);
   el token de guardado son 16 bytes aleatorios con vida de 5 min (`PendingSaves.kt:15-24`); el
   `PendingIntent` de autorrelleno es mutable pero de `Intent` explícito (`Datasets.kt:50-55`). Detalle
-  en [`attack-surface.md`](attack-surface.md) §2.9.
-- **Brecha** (corregida después de esta revisión): este análisis dio por bueno el `PendingIntent` mutable de autorrelleno, pero la app rellenada recibe el `IntentSender` y puede añadirle extras: ver [ID-INT-26](internal-review.md#id-int-26), corregido sin commit con un token de un solo uso, y la fila A18 de `threat-model.md`. **Matiz**: la caducidad del token es perezosa y
+  en [`attack-surface.md`](attack-surface.md)) §2.9.
+- **Brecha** (corregida después de esta revisión): este análisis dio por bueno el `PendingIntent` mutable de autorrelleno, pero la app rellenada recibe el `IntentSender` y puede añadirle extras: ver [ID-INT-26](internal-review.md#id-int-26)), corregido sin commit con un token de un solo uso, y la fila A18 de `threat-model.md`. **Matiz**: la caducidad del token es perezosa y
   no hay vaciado al bloquear (ID-INT-17).
 - **Propuesta**: fila **A20 «App que envía intents»**, «Mitigado»: actividades no exportadas, token
   aleatorio, sin datos en el intent.
@@ -224,7 +224,7 @@ Cada entrada: **qué es**, **lo que hay hoy** (con evidencia), **brecha** y **pr
 |---|---|---|---|
 | 3.10.1 | **`webDomain` declarado por una app** (variante de A12) | `StructureParser.kt:35,53`: se usa el primero que aparezca sin comprobar que quien lo declara sea un navegador | Corregir A12 y abrir el hallazgo ID-INT-16 |
 | 3.10.2 | **Credenciales en claro hacia `system_server` y el teclado** en cada respuesta de relleno | `OpAutofillService.kt:36-44` y `Datasets.kt:37-43`: con el baúl abierto se entregan hasta 5 `Dataset` con usuario y contraseña, sin autenticación de dataset (`setAuthentication` solo con el baúl bloqueado) | Documentar como diseño de Android; fila en A12/A13 |
-| 3.10.3 | **Proveedor de documentos hostil** (SAF) | Ver [`attack-surface.md`](attack-surface.md) §2.10; solo se escriben copias cifradas y el kit | Nueva fila A23 junto a A4 |
+| 3.10.3 | **Proveedor de documentos hostil** (SAF) | Ver [`attack-surface.md`](attack-surface.md)) §2.10; solo se escriben copias cifradas y el kit | Nueva fila A23 junto a A4 |
 | 3.10.4 | **Descodificadores de imagen del sistema** al leer un QR de una imagen | `QrScanner.kt:163-177` | Nota en A16 |
 | 3.10.5 | **Un solo registro ilegible impide desbloquear** | `VaultSession.kt:108,141,280` (ID-INT-06) | Riesgo residual de disponibilidad; la restauración exige no tener baúl (`:136`) |
 | 3.10.6 | **Kotlin y Rust en el mismo proceso** | Sin frontera de privilegios | Supuesto explícito (sección 4) |

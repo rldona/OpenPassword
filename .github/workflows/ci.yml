@@ -96,7 +96,7 @@ jobs:
         run: |
           unzip -q android/app/build/outputs/apk/release/app-release-unsigned.apk 'lib/*' -d "$RUNNER_TEMP/apk"
           scripts/check-no-fuzzing-hooks.sh "$RUNNER_TEMP"/apk/lib/*/libop_ffi.so
-      # Reproducible builds: compare with a local build of the same commit (docs/fdroid/README.md).
+      # Reproducible builds: compare with a local build of the same commit (docs/archive/fdroid/README.md).
       - name: SHA-256 of the unsigned release APK
         run: sha256sum android/app/build/outputs/apk/release/app-release-unsigned.apk
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

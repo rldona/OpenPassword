@@ -1,10 +1,10 @@
 # Proveedores y financiación
 
-Shortlist para la auditoría externa de `v0.2.0` ([`scope.md`](scope.md)) y vías para pagarla.
+Shortlist para la auditoría externa de `v0.2.0` ([`scope.md`](scope.md))) y vías para pagarla.
 
 **Regla de este documento:** solo se afirma lo que se ha leído en la fuente citada. Lo demás figura
 como «sin verificar». **No hay precios**: ningún proveedor publica tarifas y no se ha pedido ninguna
-oferta. Las cifras se rellenan en [`budget-timeline.md`](budget-timeline.md) cuando haya ofertas.
+oferta. Las cifras se rellenan en [`budget-timeline.md`](budget-timeline.md)) cuando haya ofertas.
 
 Fecha de la consulta: 2026-10-30. Las páginas pueden haber cambiado desde entonces.
 
@@ -34,7 +34,7 @@ Notas:
 - «Rust» y «Android» se marcan «sin verificar» cuando la web no lo dice explícitamente, aunque el
   proveedor pueda tener experiencia.
 - Cada ficha debe completarse con la respuesta del proveedor a la plantilla de
-  [`budget-timeline.md`](budget-timeline.md).
+  [`budget-timeline.md`](budget-timeline.md)).
 
 ## 2. Criterios de comparación
 
@@ -70,7 +70,7 @@ Ninguna tiene presupuesto asignado todavía. Los datos proceden de las webs ofic
   repartirlo. No dice que OSTIF lo pague.
 - Requisitos publicados: ninguna convocatoria con fecha. El primer paso es **escribir a OSTIF**; piden
   haber hecho antes comprobaciones propias (su guía de buenas prácticas de seguridad en GitHub; este
-  paquete lo cubre en parte con [`internal-review.md`](internal-review.md)).
+  paquete lo cubre en parte con [`internal-review.md`](internal-review.md))).
 - Encaje con OpenPassword: sin verificar. Su home habla de proyectos de los que depende «infraestructura
   de Internet»; no se ha comprobado que acepten un gestor de contraseñas personal.
 - Plazo y fecha de convocatoria: **no hay convocatoria; contacto abierto**.
@@ -138,8 +138,8 @@ irrenunciable de **permiso para publicar el informe** (OSTIF y OTF ya publican p
 ## 4. Próximos pasos
 
 1. Decidir qué vías se intentan y en qué orden (decisión del proyecto).
-2. Escribir a OSTIF con [`scope.md`](scope.md) y el SHA.
+2. Escribir a OSTIF con [`scope.md`](scope.md)) y el SHA.
 3. Contactar con 3–4 proveedores de la sección 1 con la plantilla de
-   [`budget-timeline.md`](budget-timeline.md); pedir disponibilidad, equipo con experiencia en
+   [`budget-timeline.md`](budget-timeline.md)); pedir disponibilidad, equipo con experiencia en
    Rust/Android/criptografía y la política de publicación.
 4. Rellenar esta ficha con las respuestas y sustituir «sin verificar» por la fuente.
