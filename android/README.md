@@ -2,7 +2,7 @@
 
 Kotlin, Jetpack Compose y Material 3. Toda la criptografía la hace `op-core` (Rust), que la app carga como `libop_ffi.so` a través de los bindings de UniFFI.
 
-## Qué hace ya (Fase 1, primera iteración)
+## Qué hace ya
 
 - Alta: contraseña maestra con indicador de fortaleza y clave secreta para anotar en papel.
 - Desbloqueo con contraseña maestra; espera creciente tras 4 intentos fallidos.
@@ -29,7 +29,7 @@ Kotlin, Jetpack Compose y Material 3. Toda la criptografía la hace `op-core` (R
 - Guardar logins nuevos desde el autorrelleno: al enviar un formulario con contraseña, Android ofrece «Guardar en OpenPassword». Si ya existe un login de ese sitio con el mismo usuario, se ofrece actualizar su contraseña. La contraseña tecleada se queda en la memoria de la app; la ventana de confirmación solo recibe un token, y nada se guarda sin confirmar.
 - Autorrelleno en otras apps y en el navegador (Chrome: *Ajustes → Servicios de autocompletar → Autocompletar con otro servicio*).
 
-Pendiente (Fase 2): publicar en F-Droid.
+Pendiente de publicación: la funcionalidad prevista para la v0.1.0 está hecha; falta publicarla en F-Droid (`docs/fdroid/README.md`).
 
 ## Seguridad que impone la build
 
@@ -58,7 +58,7 @@ Requisitos: JDK 17, Android SDK con la plataforma 37, NDK `30.0.16248370`, Rust 
 
 ```sh
 rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
-cargo install cargo-ndk --locked
+cargo install cargo-ndk --locked --version 4.1.2
 sdkmanager "ndk;30.0.16248370"
 cd android
 ./gradlew :app:assembleDebug

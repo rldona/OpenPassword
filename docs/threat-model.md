@@ -19,6 +19,8 @@ Qué protege OpenPassword, frente a quién y qué queda fuera. Se revisa antes d
 
 ## Atacantes y defensas
 
+La columna Defensa distingue lo **implementado** de lo **previsto** (planificado para la fase de endurecimiento y todavía sin código). «Parcial» significa que parte de la defensa está implementada y parte solo prevista.
+
 | # | Atacante | Capacidad | Defensa | Estado |
 |---|---|---|---|---|
 | A1 | Ladrón con el móvil bloqueado | Acceso físico, extracción del almacenamiento | Cifrado de Android; baúl cifrado con claves que no están en disco en claro | Protegido |
@@ -27,16 +29,16 @@ Qué protege OpenPassword, frente a quién y qué queda fuera. Se revisa antes d
 | A4 | Proveedor de nube | Ve el fichero y su historial | Solo ve un blob autenticado; la cabecera no tiene datos del usuario | Protegido |
 | A5 | Manipulación del respaldo o de la base de datos | Modifica, trunca, reordena o intercambia bloques | AEAD con AAD de contexto; STREAM con marca de final; cabecera autenticada | Protegido |
 | A6 | Reversión (rollback) | Sustituye un elemento por una versión antigua completa | Detectable solo con sincronización; aceptado en v1 | Aceptado |
-| A7 | App maliciosa sin privilegios | Superposiciones, portapapeles, capturas | `FLAG_SECURE`, `filterTouchesWhenObscured`, portapapeles sensible con borrado | Mitigado |
+| A7 | App maliciosa sin privilegios | Superposiciones, portapapeles, capturas | Implementado: `FLAG_SECURE` y portapapeles sensible con borrado. **Previsto, aún no implementado**: `filterTouchesWhenObscured` (contra superposiciones). Riesgo residual: hasta entonces una app con permiso de superposición puede tapar la pantalla y provocar pulsaciones engañosas (*tapjacking*) | Parcial |
 | A8 | Mirón | Ve la pantalla | Campos ocultos y revelado por campo | Mitigado |
 | A9 | Cadena de suministro | Dependencia o build manipulada | Pocas dependencias, `Cargo.lock` versionado, `cargo audit`, builds reproducibles | Mitigado |
+| A10 | Malware con root, keylogger | Lee memoria y pulsaciones | Ninguna. **Previsto, aún no implementado**: aviso si se detecta root. Riesgo residual: la app no detecta un dispositivo con root y seguirá funcionando en él; incluso con el aviso, no protegería de ese malware | Fuera de alcance |
+| A11 | Coacción | Obliga a desbloquear | Ninguna en v1 | Fuera de alcance |
 | A12 | Web o app de *phishing* | Pide al autorrelleno las credenciales de otro sitio | Coincidencia estricta: host guardado o subdominio en webs; nombre de paquete exacto (verificado por Android) en apps; aviso al elegir a mano | Mitigado |
 | A13 | Baúl olvidado abierto | El autorrelleno ofrece logins mientras la app está en segundo plano | Bloqueo a los 30 s de salir de la app (3 min, una vez, si se sale a un selector del sistema que pidió el usuario) y al apagar la pantalla, para todo el proceso | Protegido |
 | A14 | Otro servicio de autorrelleno (p. ej. el de Google) | Lee los campos de la app u ofrece guardarlos en su nube | Ventanas excluidas de todo autorrelleno (`IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS`) | Protegido |
 | A15 | Quien encuentra la exportación de otro gestor | Lee las contraseñas en claro del CSV o JSON importado | Tras importar, la app ofrece borrar el fichero; los bytes leídos se borran de memoria al analizarlos | Mitigado |
 | A16 | QR malicioso o fotogramas de la cámara | Un QR que no es de TOTP, o que la app guarde imágenes del entorno | Solo se aceptan enlaces `otpauth://totp/` y el secreto se valida en el núcleo; los fotogramas se analizan en memoria, no se guardan y la app no tiene red; la cámara se pide solo al escanear | Mitigado |
-| A10 | Malware con root, keylogger | Lee memoria y pulsaciones | Ninguna; aviso si se detecta root | Fuera de alcance |
-| A11 | Coacción | Obliga a desbloquear | Ninguna en v1 | Fuera de alcance |
 
 ## Riesgos residuales
 

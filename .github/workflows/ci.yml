@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
 
 permissions:
@@ -73,9 +74,9 @@ jobs:
           SDKMANAGER=$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)
           yes | "$SDKMANAGER" --licenses > /dev/null
           "$SDKMANAGER" --install "ndk;30.0.16248370" "platforms;android-37.0"
-      - run: cargo install cargo-ndk --locked
-      # Also runs verifyDebugManifest / verifyReleaseManifest (no network permission, no backup).
-      - run: ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --console=plain
+      - run: cargo install cargo-ndk --locked --version 4.1.2
+      # lintDebug catches calls above minSdk (NewApi). Also runs verifyDebugManifest / verifyReleaseManifest (no network permission, no backup).
+      - run: ./gradlew :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --console=plain
         working-directory: android
       # Reproducible builds: compare with a local build of the same commit (docs/fdroid/README.md).
       - name: SHA-256 of the unsigned release APK

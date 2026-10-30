@@ -1,6 +1,6 @@
 # Especificación criptográfica de OpenPassword · v1
 
-Estado: borrador para revisión (Fase 0). Este documento es normativo: si el código y la especificación no coinciden, el error está en el código o hay que versionar la especificación.
+Estado: implementada y verificada por los vectores dorados de `core/tests/vectors/op-v1.json`; pendiente de auditoría externa. Este documento es normativo: si el código y la especificación no coinciden, el error está en el código o hay que versionar la especificación.
 
 Las palabras DEBE, NO DEBE y PUEDE se usan en el sentido de RFC 2119.
 
