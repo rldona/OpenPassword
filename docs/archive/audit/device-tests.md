@@ -1,15 +1,15 @@
 # Pruebas manuales en dispositivo
 
 Plan de pruebas para cerrar, antes de la auditoría externa, lo que la revisión interna dejó como «sin
-verificar en dispositivo» ([`internal-review.md`](internal-review.md), [`hardening.md`](hardening.md),
-[`threat-model.md`](../threat-model.md)) y que no se puede comprobar en la JVM ni en la CI. Está escrito
+verificar en dispositivo» ([`internal-review.md`](internal-review.md)), [`hardening.md`](hardening.md)),
+[`threat-model.md`](../../threat-model.md))) y que no se puede comprobar en la JVM ni en la CI. Está escrito
 para que lo ejecute una persona sin contexto previo y sirva de **evidencia para el auditor**.
 
 > **Estado: sesión cerrada el 30-oct-2026; lo pendiente requiere emulador o dispositivo API 28 y no bloquea la contratación de la auditoría.**
 > Ejecución parcial en **un único dispositivo, API 37** (ver [«Sesión del 30-oct-2026»](#sesion-2026-10-30)
 > y [«segunda parte»](#sesion-2026-10-30-b)). **Pasan** DT-01 (con límites), DT-04a, DT-05 (solo depuración),
 > DT-07 y las pruebas instrumentadas (17 tests, sección 3.2). **Falla DT-04b**, que confirma
-> [ID-INT-14](internal-review.md#id-int-14), **aceptado como riesgo residual** por el responsable el
+> [ID-INT-14](internal-review.md#id-int-14)), **aceptado como riesgo residual** por el responsable el
 > 30-oct-2026. **Pendientes, con su motivo** (resumen en [«Pendientes al cierre de la sesión»](#pendientes-al-cierre)):
 > DT-02 y DT-03 (emulador API 28-30), DT-12 (emulador o dispositivo API 28), DT-11 (emulador `userdebug`),
 > la variante R8 de DT-05, DT-06 (navegador real), DT-08 (navegador predeterminado) y el resto sin ejecutar
@@ -36,7 +36,7 @@ para que lo ejecute una persona sin contexto previo y sirva de **evidencia para 
 
 Redactado el 2026-10-30 sobre `HEAD` `6c9a587` («Docs: pausar la publicación en F-Droid»). Las líneas
 citadas son de ese commit y se desplazan si el código cambia: el nombre del símbolo es la referencia
-estable. La versión que se audita (`v0.2.0`, ver [`README.md`](README.md)) fija qué commit hay que
+estable. La versión que se audita (`v0.2.0`, ver [`README.md`](README.md))) fija qué commit hay que
 probar (sección 7, «Criterio de cierre»).
 
 ## Índice
@@ -57,19 +57,19 @@ probar (sección 7, «Criterio de cierre»).
 
 | Prueba | Qué se verifica | Hallazgo o amenaza |
 |---|---|---|
-| [DT-01](#dt-01) | Anti-tapjacking en Android 12+ (`setHideOverlayWindows`) | A7; [ID-INT-13](internal-review.md#id-int-13) |
+| [DT-01](#dt-01) | Anti-tapjacking en Android 12+ (`setHideOverlayWindows`) | A7; [ID-INT-13](internal-review.md#id-int-13)) |
 | [DT-02](#dt-02) | Anti-tapjacking en API 28-30 (`filterTouchesWhenObscured`, aviso, toque parcialmente tapado) | A7; ID-INT-13 |
 | [DT-03](#dt-03) | Lo mismo sobre diálogos (`ProtectedAlertDialog`) | A7; ID-INT-13 |
-| [DT-04](#dt-04) | Borrado del portapapeles a los 30 s y marca de «sensible» | A7; [ID-INT-14](internal-review.md#id-int-14), [ID-INT-15](internal-review.md#id-int-15) |
-| [DT-05](#dt-05) | La lista de sufijos públicos carga y se aplica en el dispositivo (con R8) | [ID-INT-20](internal-review.md#id-int-20); A12, A17 |
-| [DT-06](#dt-06) | `webDomain` de un navegador real; token hasta la actividad correcta | A17; [ID-INT-16](internal-review.md#id-int-16) |
+| [DT-04](#dt-04) | Borrado del portapapeles a los 30 s y marca de «sensible» | A7; [ID-INT-14](internal-review.md#id-int-14)), [ID-INT-15](internal-review.md#id-int-15)) |
+| [DT-05](#dt-05) | La lista de sufijos públicos carga y se aplica en el dispositivo (con R8) | [ID-INT-20](internal-review.md#id-int-20)); A12, A17 |
+| [DT-06](#dt-06) | `webDomain` de un navegador real; token hasta la actividad correcta | A17; [ID-INT-16](internal-review.md#id-int-16)) |
 | [DT-07](#dt-07) | Una app que se declara navegador no recibe datasets web | A17; ID-INT-16 (segunda corrección) |
 | [DT-08](#dt-08) | Navegador predeterminado malicioso (riesgo residual documentado) | A17 |
-| [DT-09](#dt-09) | Autorrelleno de extremo a extremo y token tras rotar | A12, A18; [ID-INT-26](internal-review.md#id-int-26) |
+| [DT-09](#dt-09) | Autorrelleno de extremo a extremo y token tras rotar | A12, A18; [ID-INT-26](internal-review.md#id-int-26)) |
 | [DT-10](#dt-10) | «Recordar para esta app» solo en apps | ID-INT-26 (`AutofillAuthActivity.kt:102,124`) |
 | [DT-11](#dt-11) | Aviso de root: aparece, no bloquea, se descarta | A10; ADR-AUD-06 |
-| [DT-12](#dt-12) | Biometría en Android 9 (arreglo de `Biometrics.kt`) | Arreglo de `2c6ba2d` («biometría en Android 9»); clave biométrica en API 28-29, «sin verificar» en [`internal-review.md`](internal-review.md) §3 |
-| [DT-13](#dt-13) | Importar KDBX 4 con un fichero real | README de Android; [ID-INT-02](internal-review.md#id-int-02) |
+| [DT-12](#dt-12) | Biometría en Android 9 (arreglo de `Biometrics.kt`) | Arreglo de `2c6ba2d` («biometría en Android 9»); clave biométrica en API 28-29, «sin verificar» en [`internal-review.md`](internal-review.md)) §3 |
+| [DT-13](#dt-13) | Importar KDBX 4 con un fichero real | README de Android; [ID-INT-02](internal-review.md#id-int-02)) |
 | [DT-14](#dt-14) | Techo de KDF y RAM sin cerrar la app | ADR-AUD-07; riesgo abierto de aborto por memoria |
 | [DT-15](#dt-15) | Copia automática y restauración | A4, A5 (integridad de la copia); funcionalidad |
 | [DT-16](#dt-16) | Bloqueo automático (5 min, 30 s, pantalla apagada) | A13 |
@@ -112,10 +112,10 @@ autorrelleno y el navegador predeterminado, importar ficheros hostiles).
 ### 2.1 Herramientas en el ordenador
 
 - Android SDK con `adb` (`platform-tools`) y, para emuladores, `cmdline-tools` y `emulator`.
-- JDK 17 o superior (el de [`android/README.md`](../../android/README.md) es 17), para compilar la app y
+- JDK 17 o superior (el de [`android/README.md`](../../../android/README.md)) es 17), para compilar la app y
   los APK de prueba.
 - Para compilar la app: Rust con los targets de Android, `cargo-ndk` y el NDK indicados en
-  [`android/README.md`](../../android/README.md) («Compilar»).
+  [`android/README.md`](../../../android/README.md)) («Compilar»).
 - KeePassXC (DT-13) y, opcionalmente, `qrencode` (DT-17).
 
 ```sh
@@ -151,7 +151,7 @@ Solo si el dispositivo tiene datos reales.
    cd "$OP_REPO" && cargo run -q -p opvault-cli -- inspect /ruta/a/openpassword-AAAA-MM-DD.opvault
    ```
 3. Comprueba que la abres de verdad con tu contraseña y tu clave secreta (`opvault decrypt`, ver
-   [`README.md`](../../README.md) del proyecto). Sin esta comprobación, no sigas: una copia que no se abre
+   [`README.md`](../../../README.md)) del proyecto). Sin esta comprobación, no sigas: una copia que no se abre
    no es una copia.
 4. Guárdala fuera del teléfono. Es la red de seguridad si algo sale mal.
 
@@ -456,7 +456,7 @@ Dos módulos mínimos en un proyecto Gradle **fuera del repositorio** (por ejemp
 
 No piden `INTERNET` ni nada más que `SYSTEM_ALERT_WINDOW` (el de superposición). Los dos son Java (sin
 Kotlin) para depender de lo mínimo. Se compilan con el *wrapper* de Gradle y la versión de AGP del
-repositorio ([`android/gradle/libs.versions.toml`](../../android/gradle/libs.versions.toml): `agp`), que
+repositorio ([`android/gradle/libs.versions.toml`](../../../android/gradle/libs.versions.toml)): `agp`), que
 descarga de Google y Maven Central (sin verificación de dependencias: son APK desechables, no se
 publican ni se entregan al usuario).
 
@@ -851,7 +851,7 @@ que **el aviso no se puede provocar en API 31+** sin tocar el código. El aviso 
 (`android/app/src/test/…`). Si falta un dispositivo API 28-30, el aviso queda sin verificar en dispositivo
 y se anota como `bloqueado` en DT-02.
 
-**Cubre.** A7; [ID-INT-13](internal-review.md#id-int-13) (la implementación y sus pruebas no alcanzan lo
+**Cubre.** A7; [ID-INT-13](internal-review.md#id-int-13)) (la implementación y sus pruebas no alcanzan lo
 que describe el ADR).
 
 <a id="dt-02"></a>
@@ -864,7 +864,7 @@ toque **parcialmente** tapado (riesgo residual documentado).
 **Qué se verifica.** `OverlayProtection.kt:17-31` (`Obscured.FULL`/`PARTIAL`), `:44` (filtro), `:57-62`
 (`warnIfObscured`: `Toast` una vez por proceso, `OverlayWarning.report()` en `:39`), y la tarjeta
 `OverlayWarningBanner` (`Components.kt:208-219`, montada en `AppRoot.kt:47`). El modelo de amenazas dice:
-«un toque **parcialmente** tapado se entrega (con aviso)» ([`threat-model.md`](../threat-model.md), A7).
+«un toque **parcialmente** tapado se entrega (con aviso)» ([`threat-model.md`](../../threat-model.md)), A7).
 
 **Dispositivos.** API 28, 29 o 30 (físico o emulador; se anota). Ver 2.9.
 
@@ -948,7 +948,7 @@ diálogos: `androidTest/…/OverlayProtectionTest.kt:12-16`).
 <a id="dt-04"></a>
 ### DT-04 · Portapapeles: borrado a los 30 s y marca de «sensible»
 
-**Objetivo.** Confirmar o refutar [ID-INT-14](internal-review.md#id-int-14): el borrado de los 30 s
+**Objetivo.** Confirmar o refutar [ID-INT-14](internal-review.md#id-int-14)): el borrado de los 30 s
 probablemente **no actúa si OpenPassword ya no tiene el foco**, que es el uso normal (copiar y pegar en
 otra app). Y comprobar la marca de sensible en Android 13+.
 
@@ -1013,7 +1013,7 @@ en la build de release), y que un login guardado para un sufijo público no se o
 **Qué se verifica.** `PublicSuffix.kt:18-25` (carga por `classLoader.getResourceAsStream`; si falla,
 `isAvailable` es falso y se falla cerrado), `LoginMatcher.kt:43-48` (un subdominio solo coincide si
 `PublicSuffix.isAvailable` y el host guardado **no** es un sufijo público). Ver
-[ID-INT-20](internal-review.md#id-int-20): la comprobación del recurso en el APK existe, la de carga en
+[ID-INT-20](internal-review.md#id-int-20)): la comprobación del recurso en el APK existe, la de carga en
 dispositivo y con R8 no. **Limitación**: la build de depuración **no** pasa por R8
 (`isMinifyEnabled = true` solo en `release`, `android/app/build.gradle.kts:55`); por eso hay una variante
 con el APK de release.
@@ -1092,7 +1092,7 @@ en la lista), `LoginMatcher.kt:22-36`, y el camino por token (`AutofillAuthActiv
 
 **Prerrequisitos.** Elemento `GitHub` (`https://github.com`). Servicio de autorrelleno de Chrome:
 Chrome → Ajustes → *Servicios de autocompletar* → **Autocompletar con otro servicio**
-([`android/README.md`](../../android/README.md), «Autorrelleno»), y OpenPassword como servicio del sistema.
+([`android/README.md`](../../../android/README.md)), «Autorrelleno»), y OpenPassword como servicio del sistema.
 **No envíes** el formulario de GitHub: basta con rellenar.
 
 **Pasos.**
@@ -1110,7 +1110,7 @@ Chrome → Ajustes → *Servicios de autocompletar* → **Autocompletar con otro
 **Resultado esperado.** Pasos 1-3: el login de `github.com` se ofrece y rellena en Chrome; el destino en la
 ventana es `github.com`. Paso 4: `GitHub` no se ofrece en Wikipedia.
 
-**Cubre.** A17; [ID-INT-16](internal-review.md#id-int-16) (corrección: solo se cree el `webDomain` de un
+**Cubre.** A17; [ID-INT-16](internal-review.md#id-int-16)) (corrección: solo se cree el `webDomain` de un
 navegador).
 
 <a id="dt-07"></a>
@@ -1243,7 +1243,7 @@ actualizar, no duplicar. d) La ventana **no se cierra** al rotar y el login se r
 sobrevive a la rotación en el `ViewModel` aunque el token sea de un solo uso). Si la ventana se cierra
 sola tras rotar, `falla`: el flujo por token pierde la solicitud.
 
-**Cubre.** A12, A18; [ID-INT-26](internal-review.md#id-int-26); funcionalidad de guardado/actualización.
+**Cubre.** A12, A18; [ID-INT-26](internal-review.md#id-int-26)); funcionalidad de guardado/actualización.
 
 <a id="dt-10"></a>
 ### DT-10 · «Recordar para esta app»
@@ -1289,7 +1289,7 @@ que **no bloquea** nada y que el descarte funciona y persiste.
 `TEST_KEYS`, `DEBUG_BUILD` si `Build.TYPE` es `userdebug` o `eng`; `shouldWarn`; texto
 `ROOT_WARNING_TEXT`), `AndroidDeviceProbe.kt`, `OpenPasswordApp.kt:38-56` (señales y descarte),
 `Components.kt:226-235` (`RootWarning`), `UnlockScreen.kt:145` (descartable) y `SettingsScreen.kt:235`
-(informativo, sin descarte). Decisión de diseño: [ADR-AUD-06](decisions.md); **nunca bloquea**.
+(informativo, sin descarte). Decisión de diseño: [ADR-AUD-06](decisions.md)); **nunca bloquea**.
 
 **Dispositivos.** Un emulador `userdebug` (imagen «Google APIs», 2.9). **No** se hace root al teléfono
 principal. Opcional: un dispositivo dedicado con Magisk (no es necesario: `DeviceProbe` es la frontera de
@@ -1358,8 +1358,8 @@ Ajustes es `falla`.
 <a id="dt-13"></a>
 ### DT-13 · Importación KDBX 4 con un fichero real
 
-**Objetivo.** Cerrar lo que dice [`android/README.md`](../../android/README.md): «La lectura de KDBX 4 aún
-no se ha probado con un fichero real». Y [`core/src/import/testdata/README.md`](../../core/src/import/testdata/README.md),
+**Objetivo.** Cerrar lo que dice [`android/README.md`](../../../android/README.md)): «La lectura de KDBX 4 aún
+no se ha probado con un fichero real». Y [`core/src/import/testdata/README.md`](../../../core/src/import/testdata/README.md)),
 «Pendiente»: falta un KDBX 4 real creado desde la interfaz de KeePassXC.
 
 **Qué se verifica.** `core/src/import/kdbx.rs` (ruta de KDBX 4: cabecera, HMAC por bloques, ChaCha20,
@@ -1435,7 +1435,7 @@ Foto o captura de la pantalla de seguridad de KeePassXC como evidencia de qué s
 **Resultado esperado.** 13a-13c importan con el contenido anterior; 13d y 13e se rechazan con los mensajes
 indicados; la app no se cierra en ningún caso. Cualquier diferencia en un campo es `falla` y se anota cuál.
 
-**Cubre.** README de Android («KDBX 4 sin probar con un fichero real»); [ID-INT-02](internal-review.md#id-int-02)
+**Cubre.** README de Android («KDBX 4 sin probar con un fichero real»); [ID-INT-02](internal-review.md#id-int-02))
 (política de KDF de KeePass frente al techo móvil: lo que cubre aquí es el rechazo; la política queda
 abierta). Si 13a y 13b pasan, el fichero puede añadirse a `core/src/import/testdata/` para una prueba de
 Rust (ver 7).
@@ -1450,7 +1450,7 @@ se cierre**; y observar qué pasa justo en el techo.
 (rechaza **antes** de derivar), `KdfMemory.kt:10-11` (`kdfMemoryFits`: la memoria no puede pasar de la mitad
 de la RAM), `VaultSession.kt:128-131,141,170` (`checkKdfFits`), el mensaje en `VaultSession.kt:513-515`, y el
 riesgo abierto: un fallo de memoria en Argon2 aborta el proceso
-([`decisions.md`](decisions.md), «Riesgos que quedan abiertos»; `ffi`/`argon2` 0.5, asignación infalible).
+([`decisions.md`](decisions.md)), «Riesgos que quedan abiertos»; `ffi`/`argon2` 0.5, asignación infalible).
 
 **Dispositivos.** Todos los que haya; **la prueba 14b es más reveladora en el de menos RAM** (se anota
 `MemTotal`).
@@ -1582,7 +1582,7 @@ al desbloquear con cambios pendientes se hace la copia; la rotación deja 10 cop
 ficheros; la restauración devuelve la bóveda de pruebas con el cambio.
 
 **Cubre.** Funcionalidad de copia (A4, A5: la copia sale cifrada y autenticada, ver
-[`threat-model.md`](../threat-model.md)); recuperación ante pérdida.
+[`threat-model.md`](../../threat-model.md))); recuperación ante pérdida.
 
 <a id="dt-16"></a>
 ### DT-16 · Bloqueo automático
@@ -1698,7 +1698,7 @@ Hoy **no hay ninguna prueba instrumentada en la CI** (no hay referencias a `andr
 `EmergencyKitTest`, `OverlayProtectionTest` (4 tests: las tres actividades y un `ProtectedAlertDialog`,
 ver ID-INT-13) y `VaultSessionTest` (con un espacio de nombres aislado por prueba). Se ejecutaron a mano el
 30-oct-2026 en un dispositivo (17 tests en verde, sección 3.2). Nota: la tabla de tests de
-[ADR-AUD-06](decisions.md) habla de un toque `FLAG_WINDOW_IS_OBSCURED` inyectado; **no se ha comprobado**
+[ADR-AUD-06](decisions.md)) habla de un toque `FLAG_WINDOW_IS_OBSCURED` inyectado; **no se ha comprobado**
 aquí que los tests lo hagan, solo que pasan.
 
 ### Qué se puede convertir en `androidTest`
@@ -1749,7 +1749,7 @@ Una afirmación de `internal-review.md` o `threat-model.md` pasa de «sin verifi
 dispositivo» a «verificado en dispositivo» **solo si** se cumple todo lo siguiente para su prueba:
 
 1. El `resultado` es **`pasa`**, con `evidencia` citada y archivada (2.8), en la fila de la tabla (3.2).
-2. Se ha ejecutado sobre el **commit que se audita** (el SHA de `v0.2.0`, ver [`README.md`](README.md)) o
+2. Se ha ejecutado sobre el **commit que se audita** (el SHA de `v0.2.0`, ver [`README.md`](README.md))) o
    sobre uno posterior sin cambios en los ficheros que la prueba verifica (`git diff --stat
    <commit-probado>..<commit-auditado> -- android/app/src/main core ffi`). Si hay cambios, se repite o se
    etiqueta como «indicativo, otro commit».
@@ -1784,8 +1784,8 @@ En todos los casos falta además archivar la evidencia (2.8) y fijar el commit p
 
 Al cerrar, los textos que se actualizan **(salvo lo ya registrado de ID-INT-14, 16, 20 y A7/A17 tras la sesión del 30-oct-2026, no se han tocado en este plan)**: filas de `internal-review.md`
 para ID-INT-14, 16, 20 y 26 («sin probar en dispositivo»); `threat-model.md` A7 («sin verificar en
-dispositivo») y A17 («Sin probar en dispositivo»); y los «sin verificar» de [`hardening.md`](hardening.md) y
-[`README.md`](README.md) (índice). Cada cambio cita el ID de la prueba y el commit. Si DT-13 pasa,
+dispositivo») y A17 («Sin probar en dispositivo»); y los «sin verificar» de [`hardening.md`](hardening.md)) y
+[`README.md`](README.md)) (índice). Cada cambio cita el ID de la prueba y el commit. Si DT-13 pasa,
 también se actualiza la frase del README de Android y el «Pendiente» de
 `core/src/import/testdata/README.md`.
 
@@ -1796,15 +1796,15 @@ también se actualiza la frase del README de Android y el «Pendiente» de
 1. Se deja la fila con `falla`, la evidencia y una descripción exacta de lo observado (no de lo que se
    interpreta). No se borra ni se sobrescribe: si se repite, es una fila nueva.
 2. Se **abre un hallazgo**:
-   - Antes de la congelación: un hallazgo nuevo en [`internal-review.md`](internal-review.md) (el siguiente
+   - Antes de la congelación: un hallazgo nuevo en [`internal-review.md`](internal-review.md)) (el siguiente
      libre es `ID-INT-27`, o se actualiza el existente, p. ej. ID-INT-14) con la prueba como evidencia, su
-     severidad según [`findings-process.md`](findings-process.md#1-escala-de-severidad) y una fila en
-     [`hardening.md`](hardening.md) §4.1.
+     severidad según [`findings-process.md`](findings-process.md#1-escala-de-severidad)) y una fila en
+     [`hardening.md`](hardening.md)) §4.1.
    - Durante la auditoría: un aviso privado de GitHub según
-     [`findings-process.md`](findings-process.md#2-registro-github-security-advisories-privados).
-3. La corrección sigue el flujo normal de [`findings-process.md`](findings-process.md#3-corrección): rama,
+     [`findings-process.md`](findings-process.md#2-registro-github-security-advisories-privados)).
+3. La corrección sigue el flujo normal de [`findings-process.md`](findings-process.md#3-corrección)): rama,
    cambio, **test en la JVM cuando sea posible**, revisión, y las reglas de
-   [ADR-AUD-01](decisions.md#adr-aud-01--estrategia-de-congelación) para `release/0.2`.
+   [ADR-AUD-01](decisions.md#adr-aud-01--estrategia-de-congelación)) para `release/0.2`.
 4. Se **repite la prueba** sobre el commit corregido (fila nueva) antes de cambiar el texto de «sin
    verificar».
 5. Si lo observado **contradice un texto de `threat-model.md`** (por ejemplo, «con borrado»), el texto se
@@ -1819,11 +1819,11 @@ también se actualiza la frase del README de Android y el «Pendiente» de
 | Qué queda fuera | Por qué |
 |---|---|
 | Root real en el teléfono principal; Magisk | Regla de seguridad 3. DT-11 se hace con un emulador `userdebug`; las señales `SU_BINARY` y `ROOT_MANAGER_APP` las cubre `RootDetectorTest` con un `DeviceProbe` falso |
-| La hipótesis del `iframe` de otro origen en un navegador ([ID-INT-16](internal-review.md#id-int-16), riesgo residual) | Necesita una página con dos orígenes y un navegador real; es una prueba nueva que no estaba en la lista. Candidata a un DT-18 |
-| Que una app inyecte extras en el `PendingIntent` mutable ([ID-INT-26](internal-review.md#id-int-26)) | El `IntentSender` lo guarda el marco de autorrelleno y no llega a código de una app normal; reproducirlo exige un cliente de autorrelleno modificado. El token y la rotación sí se prueban (DT-09d); la lógica del token, en la JVM (`AutofillRequestTokensTest`) |
-| Invalidación de la clave biométrica al inscribir una huella nueva (`BiometricKeyStore.kt:40-56`); modo de diario de SQLite (`-journal`, [`threat-model-review.md`](threat-model-review.md)) | No estaban en la lista pedida. Son verificaciones razonables en dispositivo; candidatas a DT-19/DT-20 |
+| La hipótesis del `iframe` de otro origen en un navegador ([ID-INT-16](internal-review.md#id-int-16)), riesgo residual) | Necesita una página con dos orígenes y un navegador real; es una prueba nueva que no estaba en la lista. Candidata a un DT-18 |
+| Que una app inyecte extras en el `PendingIntent` mutable ([ID-INT-26](internal-review.md#id-int-26))) | El `IntentSender` lo guarda el marco de autorrelleno y no llega a código de una app normal; reproducirlo exige un cliente de autorrelleno modificado. El token y la rotación sí se prueban (DT-09d); la lógica del token, en la JVM (`AutofillRequestTokensTest`) |
+| Invalidación de la clave biométrica al inscribir una huella nueva (`BiometricKeyStore.kt:40-56`); modo de diario de SQLite (`-journal`, [`threat-model-review.md`](threat-model-review.md))) | No estaban en la lista pedida. Son verificaciones razonables en dispositivo; candidatas a DT-19/DT-20 |
 | Rendimiento, tiempos de KDF por ABI y dispositivos de gama baja | La decisión de techo por ABI está sin tomar (ADR-AUD-07, decisión nº 3). DT-14 anota `MemTotal` y tiempos, pero no mide un catálogo de dispositivos |
-| Build reproducible, firma, SBOM y cadena de suministro | No dependen del dispositivo: ver [`dependencies.md`](dependencies.md) y `docs/fdroid/README.md` |
-| Pruebas sobre iOS, escritorio y la CLI `opvault` | Fuera del alcance de la auditoría ([`scope.md`](scope.md)). La CLI se usa aquí solo como herramienta |
-| Las pruebas de Kotlin en la JVM y los fuzzers | Se ejecutan en la CI o localmente (`./gradlew testDebugUnitTest`, [`fuzzing.md`](fuzzing.md)); este plan es lo que **no** puede hacerse allí |
+| Build reproducible, firma, SBOM y cadena de suministro | No dependen del dispositivo: ver [`dependencies.md`](dependencies.md)) y `docs/fdroid/README.md` |
+| Pruebas sobre iOS, escritorio y la CLI `opvault` | Fuera del alcance de la auditoría ([`scope.md`](scope.md))). La CLI se usa aquí solo como herramienta |
+| Las pruebas de Kotlin en la JVM y los fuzzers | Se ejecutan en la CI o localmente (`./gradlew testDebugUnitTest`, [`fuzzing.md`](fuzzing.md))); este plan es lo que **no** puede hacerse allí |
 | Versiones de Android no incluidas en la matriz (2.9) | Se cubren API 28, 29, 30, 33 y 36 como mínimo. Cada API adicional es una fila nueva en la tabla, no una prueba nueva |

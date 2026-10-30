@@ -1,7 +1,7 @@
 # Fuzzing
 
 Qué se fuzzea, cómo, con qué ganchos, qué falta y por qué se pospone. La guía de uso está en
-[`fuzz/README.md`](../../fuzz/README.md); la decisión, en [`decisions.md`](decisions.md) (ADR-AUD-05).
+[`fuzz/README.md`](../../../fuzz/README.md)); la decisión, en [`decisions.md`](decisions.md)) (ADR-AUD-05).
 
 Estado verificado el 2026-10-30 sobre `HEAD` `2bd56ce`. Los seis objetivos nuevos (`vault_json`,
 `item_open`, `item_plaintext`, `backup_body`, `ffi_records` y `kdbx_container`), los ganchos `cfg(fuzzing)`,
@@ -16,7 +16,7 @@ Todos son `cargo-fuzz` (libFuzzer con AddressSanitizer por defecto), registrados
 
 | Objetivo | Origen | Qué recibe | Qué recorre | Semillas (`fuzz/seeds/<objetivo>/`) | Corpus local (ficheros, no versionado) |
 |---|---|---|---|---|---|
-| `import` | `8063fd1` | Fichero | `import::needs_password` y `import::parse(data, now)`: CSV, Bitwarden JSON y `.1pux`; y, desde `2bd56ce`, `kdbx_fuzzing::file`: cabecera de KDBX y comprobaciones previas a la KDF con una clave fija ([ID-INT-25](internal-review.md#id-int-25), corregido) | 6 (9 521 B) | 27 888 |
+| `import` | `8063fd1` | Fichero | `import::needs_password` y `import::parse(data, now)`: CSV, Bitwarden JSON y `.1pux`; y, desde `2bd56ce`, `kdbx_fuzzing::file`: cabecera de KDBX y comprobaciones previas a la KDF con una clave fija ([ID-INT-25](internal-review.md#id-int-25)), corregido) | 6 (9 521 B) | 27 888 |
 | `kdbx_xml` | `8063fd1` | XML UTF-8 | `kdbx_fuzzing::xml`: `read_entries` (grupos, papelera, historial, valores protegidos con flujo ChaCha20 fijo, límites de profundidad y de entradas) y `entry_to_item` | 3 (64 944 B; las dos nuevas son de anidamiento profundo y del límite) | 5 334 |
 | `key_file` | `8063fd1` | Bytes | `kdbx_fuzzing::key_file` (`key_file_key`) | 2 (342 B) | 4 918 |
 | `backup_header` | `8063fd1` | Bytes | `backup::read_header` y `kdf.check_bounds()`. **No** llama a `check_within(MOBILE_MAXIMUM)` (ADR-AUD-07 lo pedía; `fuzz/fuzz_targets/backup_header.rs:7-9`) | 1 (3 953 B) | 2 861 |
@@ -37,9 +37,9 @@ Todos son `cargo-fuzz` (libFuzzer con AddressSanitizer por defecto), registrados
   ejecutaron, no cuánto; `kdbx_container` no tiene corpus local. Cualquier cifra de ejecuciones por objetivo nuevo sería una estimación.
 - **Hallazgos que ha producido hasta ahora**: ninguno. Los dos defectos de `op-core` que el fuzzing
   **no** encontró —y que la revisión interna sí— están en `internal-review.md` y ya están corregidos en `2bd56ce`:
-  [ID-INT-01](internal-review.md#id-int-01) (memoria cuadrática del XML, que `kdbx_xml` no encontraba
+  [ID-INT-01](internal-review.md#id-int-01)) (memoria cuadrática del XML, que `kdbx_xml` no encontraba
   porque exige anidamiento profundo **y** muchas entradas; ahora hay límites y semillas) y
-  [ID-INT-25](internal-review.md#id-int-25) (el hueco de cobertura de la cabecera de KDBX; ahora lo
+  [ID-INT-25](internal-review.md#id-int-25)) (el hueco de cobertura de la cabecera de KDBX; ahora lo
   cubren `import` y `kdbx_container`).
 
 ## 2. Ganchos `cfg(fuzzing)`
@@ -61,13 +61,13 @@ producción. Se comprueba así:
   'seal_backup|seal_item_part|TEST_VAULT_KEY'` → **0**, con un control positivo
   (`… | grep -c "cost above the accepted maximum"` → 1, una cadena que sí existe). El `.so` se
   compiló a las 10:14 del 30/10 con el árbol que incluye `check_within`.
-- **Comprobación del README: no sirve** ([ID-INT-21](internal-review.md#id-int-21)): sobre
+- **Comprobación del README: no sirve** ([ID-INT-21](internal-review.md#id-int-21))): sobre
   `target/release/libop_core.rlib` el mismo control positivo da 0, porque con LTO el `.rlib` es
   *bitcode*. El auditor no debería fiarse de ella.
 - `cargo build --release` no define `fuzzing`, así que los módulos no se compilan: la ausencia en
   `libop_ffi.so` lo confirma.
 
-El riesgo que queda ([`decisions.md`](decisions.md), «Riesgos que quedan abiertos»): código que solo
+El riesgo que queda ([`decisions.md`](decisions.md)), «Riesgos que quedan abiertos»): código que solo
 existe en fuzzing y que el auditor tiene que leer; se pide revisarlo y se propone un paso de CI con la
 comprobación válida.
 
@@ -112,7 +112,7 @@ comprobación válida.
 | **Diccionarios y estructura** (`-dict`, `Arbitrary` para JSON y XML) | No hay | Los objetivos de JSON parten de bytes crudos; los diccionarios acelerarían llegar a campos válidos |
 | **Medición de cobertura** (`cargo fuzz coverage`) | No hay informe | No hay `exec/s`, ni cobertura por objetivo, ni dato sobre qué ramas no alcanza ninguno |
 | **Jazzer para el Kotlin del autorrelleno** (`StructureParser`, `FieldClassifier`, `LoginMatcher`, `PublicSuffix`) | **Pospuesto** (decisión nº 9) | `StructureParser` depende de `AssistStructure` y Jazzer no lo alcanza sin Robolectric; `LoginMatcher` y `FieldClassifier` son funciones puras con tests de invariantes deterministas (`LoginMatcherTest`: 29 tests, generadores `Random(20260630)` y `Random(7)`, líneas 75 y 87); Jazzer exigiría pasar a JUnit 5 y añadir dependencias a la verificación de Gradle |
-| **`StructureParser`** | Sin fuzzing | Refactorizar a una abstracción de nodos sin Android; es el criterio para reconsiderar Jazzer. Candidato real: [ID-INT-18](internal-review.md#id-int-18) (recursión sin tope) |
+| **`StructureParser`** | Sin fuzzing | Refactorizar a una abstracción de nodos sin Android; es el criterio para reconsiderar Jazzer. Candidato real: [ID-INT-18](internal-review.md#id-int-18)) (recursión sin tope) |
 | **ClusterFuzzLite** | **Pospuesto** | Persistir el corpus necesita un repositorio o rama y un token (otro secreto) y un Dockerfile; el nocturno da lo esencial con las mismas herramientas. Criterio para reconsiderar: que la caché se pierda a menudo |
 | **OSS-Fuzz** | **Descartado** | Exige base de usuarios y su calendario de divulgación no encaja antes de la auditoría |
 | **Imágenes y QR** (descodificadores de imagen del sistema y ZXing) | Sin fuzzing | Código nativo del sistema fuera de alcance; ZXing sin UI se podría fuzzear con Jazzer más adelante |
@@ -127,7 +127,7 @@ mkdir -p corpus/kdbx_xml && cp seeds/kdbx_xml/* corpus/kdbx_xml/
 cargo +nightly fuzz run -O -a kdbx_xml corpus/kdbx_xml -- -max_total_time=60 -max_len=65536 -rss_limit_mb=2048 -timeout=10
 ```
 
-El XML de [ID-INT-01](internal-review.md#id-int-01) ya no se reproduce: lo cubre el test
+El XML de [ID-INT-01](internal-review.md#id-int-01)) ya no se reproduce: lo cubre el test
 `deep_group_nesting_is_refused_before_it_costs_memory` (`cargo test -p op-core deep_group`) y las semillas
 de `fuzz/seeds/kdbx_xml/`.
 

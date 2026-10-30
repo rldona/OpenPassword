@@ -2,11 +2,11 @@
 
 Inventario de lo que entra en el producto y en su cadena de compilación, con los números reales del
 árbol, qué se enlaza en `libop_ffi.so`, duplicados, avisos, licencias frente a GPL-3.0, pines y
-propuestas. Complementa ADR-AUD-04 en [`decisions.md`](decisions.md).
+propuestas. Complementa ADR-AUD-04 en [`decisions.md`](decisions.md)).
 
 Estado verificado el 2026-10-30 sobre `HEAD` `2bd56ce`. `deny.toml`, `.github/dependabot.yml`,
 `android/gradle/verification-metadata.xml`, las Actions fijadas por SHA y el job `release` están
-confirmados en ese commit ([`hardening.md`](hardening.md)); **ninguno se ha ejecutado todavía en
+confirmados en ese commit ([`hardening.md`](hardening.md))); **ninguno se ha ejecutado todavía en
 GitHub** (el job `release`) **ni con la verificación de Gradle activa**.
 Cada cifra lleva el comando que la produce (sección 8).
 
@@ -123,7 +123,7 @@ De `cargo metadata` sobre los 136 paquetes de crates.io:
   (probado con una copia de `deny.toml` en una ruta temporal, `cargo deny --locked --config … check
   licenses`). Los tres solo aparecen como alternativa en una disyunción `OR` que ya se cumple con MIT o Apache. Esto
   importa por `LGPL-2.1-or-later`: abre una puerta que `deny` no necesita. Es una **decisión de
-  la lista final** (nº 7, [`decisions.md`](decisions.md)).
+  la lista final** (nº 7, [`decisions.md`](decisions.md))).
 
 ### 2.5 Pines y herramientas de Rust
 

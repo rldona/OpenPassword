@@ -2,8 +2,8 @@
 
 Inventario de las entradas no confiables de OpenPassword, con el código que las recibe, quién las
 valida y si hay fuzzing. Es la entrada para el auditor: dice **por dónde entran los datos hostiles**,
-no si las defensas son suficientes (eso es [`internal-review.md`](internal-review.md) y
-[`threat-model-review.md`](threat-model-review.md)).
+no si las defensas son suficientes (eso es [`internal-review.md`](internal-review.md)) y
+[`threat-model-review.md`](threat-model-review.md))).
 
 Estado verificado el 2026-10-30 sobre el árbol de trabajo (`HEAD` `3725741` más cambios sin confirmar, ya
 confirmados en `2bd56ce`: `SecretString`, techo móvil de KDF, presupuesto de KDBX, lista de sufijos públicos, objetivos de
@@ -11,7 +11,7 @@ fuzzing nuevos y `deny.toml`). Un bloque posterior **sin commit** (token de auto
 comprobar con `sed -n 'Np' fichero`; una afirmación de ausencia, con `grep`.
 
 Alcance: `op-core`, `op-ffi`, la app Android y el formato `.opvault` v1. La CLI (`cli/`) queda fuera
-([`decisions.md`](decisions.md)). Aun así comparte `op-core`, así que los parsers de `op-core` son los
+([`decisions.md`](decisions.md))). Aun así comparte `op-core`, así que los parsers de `op-core` son los
 mismos.
 
 ## 1. Mapa de confianza
@@ -55,7 +55,7 @@ Lectura del mapa:
   Una caída o una fuga de memoria en `op-core` afecta a toda la app. La única barrera real entre
   Kotlin y Rust es de tipos y de propiedad (`SecretString`, `Zeroizing`), no de privilegios.
 - **La memoria de la JVM está del lado de «claro»**: F1, F6 y F7 llevan `String` inmutables que no se
-  pueden borrar (residuo aceptado en [`decisions.md`](decisions.md), ADR-AUD-02).
+  pueden borrar (residuo aceptado en [`decisions.md`](decisions.md)), ADR-AUD-02).
 - **Todo lo que sale a F5 y F8 como `.opvault` o elemento está cifrado**; lo que sale en claro es la
   cabecera (sin datos de usuario, `core/src/vault/mod.rs:21-33`), el kit de emergencia (la SK) y lo que
   el usuario copia al portapapeles.
@@ -168,7 +168,7 @@ límites** · **fuzzing**. Los límites se citan con su constante.
   el lado supera **1600 px** (`MAX_SIDE`) → `QrDecoder.fromArgb`; cámara: `QrDecoder.fromLuminance`
   (`:22-23`) con el plano Y de CameraX.
 - **Validación**: solo `BarcodeFormat.QR_CODE` (`QrDecoder.kt:16`); el texto resultante pasa por 2.6.
-- **Fuzzing**: ninguno (se pospone, ver [`fuzzing.md`](fuzzing.md)).
+- **Fuzzing**: ninguno (se pospone, ver [`fuzzing.md`](fuzzing.md))).
 
 ### 2.8 `AssistStructure` del autorrelleno
 
