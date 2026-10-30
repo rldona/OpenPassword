@@ -96,7 +96,7 @@ fun ItemDetailScreen(
 
     fun copy(field: FieldRecord) {
         clipboard.copy(field.value)
-        scope.launch { snackbar.showSnackbar("${field.label} copiado. Se borrará del portapapeles en 30 s.") }
+        scope.launch { snackbar.showSnackbar("${field.label} copiado. Se borrará en 30 s, o al volver a la app si sales.") }
     }
 
     Scaffold(
@@ -139,7 +139,7 @@ fun ItemDetailScreen(
                             if (field.kind == FieldKindRecord.TOTP) {
                                 TotpRow(field, onCopy = { code ->
                                     clipboard.copy(code)
-                                    scope.launch { snackbar.showSnackbar("Código copiado. Se borrará del portapapeles en 30 s.") }
+                                    scope.launch { snackbar.showSnackbar("Código copiado. Se borrará en 30 s, o al volver a la app si sales.") }
                                 })
                             } else {
                                 FieldRow(
@@ -181,7 +181,7 @@ fun ItemDetailScreen(
                             // Negative keys so they never clash with the field indexes above.
                             FieldRow(old, revealed = revealed[-1 - i] == true, onToggle = { revealed[-1 - i] = revealed[-1 - i] != true }, onCopy = {
                                 clipboard.copy(change.value)
-                                scope.launch { snackbar.showSnackbar("Contraseña anterior copiada. Se borrará del portapapeles en 30 s.") }
+                                scope.launch { snackbar.showSnackbar("Contraseña anterior copiada. Se borrará en 30 s, o al volver a la app si sales.") }
                             })
                         }
                     }
