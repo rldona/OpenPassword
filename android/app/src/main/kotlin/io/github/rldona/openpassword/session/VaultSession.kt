@@ -50,7 +50,8 @@ data class VaultEntry(val record: EncryptedItemRecord, val overview: ItemOvervie
 sealed interface SessionState {
     data object NoVault : SessionState
     data object Locked : SessionState
-    data class Unlocked(val entries: List<VaultEntry>) : SessionState
+    /** [unreadable]: ids of rows that could not be decrypted; they stay untouched in storage (ID-INT-06). */
+    data class Unlocked(val entries: List<VaultEntry>, val unreadable: List<String> = emptyList()) : SessionState
 }
 
 sealed interface UnlockResult {
@@ -75,7 +76,8 @@ class VaultSession(
     private val totalMemory: () -> Long = { Long.MAX_VALUE },
 ) {
     private val mutex = Mutex()
-    private var vault: Vault? = null
+    private val vault = KeyHolder<Vault>(Vault::discard)
+    private val attempts = AttemptLimiter(PrefsAttemptStore(prefs))
     private val _state = MutableStateFlow<SessionState>(
         if (storage.hasVault()) SessionState.Locked else SessionState.NoVault,
     )
@@ -85,6 +87,8 @@ class VaultSession(
     var onChanged: () -> Unit = {}
     /** Called every time the vault is unlocked, by password, fingerprint or restore. */
     var onUnlocked: () -> Unit = {}
+    /** Called every time the session locks, even if it was already locked. Used to drop in-memory secrets. */
+    var onLocked: () -> Unit = {}
 
     private var lastInteraction = SystemClock.elapsedRealtime()
     private var backgroundedAt: Long? = null
@@ -98,24 +102,23 @@ class VaultSession(
                 storage.writeHeader(created.headerJson())
                 recordPasswordUnlock()
             }
-            replaceVault(created, emptyList())
+            replaceVault(created, LoadedEntries(emptyList(), emptyList()))
         }
     }
 
     suspend fun unlock(password: String): UnlockResult = mutex.withLock {
-        remainingWait().takeIf { it > 0 }?.let { return UnlockResult.MustWait(it) }
+        attempts.remainingWait().takeIf { it > 0 }?.let { return UnlockResult.MustWait(it) }
         withContext(Dispatchers.Default) {
             try {
                 val unlocked = Vault.unlock(storage.readHeader(), password, storage.loadSecretKey())
-                val entries = discardOnFailure(unlocked::discard) { storage.items().map { VaultEntry(it, unlocked.decryptOverview(it)) } }
-                prefs.edit().putInt(KEY_FAILURES, 0).apply()
+                val entries = discardOnFailure(unlocked::discard) { loadEntries(storage.items(), unlocked::decryptOverview) }
+                attempts.recordSuccess()
                 recordPasswordUnlock()
                 replaceVault(unlocked, entries)
                 UnlockResult.Success
             } catch (_: OpException.WrongCredentials) {
-                val failures = prefs.getInt(KEY_FAILURES, 0) + 1
-                prefs.edit().putInt(KEY_FAILURES, failures).putLong(KEY_LAST_FAILURE, System.currentTimeMillis()).apply()
-                UnlockResult.WrongPassword(remainingWait())
+                attempts.recordFailure()
+                UnlockResult.WrongPassword(attempts.remainingWait())
             } catch (e: OpException) {
                 UnlockResult.Failed(e.toUserMessage())
             } catch (_: InternalException) {
@@ -140,7 +143,7 @@ class VaultSession(
             val normalizedKey = normalizeSecretKey(secretKey)
             checkKdfFits(backup)
             val contents = openBackup(backup, password, normalizedKey)
-            val entries = discardOnFailure(contents.vault::discard) { contents.items.map { VaultEntry(it, contents.vault.decryptOverview(it)) } }
+            val entries = discardOnFailure(contents.vault::discard) { loadEntries(contents.items, contents.vault::decryptOverview) }
             try {
                 storage.clearItems()
                 contents.items.forEach(storage::upsert)
@@ -164,50 +167,63 @@ class VaultSession(
      */
     suspend fun importBackup(backup: ByteArray, password: String, secretKey: String?): ImportSummary = mutex.withLock {
         withContext(Dispatchers.Default) {
-            val current = vault ?: throw OpException.Locked()
-            // No key given: a backup made on this device, so use the one stored here.
-            val key = secretKey?.let(::normalizeSecretKey) ?: storage.loadSecretKey()
-            checkKdfFits(backup)
-            val contents = openBackup(backup, password, key)
-            val source = contents.vault
-            try {
-                val sameVault = vaultIdOf(source.headerJson()) == vaultIdOf(current.headerJson())
-                val existing = storage.items().associateBy { it.id }
-                var added = 0
-                var updated = 0
-                var unchanged = 0
-                for (record in contents.items) {
-                    val mine = existing[record.id]
-                    when {
-                        !sameVault -> {
-                            storage.upsert(current.encryptItem(source.decryptOverview(record), source.decryptDetails(record)))
-                            added++
+            vault.use { current ->
+                // No key given: a backup made on this device, so use the one stored here.
+                val key = secretKey?.let(::normalizeSecretKey) ?: storage.loadSecretKey()
+                checkKdfFits(backup)
+                val contents = openBackup(backup, password, key)
+                val source = contents.vault
+                try {
+                    val sameVault = vaultIdOf(source.headerJson()) == vaultIdOf(current.headerJson())
+                    val existing = storage.items().associateBy { it.id }
+                    var added = 0
+                    var updated = 0
+                    var unchanged = 0
+                    for (record in contents.items) {
+                        val mine = existing[record.id]
+                        when {
+                            !sameVault -> {
+                                storage.upsert(current.encryptItem(source.decryptOverview(record), source.decryptDetails(record)))
+                                added++
+                            }
+                            mine == null -> { storage.upsert(record); added++ }
+                            record.revision > mine.revision -> { storage.upsert(record); updated++ }
+                            else -> unchanged++
                         }
-                        mine == null -> { storage.upsert(record); added++ }
-                        record.revision > mine.revision -> { storage.upsert(record); updated++ }
-                        else -> unchanged++
                     }
+                    val loaded = loadEntries(storage.items(), current::decryptOverview)
+                    // A lock() during the import must not bring the state back to Unlocked without a key.
+                    if (vault.current() === current) _state.value = SessionState.Unlocked(loaded.entries, loaded.unreadable)
+                    if (added + updated > 0) onChanged()
+                    ImportSummary(added, updated, unchanged)
+                } finally {
+                    source.lock()
+                    source.close()
                 }
-                val entries = storage.items().map { VaultEntry(it, current.decryptOverview(it)) }
-                _state.value = SessionState.Unlocked(entries)
-                if (added + updated > 0) onChanged()
-                ImportSummary(added, updated, unchanged)
-            } finally {
-                source.lock()
-                source.close()
             }
         }
     }
 
-    /** Checks the master password again without changing the session (e.g. to reveal the secret key). */
-    suspend fun verifyPassword(password: String): Boolean = withContext(Dispatchers.Default) {
-        try {
-            Vault.unlock(storage.readHeader(), password, storage.loadSecretKey()).use { it.lock() }
-            true
-        } catch (_: OpException) {
-            false
-        } catch (_: InternalException) {
-            false
+    /**
+     * Checks the master password again without changing the session (e.g. to reveal the secret key).
+     * Shares the failure counter and the growing wait with [unlock] (ID-INT-09): the result is
+     * [UnlockResult.Success], [UnlockResult.WrongPassword], [UnlockResult.MustWait] or [UnlockResult.Failed].
+     */
+    suspend fun verifyPassword(password: String): UnlockResult = mutex.withLock {
+        attempts.remainingWait().takeIf { it > 0 }?.let { return UnlockResult.MustWait(it) }
+        withContext(Dispatchers.Default) {
+            try {
+                Vault.unlock(storage.readHeader(), password, storage.loadSecretKey()).use { it.lock() }
+                attempts.recordSuccess()
+                UnlockResult.Success
+            } catch (_: OpException.WrongCredentials) {
+                attempts.recordFailure()
+                UnlockResult.WrongPassword(attempts.remainingWait())
+            } catch (e: OpException) {
+                UnlockResult.Failed(e.toUserMessage())
+            } catch (_: InternalException) {
+                UnlockResult.Failed(INTERNAL_ERROR_MESSAGE)
+            }
         }
     }
 
@@ -279,7 +295,7 @@ class VaultSession(
             }
             try {
                 val unlocked = Vault.unlockWithVaultKey(storage.readHeader(), key)
-                val entries = discardOnFailure(unlocked::discard) { storage.items().map { VaultEntry(it, unlocked.decryptOverview(it)) } }
+                val entries = discardOnFailure(unlocked::discard) { loadEntries(storage.items(), unlocked::decryptOverview) }
                 replaceVault(unlocked, entries)
                 UnlockResult.Success
             } catch (e: OpException) {
@@ -299,12 +315,15 @@ class VaultSession(
             .apply()
     }
 
+    /**
+     * Wipes the key at once and from any thread, without waiting for [mutex]: an operation in
+     * flight finishes with [OpException.Locked] (see [KeyHolder]). Waiting would block the main
+     * thread behind a long import, and taking the mutex from a locked path risks a deadlock
+     * with [withVault].
+     */
     fun lock() {
-        vault?.let {
-            it.lock()
-            it.close()
-        }
-        vault = null
+        vault.lock()
+        onLocked()
         if (_state.value is SessionState.Unlocked) _state.value = SessionState.Locked
     }
 
@@ -435,23 +454,17 @@ class VaultSession(
      */
     private suspend fun <T> withVault(block: (Vault) -> T): T = mutex.withLock {
         try {
-            withContext(Dispatchers.Default) {
-                block(vault ?: throw OpException.Locked())
-            }
+            withContext(Dispatchers.Default) { vault.use(block) }
         } catch (e: Exception) {
             if (e !is CancellationException && shouldLockAfter(e, _state.value is SessionState.Unlocked)) lock()
             throw e
         }
     }
 
-    private fun replaceVault(newVault: Vault, entries: List<VaultEntry>) {
-        vault?.let {
-            it.lock()
-            it.close()
-        }
-        vault = newVault
+    private fun replaceVault(newVault: Vault, loaded: LoadedEntries) {
+        vault.replace(newVault)
         lastInteraction = SystemClock.elapsedRealtime()
-        _state.value = SessionState.Unlocked(entries)
+        _state.value = SessionState.Unlocked(loaded.entries, loaded.unreadable)
         onUnlocked()
     }
 
@@ -460,10 +473,13 @@ class VaultSession(
         _state.value = current.copy(entries = transform(current.entries))
     }
 
-    private fun remainingWait(): Long = unlockWaitSeconds(
-        failures = prefs.getInt(KEY_FAILURES, 0),
-        msSinceLastFailure = System.currentTimeMillis() - prefs.getLong(KEY_LAST_FAILURE, 0),
-    )
+    private class PrefsAttemptStore(private val prefs: SharedPreferences) : AttemptStore {
+        override val failures get() = prefs.getInt(KEY_FAILURES, 0)
+        override val lastFailureAt get() = prefs.getLong(KEY_LAST_FAILURE, 0)
+        override fun write(failures: Int, lastFailureAt: Long) {
+            prefs.edit().putInt(KEY_FAILURES, failures).putLong(KEY_LAST_FAILURE, lastFailureAt).apply()
+        }
+    }
 
     companion object {
         /** Runs [block]; if it throws, calls [release] (best effort) and rethrows, so a half-opened vault never keeps its key. */
@@ -521,7 +537,7 @@ fun OpException.toUserMessage(): String = when (this) {
 const val INTERNAL_ERROR_MESSAGE = "Ha ocurrido un error interno. Vuelve a desbloquear el baúl."
 
 /** Wipes the key and frees the native handle. */
-private fun Vault.discard() {
+internal fun Vault.discard() {
     runCatching { lock() }
     runCatching { close() }
 }

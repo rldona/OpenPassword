@@ -5,12 +5,27 @@
 //! 1Password's `.1pux` export (a ZIP with `export.data` in JSON) and password-protected
 //! KeePass databases (KDBX 3.1 and 4.x, see [`kdbx`]).
 //! The input is plaintext secrets: callers should offer to delete the file afterwards.
+//!
+//! Secrets in memory (docs/threat-model.md, A15). Every buffer that holds a password while
+//! importing is a [`Zeroizing`] value or is wiped by hand: the input copy of a `.1pux`, the CSV
+//! fields, the parsed JSON tree ([`WipedJson`]), the values of KeePass entries and key files,
+//! and the keys derived from the KeePass password. Accepted leftovers, which this crate cannot
+//! reach:
+//! - the bytes a growing `String`/`Vec` leaves behind when it reallocates (CSV field, XML text,
+//!   JSON strings while `serde_json` builds them) and `serde_json`'s own scratch buffers;
+//! - the object keys of the JSON tree (field names, not values) and numbers;
+//! - the stack temporaries of the hash functions (`sha2` is built without its `zeroize` feature);
+//! - the files' own non-secret header data (KDBX seeds, salts);
+//! - what happens after the items cross the FFI: the `String`s of `ImportedItemRecord`, the
+//!   `RustBuffer` UniFFI frees without wiping, and everything on the JVM side.
 
 mod kdbx;
+pub use kdbx::Argon2Cost;
 #[cfg(fuzzing)]
 pub use kdbx::fuzzing as kdbx_fuzzing;
 
 use serde_json::Value;
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::vault::{Field, FieldKind, Item, ItemDetails, ItemKind, ItemOverview};
 use crate::{Error, Result};
@@ -36,6 +51,16 @@ const MAX_INPUT: usize = 32 * 1024 * 1024;
 /// True for formats that are encrypted and need the source manager's password (KeePass).
 pub fn needs_password(bytes: &[u8]) -> bool {
     kdbx::is_kdbx(bytes)
+}
+
+/// The Argon2 cost a KeePass file declares, so the app can compare it with the device's
+/// memory **before** [`parse_with_credentials`] runs the KDF. `None` if `bytes` is not KDBX or
+/// its key derivation needs no memory worth checking (AES-KDF). Carries no secret.
+pub fn kdbx_argon2_cost(bytes: &[u8]) -> Result<Option<Argon2Cost>> {
+    if !kdbx::is_kdbx(bytes) {
+        return Ok(None);
+    }
+    kdbx::argon2_cost(bytes)
 }
 
 /// Detects the format and converts every entry. `now` (Unix seconds) stamps the items.
@@ -94,7 +119,7 @@ struct Login<'a> {
     totp: &'a str,
     notes: &'a str,
     favorite: bool,
-    extra: Vec<(String, String, bool)>,
+    extra: Vec<(String, Zeroizing<String>, bool)>,
 }
 
 fn overview(
@@ -224,10 +249,10 @@ fn truthy(v: &str) -> bool {
 // ---------------------------------------------------------------- CSV
 
 /// RFC 4180: quoted fields may contain commas, quotes ("") and line breaks.
-fn csv_records(text: &str) -> Result<Vec<Vec<String>>> {
+fn csv_records(text: &str) -> Result<Vec<Vec<Zeroizing<String>>>> {
     let mut records = Vec::new();
     let mut record = Vec::new();
-    let mut field = String::new();
+    let mut field = Zeroizing::new(String::new());
     let mut quoted = false;
     let mut chars = text.chars().peekable();
     while let Some(c) = chars.next() {
@@ -255,6 +280,7 @@ fn csv_records(text: &str) -> Result<Vec<Vec<String>>> {
         record.push(field);
         records.push(record);
     }
+    // `retain` drops the discarded rows, and each field wipes itself.
     records.retain(|r| r.iter().any(|f| !f.trim().is_empty()));
     Ok(records)
 }
@@ -293,7 +319,7 @@ fn parse_csv(text: &str, now: u64) -> Result<Imported> {
     let mut items = Vec::new();
     let mut skipped = 0;
     for r in records {
-        let get = |c: Option<usize>| c.and_then(|i| r.get(i)).map(String::as_str).unwrap_or("");
+        let get = |c: Option<usize>| c.and_then(|i| r.get(i)).map(|f| f.as_str()).unwrap_or("");
         let item = match get(kind).trim().to_ascii_lowercase().as_str() {
             "" | "login" => login_item(
                 Login {
@@ -329,9 +355,37 @@ fn s<'a>(v: &'a Value, key: &str) -> &'a str {
     v.get(key).and_then(Value::as_str).unwrap_or("")
 }
 
+/// A parsed JSON document whose strings are wiped when it is dropped, whichever path leaves
+/// the parser (including the `?` returns). Object keys are not wiped: they are field names.
+struct WipedJson(Value);
+
+impl std::ops::Deref for WipedJson {
+    type Target = Value;
+    fn deref(&self) -> &Value {
+        &self.0
+    }
+}
+
+impl Drop for WipedJson {
+    fn drop(&mut self) {
+        wipe_json(&mut self.0);
+    }
+}
+
+fn wipe_json(v: &mut Value) {
+    match v {
+        Value::String(s) => s.zeroize(),
+        Value::Array(a) => a.iter_mut().for_each(wipe_json),
+        Value::Object(o) => o.values_mut().for_each(wipe_json),
+        _ => {}
+    }
+}
+
 fn parse_bitwarden_json(text: &str, now: u64) -> Result<Imported> {
-    let root: Value = serde_json::from_str(text)
-        .map_err(|_| Error::InvalidInput("the JSON file is not valid"))?;
+    let root = WipedJson(
+        serde_json::from_str(text)
+            .map_err(|_| Error::InvalidInput("the JSON file is not valid"))?,
+    );
     if root.get("encrypted").and_then(Value::as_bool) == Some(true) {
         return Err(Error::InvalidInput(
             "encrypted Bitwarden export: export again choosing the unencrypted JSON format",
@@ -348,7 +402,7 @@ fn parse_bitwarden_json(text: &str, now: u64) -> Result<Imported> {
         let name = s(e, "name");
         let notes = s(e, "notes");
         let favorite = e.get("favorite").and_then(Value::as_bool).unwrap_or(false);
-        let custom: Vec<(String, String, bool)> = e
+        let custom: Vec<(String, Zeroizing<String>, bool)> = e
             .get("fields")
             .and_then(Value::as_array)
             .map(|fs| {
@@ -358,7 +412,7 @@ fn parse_bitwarden_json(text: &str, now: u64) -> Result<Imported> {
                     .map(|f| {
                         (
                             s(f, "name").to_owned(),
-                            s(f, "value").to_owned(),
+                            Zeroizing::new(s(f, "value").to_owned()),
                             f.get("type").and_then(Value::as_u64) == Some(1),
                         )
                     })
@@ -450,7 +504,8 @@ struct Card<'a> {
 }
 
 fn card(c: Card<'_>, notes: &str, favorite: bool, now: u64) -> Option<Item> {
-    let number: String = c.number.chars().filter(char::is_ascii_digit).collect();
+    let number: Zeroizing<String> =
+        Zeroizing::new(c.number.chars().filter(char::is_ascii_digit).collect());
     let fields: Vec<Field> = [
         field("Titular", FieldKind::Text, c.holder),
         field("Número", FieldKind::CardNumber, &number),
@@ -478,9 +533,9 @@ fn card(c: Card<'_>, notes: &str, favorite: bool, now: u64) -> Option<Item> {
 // ---------------------------------------------------------------- 1Password .1pux
 
 /// A section field's value: 1Password stores it as `{"<kind>": value}`.
-fn onepux_value(v: &Value) -> Option<(&str, String)> {
+fn onepux_value(v: &Value) -> Option<(&str, Zeroizing<String>)> {
     let (kind, inner) = v.as_object()?.iter().next()?;
-    let text = match inner {
+    let text = Zeroizing::new(match inner {
         Value::String(s) => s.clone(),
         // monthYear: 202908 → "08/29".
         Value::Number(n) if kind == "monthYear" => {
@@ -490,7 +545,7 @@ fn onepux_value(v: &Value) -> Option<(&str, String)> {
         Value::Number(n) => n.to_string(),
         Value::Object(o) => o.values().find_map(Value::as_str)?.to_owned(),
         _ => return None,
-    };
+    });
     Some((kind.as_str(), text))
 }
 
@@ -498,7 +553,7 @@ fn parse_1pux(bytes: &[u8], now: u64) -> Result<Imported> {
     use std::io::Read;
     let damaged = || Error::InvalidInput("the ZIP file is damaged");
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).map_err(|_| damaged())?;
-    let mut data = Vec::new();
+    let mut data = Zeroizing::new(Vec::new());
     {
         let entry = archive
             .by_name("export.data")
@@ -512,9 +567,11 @@ fn parse_1pux(bytes: &[u8], now: u64) -> Result<Imported> {
     if data.len() > MAX_INPUT {
         return Err(Error::InvalidInput("file too large to import"));
     }
-    let root: Value = serde_json::from_slice(&data)
-        .map_err(|_| Error::InvalidInput("the JSON file is not valid"))?;
-    data.fill(0);
+    let root = WipedJson(
+        serde_json::from_slice(&data)
+            .map_err(|_| Error::InvalidInput("the JSON file is not valid"))?,
+    );
+    drop(data);
 
     let mut items = Vec::new();
     let mut skipped = 0;
@@ -552,7 +609,7 @@ fn parse_1pux(bytes: &[u8], now: u64) -> Result<Imported> {
         let favorite = e.get("favIndex").and_then(Value::as_u64).unwrap_or(0) > 0;
         // (id, title, kind, value). Card fields are found by id ("ccnum", "cvv"…); custom
         // fields have random ids, so their title is what the user named them.
-        let section_fields: Vec<(&str, &str, &str, String)> = d
+        let section_fields: Vec<(&str, &str, &str, Zeroizing<String>)> = d
             .get("sections")
             .and_then(Value::as_array)
             .into_iter()
@@ -906,5 +963,42 @@ mod tests {
         assert!(parse(b"", 0).is_err());
         assert!(parse(&[0xff, 0xfe, 0x00], 0).is_err(), "not UTF-8");
         assert!(parse(b"{not json", 0).is_err());
+    }
+
+    /// Reading memory after a drop is undefined behaviour (and this crate forbids `unsafe`), so
+    /// the drop itself cannot be observed: what is checked is the function `WipedJson::drop` runs.
+    #[test]
+    fn wipe_json_clears_every_string_at_any_depth() {
+        let mut v: Value = serde_json::from_str(
+            r#"{"k":"s3cret","a":["x",{"p":"hunter2","n":7,"b":true,"z":null}],"o":{"deep":{"p":"y"}}}"#,
+        )
+        .unwrap();
+        wipe_json(&mut v);
+        let mut strings = 0;
+        let mut stack = vec![&v];
+        while let Some(v) = stack.pop() {
+            match v {
+                Value::String(s) => {
+                    strings += 1;
+                    assert!(s.is_empty());
+                }
+                Value::Array(a) => stack.extend(a),
+                Value::Object(o) => stack.extend(o.values()),
+                _ => {}
+            }
+        }
+        assert_eq!(strings, 4);
+        assert_eq!(v["a"][1]["n"], 7, "non-strings are left as they are");
+    }
+
+    #[test]
+    fn json_parsers_still_read_values_through_the_guard() {
+        let out = parse(
+            br#"{"items":[{"type":1,"name":"a","login":{"username":"u","password":"  pw  "},"fields":[{"type":1,"name":"PIN","value":"1234"}]}]}"#,
+            0,
+        )
+        .unwrap();
+        assert_eq!(value(&out.items[0], "Contrase\u{f1}a"), "  pw  ");
+        assert_eq!(value(&out.items[0], "PIN"), "1234");
     }
 }

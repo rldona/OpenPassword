@@ -124,7 +124,7 @@ struct Header {
     // KDBX 3.1
     transform_seed: Vec<u8>,
     transform_rounds: u64,
-    protected_stream_key: Vec<u8>,
+    protected_stream_key: Zeroizing<Vec<u8>>,
     stream_start_bytes: Vec<u8>,
     inner_stream_id: u32,
 }
@@ -186,11 +186,11 @@ pub fn parse(
         composite.update(*key_file_key(k)?);
     }
     let composite = Zeroizing::new(composite.finalize().to_vec());
-    let transformed = Zeroizing::new(if v4 {
+    let transformed = if v4 {
         kdf_v4(&h.kdf, &composite)?
     } else {
         aes_kdf(&composite, &h.transform_seed, h.transform_rounds)?
-    });
+    };
     open_payload(bytes, &h, v4, header_end, &transformed, now)
 }
 
@@ -232,7 +232,7 @@ fn read_header(bytes: &[u8]) -> Result<(Header, bool, usize)> {
                 h.transform_rounds = u64::from_le_bytes(data.try_into().expect("8 bytes"))
             }
             7 => h.iv = data.to_vec(),
-            8 => h.protected_stream_key = data.to_vec(),
+            8 => h.protected_stream_key = Zeroizing::new(data.to_vec()),
             9 => h.stream_start_bytes = data.to_vec(),
             10 if data.len() == 4 => {
                 h.inner_stream_id = u32::from_le_bytes(data.try_into().expect("4 bytes"))
@@ -247,6 +247,34 @@ fn read_header(bytes: &[u8]) -> Result<(Header, bool, usize)> {
     }
 
     Ok((h, v4, header_end))
+}
+
+/// Argon2 cost a KDBX 4 file declares in its header.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Argon2Cost {
+    pub memory_kib: u64,
+    pub iterations: u64,
+    pub lanes: u64,
+}
+
+/// The Argon2 cost declared by the header of a KDBX file, or `None` if its key derivation
+/// needs no memory worth checking (AES-KDF, KDBX 3.1). Reads only the unauthenticated header:
+/// no secret, no KDF. It does not apply the ceiling: [`parse`] refuses what is above it.
+pub fn argon2_cost(bytes: &[u8]) -> Result<Option<Argon2Cost>> {
+    let (h, v4, _) = read_header(bytes)?;
+    if !v4 {
+        return Ok(None);
+    }
+    let uuid = dict_get(&h.kdf, "$UUID").ok_or(Error::Malformed("KDBX KDF"))?;
+    if uuid != KDF_ARGON2D && uuid != KDF_ARGON2ID {
+        return Ok(None);
+    }
+    let get = |key: &str| dict_u64(&h.kdf, key).ok_or(Error::Malformed("KDBX KDF"));
+    Ok(Some(Argon2Cost {
+        memory_kib: get("M")? / 1024,
+        iterations: get("I")?,
+        lanes: get("P")?,
+    }))
 }
 
 /// Everything behind the key derivation: checks, blocks, outer cipher, gunzip, XML.
@@ -384,7 +412,7 @@ fn open_payload(
                 1 if data.len() == 4 => {
                     stream_id = u32::from_le_bytes(data.try_into().expect("4 bytes"))
                 }
-                2 => stream_key = data.to_vec(),
+                2 => stream_key = Zeroizing::new(data.to_vec()),
                 _ => {}
             }
         }
@@ -414,7 +442,7 @@ fn open_payload(
 /// or, for any other file, its SHA-256.
 fn key_file_key(data: &[u8]) -> Result<Zeroizing<[u8; 32]>> {
     let damaged = || bad("the key file is damaged");
-    let to_key = |v: Vec<u8>| -> Result<Zeroizing<[u8; 32]>> {
+    let to_key = |v: &[u8]| -> Result<Zeroizing<[u8; 32]>> {
         Ok(Zeroizing::new(v.try_into().map_err(|_| damaged())?))
     };
 
@@ -424,8 +452,9 @@ fn key_file_key(data: &[u8]) -> Result<Zeroizing<[u8; 32]>> {
     {
         let (version, data_text, hash) = key_file_xml(xml)?;
         return if version.starts_with("2.") {
-            let hex: String = data_text.chars().filter(|c| !c.is_whitespace()).collect();
-            let key = to_key(decode_hex(&hex).ok_or_else(damaged)?)?;
+            let hex: Zeroizing<String> =
+                Zeroizing::new(data_text.chars().filter(|c| !c.is_whitespace()).collect());
+            let key = to_key(&decode_hex(&hex).ok_or_else(damaged)?)?;
             if let Some(expected) = hash {
                 let actual: String = Sha256::digest(*key)[..4]
                     .iter()
@@ -437,28 +466,28 @@ fn key_file_key(data: &[u8]) -> Result<Zeroizing<[u8; 32]>> {
             }
             Ok(key)
         } else {
-            to_key(
+            to_key(&Zeroizing::new(
                 base64::engine::general_purpose::STANDARD
                     .decode(data_text.trim())
                     .map_err(|_| damaged())?,
-            )
+            ))
         };
     }
     if data.len() == 32 {
-        return to_key(data.to_vec());
+        return to_key(data);
     }
     if data.len() == 64 {
         if let Some(key) = std::str::from_utf8(data).ok().and_then(decode_hex) {
-            return to_key(key);
+            return to_key(&key);
         }
     }
-    to_key(Sha256::digest(data).to_vec())
+    to_key(&Sha256::digest(data))
 }
 
 /// (Version, Data text, Data@Hash) of a key file.
-fn key_file_xml(xml: &str) -> Result<(String, String, Option<String>)> {
+fn key_file_xml(xml: &str) -> Result<(String, Zeroizing<String>, Option<String>)> {
     let mut reader = Reader::from_str(xml);
-    let (mut version, mut data, mut hash) = (String::new(), String::new(), None);
+    let (mut version, mut data, mut hash) = (String::new(), Zeroizing::new(String::new()), None);
     let mut current = String::new();
     loop {
         match reader
@@ -485,14 +514,16 @@ fn key_file_xml(xml: &str) -> Result<(String, String, Option<String>)> {
     Ok((version, data, hash))
 }
 
-fn decode_hex(s: &str) -> Option<Vec<u8>> {
+fn decode_hex(s: &str) -> Option<Zeroizing<Vec<u8>>> {
     if s.len() % 2 != 0 {
         return None;
     }
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(s.get(i..i + 2)?, 16).ok())
-        .collect()
+    // Pushed into a wiped buffer, so a bad digit halfway does not leave a partial key behind.
+    let mut out = Zeroizing::new(Vec::with_capacity(s.len() / 2));
+    for i in (0..s.len()).step_by(2) {
+        out.push(u8::from_str_radix(s.get(i..i + 2)?, 16).ok()?);
+    }
+    Some(out)
 }
 
 fn block_key(hmac_base: &[u8], index: u64) -> Zeroizing<Vec<u8>> {
@@ -506,7 +537,7 @@ fn hmac_sha256(key: &[u8]) -> Hmac<Sha256> {
     <Hmac<Sha256> as Mac>::new_from_slice(key).expect("HMAC accepts keys of any length")
 }
 
-fn kdf_v4(dict: &[(String, Vec<u8>)], composite: &[u8]) -> Result<Vec<u8>> {
+fn kdf_v4(dict: &[(String, Vec<u8>)], composite: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
     let uuid = dict_get(dict, "$UUID").ok_or(Error::Malformed("KDBX KDF"))?;
     if uuid == KDF_AES {
         let seed = dict_get(dict, "S").ok_or(Error::Malformed("KDBX KDF"))?;
@@ -534,7 +565,7 @@ fn kdf_v4(dict: &[(String, Vec<u8>)], composite: &[u8]) -> Result<Vec<u8>> {
         Some(32),
     )
     .map_err(|_| Error::Malformed("KDBX Argon2 parameters"))?;
-    let mut out = vec![0u8; 32];
+    let mut out = Zeroizing::new(vec![0u8; 32]);
     Argon2::new(algorithm, version, params)
         .hash_password_into(composite, salt, &mut out)
         .map_err(|_| Error::Kdf)?;
@@ -555,7 +586,7 @@ fn check_argon2_cost(memory: u64, iterations: u64, lanes: u64) -> Result<()> {
 }
 
 /// KeePass AES-KDF: encrypt both halves of the key `rounds` times with AES-256-ECB, then SHA-256.
-fn aes_kdf(composite: &[u8], seed: &[u8], rounds: u64) -> Result<Vec<u8>> {
+fn aes_kdf(composite: &[u8], seed: &[u8], rounds: u64) -> Result<Zeroizing<Vec<u8>>> {
     if rounds > MAX_AES_ROUNDS {
         return Err(bad(
             "the KeePass key derivation is too costly for this device",
@@ -573,7 +604,7 @@ fn aes_kdf(composite: &[u8], seed: &[u8], rounds: u64) -> Result<Vec<u8>> {
         aes.encrypt_block(left);
         aes.encrypt_block(right);
     }
-    Ok(Sha256::digest(key.as_slice()).to_vec())
+    Ok(Zeroizing::new(Sha256::digest(key.as_slice()).to_vec()))
 }
 
 /// Keystream that un-XORs protected values, in document order.
@@ -599,7 +630,7 @@ impl InnerStream {
         })
     }
 
-    fn reveal(&mut self, b64: &str) -> Result<String> {
+    fn reveal(&mut self, b64: &str) -> Result<Zeroizing<String>> {
         let mut data = Zeroizing::new(
             base64::engine::general_purpose::STANDARD
                 .decode(b64.trim())
@@ -610,7 +641,10 @@ impl InnerStream {
             InnerStream::ChaCha20(c) => c.apply_keystream(&mut data),
             InnerStream::None => {}
         }
-        String::from_utf8(data.to_vec()).map_err(|_| Error::Malformed("KDBX protected value"))
+        // Validated in place: `String::from_utf8` would hand the bytes back unwiped on error.
+        std::str::from_utf8(&data)
+            .map(|s| Zeroizing::new(s.to_owned()))
+            .map_err(|_| Error::Malformed("KDBX protected value"))
     }
 }
 
@@ -621,7 +655,7 @@ struct Group {
 
 #[derive(Default)]
 struct Entry {
-    strings: Vec<(String, String, bool)>,
+    strings: Vec<(String, Zeroizing<String>, bool)>,
 }
 
 impl Entry {
@@ -821,7 +855,7 @@ fn read_entries(xml: &str, inner: &mut InnerStream) -> Result<Vec<Entry>> {
     let mut entries: Vec<(Entry, Option<usize>)> = Vec::new();
     let mut current: Option<Entry> = None;
     let mut history_depth = 0;
-    let (mut key, mut value, mut protected) = (String::new(), String::new(), false);
+    let (mut key, mut value, mut protected) = (String::new(), Zeroizing::new(String::new()), false);
 
     loop {
         match reader.read_event().map_err(malformed)? {
@@ -848,7 +882,10 @@ fn read_entries(xml: &str, inner: &mut InnerStream) -> Result<Vec<Entry>> {
                     }
                     "Entry" if history_depth == 0 => current = Some(Entry::default()),
                     "History" => history_depth += 1,
-                    "String" => (key, value, protected) = (String::new(), String::new(), false),
+                    "String" => {
+                        (key, value, protected) =
+                            (String::new(), Zeroizing::new(String::new()), false)
+                    }
                     "Value" => {
                         protected = e.attributes().flatten().any(|a| {
                             a.key.as_ref() == "Protected" && a.value.eq_ignore_ascii_case("true")
@@ -877,7 +914,7 @@ fn read_entries(xml: &str, inner: &mut InnerStream) -> Result<Vec<Entry>> {
                         value = if protected {
                             inner.reveal(&text)?
                         } else {
-                            text.to_string()
+                            Zeroizing::new(text.to_string())
                         }
                     }
                     ("Group", _) => {
@@ -927,16 +964,19 @@ fn read_entries(xml: &str, inner: &mut InnerStream) -> Result<Vec<Entry>> {
 }
 
 /// KeePassXC stores TOTP as an otpauth URI in "otp"; KeePass 2.47+ as TimeOtp-* fields.
-fn totp_of(e: &Entry) -> String {
+fn totp_of(e: &Entry) -> Zeroizing<String> {
     let otp = e.get("otp");
     if !otp.is_empty() {
-        return otp.to_owned();
+        return Zeroizing::new(otp.to_owned());
     }
     let secret = e.get("TimeOtp-Secret-Base32");
     if secret.is_empty() {
-        return String::new();
+        return Zeroizing::new(String::new());
     }
-    let mut uri = format!("otpauth://totp/?secret={}", secret.replace(' ', ""));
+    let mut uri = Zeroizing::new(format!(
+        "otpauth://totp/?secret={}",
+        secret.replace(' ', "")
+    ));
     for (field, param) in [("TimeOtp-Length", "digits"), ("TimeOtp-Period", "period")] {
         let v = e.get(field);
         if !v.is_empty() {
@@ -1139,6 +1179,14 @@ mod tests {
 
     /// Expected keys computed independently (Python's hashlib/base64) from the KeePass formats.
     #[test]
+    fn decode_hex_rejects_odd_and_bad_digits() {
+        assert_eq!(decode_hex("0aFF").unwrap().as_slice(), [0x0a, 0xff]);
+        assert!(decode_hex("abc").is_none(), "odd length");
+        assert!(decode_hex("0aZZ").is_none(), "not hex");
+        assert!(decode_hex("").unwrap().is_empty());
+    }
+
+    #[test]
     fn key_file_formats() {
         let raw: Vec<u8> = (0u8..32).collect();
         assert_eq!(key_file_key(&raw).unwrap().to_vec(), raw, "32 raw bytes");
@@ -1185,6 +1233,82 @@ mod tests {
                 .to_string()
                 .contains("too costly")
         );
+    }
+
+    fn kdbx4_header(kdf: &[(&str, Vec<u8>)]) -> Vec<u8> {
+        let mut dict = vec![0x00, 0x01];
+        for (key, value) in kdf {
+            dict.push(0x42);
+            dict.extend((key.len() as i32).to_le_bytes());
+            dict.extend(key.as_bytes());
+            dict.extend((value.len() as i32).to_le_bytes());
+            dict.extend(value);
+        }
+        dict.push(0);
+        let mut out = SIGNATURE.to_vec();
+        out.extend([1, 0, 4, 0]);
+        for (id, data) in [(4u8, vec![5u8; 32]), (11, dict), (0, vec![])] {
+            out.push(id);
+            out.extend((data.len() as u32).to_le_bytes());
+            out.extend(data);
+        }
+        out
+    }
+
+    #[test]
+    fn argon2_cost_is_read_from_the_header_without_running_the_kdf() {
+        let argon = |uuid: [u8; 16], m: u64, t: u64, p: u32| {
+            kdbx4_header(&[
+                ("$UUID", uuid.to_vec()),
+                ("S", vec![3; 32]),
+                ("M", m.to_le_bytes().to_vec()),
+                ("I", t.to_le_bytes().to_vec()),
+                ("P", p.to_le_bytes().to_vec()),
+            ])
+        };
+        let cost = |m_kib, iterations, lanes| {
+            Some(Argon2Cost {
+                memory_kib: m_kib,
+                iterations,
+                lanes,
+            })
+        };
+        assert_eq!(
+            argon2_cost(&argon(KDF_ARGON2D, 64 << 20, 2, 2)).unwrap(),
+            cost(65_536, 2, 2)
+        );
+        // The edge of the ceiling, and a header above it: reported as is, `parse` refuses it.
+        assert_eq!(
+            argon2_cost(&argon(KDF_ARGON2ID, MAX_ARGON2_BYTES, 6, 4)).unwrap(),
+            cost(524_288, 6, 4)
+        );
+        assert_eq!(
+            argon2_cost(&argon(KDF_ARGON2ID, 4 << 30, 1, 1)).unwrap(),
+            cost(4_194_304, 1, 1)
+        );
+        let too_big = argon(KDF_ARGON2ID, 4 << 30, 1, 1);
+        assert!(
+            parse(&too_big, Some("x"), None, 0)
+                .unwrap_err()
+                .to_string()
+                .contains("cannot be imported")
+        );
+    }
+
+    #[test]
+    fn argon2_cost_is_none_without_argon2_and_errors_on_damaged_headers() {
+        assert_eq!(argon2_cost(KDBX31).unwrap(), None, "KDBX 3.1 uses AES-KDF");
+        let aes = kdbx4_header(&[
+            ("$UUID", KDF_AES.to_vec()),
+            ("S", vec![1; 32]),
+            ("R", 6000u64.to_le_bytes().to_vec()),
+        ]);
+        assert_eq!(argon2_cost(&aes).unwrap(), None);
+        let no_params = kdbx4_header(&[("$UUID", KDF_ARGON2ID.to_vec())]);
+        assert!(argon2_cost(&no_params).is_err());
+        assert!(argon2_cost(&kdbx4_header(&[])).is_err(), "no $UUID");
+        assert!(argon2_cost(&SIGNATURE).is_err(), "truncated");
+        assert_eq!(super::super::kdbx_argon2_cost(b"a,b\n1,2").unwrap(), None);
     }
 
     #[test]

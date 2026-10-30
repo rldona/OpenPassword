@@ -68,10 +68,4 @@ class VaultStorage(context: Context, namespace: String = "") {
 
     /** Removes leftover rows, e.g. from a restore that failed half way. */
     fun clearItems() = db.clear()
-
-    private fun atomicWrite(target: File, bytes: ByteArray) {
-        val tmp = File(target.parentFile, "${target.name}.tmp")
-        tmp.writeBytes(bytes)
-        check(tmp.renameTo(target)) { "could not write ${target.name}" }
-    }
 }

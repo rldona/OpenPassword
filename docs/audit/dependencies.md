@@ -24,7 +24,7 @@ Cada cifra lleva el comando que la produce (sección 8).
 | Versiones duplicadas (Rust) | **2** pares | `cargo metadata`: `getrandom` 0.2.17 y 0.3.4; `syn` 2.0.119 y 3.0.9 |
 | Vulnerabilidades conocidas (Rust) | **0** | `cargo audit --deny warnings`: 1386 avisos cargados, 139 paquetes, salida 0 |
 | `cargo deny --locked check` | `advisories ok, bans ok, licenses ok, sources ok` | `cargo deny --locked check` (0.20.2, en local) |
-| Pruebas de Rust | **95 pasan, 1 ignorada** | `cargo test --workspace --locked` (45 unitarios de `op-core`, 9 + 3 + 19 + 5 de integración, 14 de `op-ffi`) |
+| Pruebas de Rust | **102 pasan, 1 ignorada** | `cargo test --workspace --locked` (50 unitarios de `op-core`, 9 + 3 + 19 + 5 de integración, 16 de `op-ffi`) |
 
 ## 2. Rust
 

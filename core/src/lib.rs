@@ -34,6 +34,13 @@ pub mod fuzzing {
     pub use crate::backup::fuzzing::{open_with_vault, seal_backup};
     pub use crate::vault::fuzzing::seal_item_part;
 
+    /// Marker for `fuzz/README.md`: dead-code elimination removes unreferenced hooks from the
+    /// final library, so their names say nothing about whether the cfg was on. `#[used]` keeps
+    /// this string in any binary built with `--cfg fuzzing`, which gives the check a positive
+    /// control. It never exists in a build without the cfg.
+    #[used]
+    pub static HOOKS_MARKER: [u8; 26] = *b"OPENPASSWORD_FUZZING_HOOKS";
+
     /// Vault key of [`vault`]. Not secret: exists so that fuzzers can seal and open data.
     pub const TEST_VAULT_KEY: [u8; 32] = [7; 32];
 

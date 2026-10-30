@@ -5,7 +5,7 @@ Lista de las medidas de endurecimiento del proyecto con su prioridad, su estado 
 lo **pendiente** y lo **pospuesto o descartado**.
 
 Estado verificado el 2026-10-30 sobre `HEAD` `2bd56ce` («Fase 3: endurecimiento, cadena de suministro y
-paquete de auditoría») **más trabajo sin commit** (correcciones de autorrelleno, ajuste del techo de KDBX, guardia de `cfg(fuzzing)`, documentación; `git status` lo lista): lo que antes figuraba como «hecho, sin
+paquete de auditoría») **más trabajo sin commit** (correcciones de autorrelleno, techo de KDBX, guardia de `cfg(fuzzing)`, y un tercer bloque de correcciones de ID-INT-02, 03, 06, 08, 09, 10, 11, 12, 14, 17, 18, 21 y 23; documentación; `git status` lo lista): lo que antes figuraba como «hecho, sin
 confirmar» está ya en ese commit (o en `3725741`, si se indica); lo marcado «sin commit» no. Los números de línea citados en
 `ffi/src/lib.rs` y `VaultSession.kt` se escribieron antes de las últimas correcciones y pueden haberse
 desplazado; el nombre del test o del símbolo es la referencia estable.
@@ -16,8 +16,8 @@ auditoría; **P3** después.
 
 **Estado**: **Hecho**, **Parcial**, **Pendiente**, **Pospuesto**, **Descartado**.
 
-Las pruebas de Rust se han ejecutado en esta revisión (`cargo test --workspace --locked`: 95 pasan,
-1 ignorada: 45 unitarios de `op-core`, 9 + 3 + 19 + 5 de integración y 14 de `op-ffi`; `cargo deny --locked check`: `advisories ok, bans ok, licenses ok, sources ok`). **Las pruebas de Kotlin, las instrumentadas y las manuales no se han ejecutado** (no hay
+Las pruebas de Rust se han ejecutado en esta revisión (`cargo test --workspace --locked`: 102 pasan,
+1 ignorada: 50 unitarios de `op-core`, 9 + 3 + 19 + 5 de integración y 16 de `op-ffi`; `cargo deny --locked check` y `cargo deny` sobre `fuzz/` con `fuzz/deny.toml`: `advisories ok, bans ok, licenses ok, sources ok`). **Las pruebas de Kotlin (186 `@Test` en `android/app/src/test`, contados, no ejecutados), las instrumentadas y las manuales no se han ejecutado** (no hay
 JDK en esta máquina): las filas que dependen de ellas lo dicen.
 
 ## 1. Plan de ADR-AUD: los 19 pasos
@@ -30,13 +30,13 @@ Reproduce la tabla de «Plan de implementación» de [`decisions.md`](decisions.
 | 2 | `panic = "unwind"` y medición de tamaño | **Hecho** | `3725741` (`Cargo.toml:25`) | `cargo build --release`; el mensaje del commit da +9,3 % en aarch64 (umbral 15 %). **No hay medición de las otras dos ABI** en el commit; en el APK: arm64 1 153 984 B, armv7 882 924 B, x86_64 1 313 032 B |
 | 3 | Capturar `InternalException` y pasar la sesión a `Locked` | **Hecho** | `3725741` (`VaultSession.kt`, `withVault`) y `2bd56ce` (los 4 sitios que quedaban: `ItemDetailScreen.kt`, `ItemEditorScreen.kt`, `AutofillAuthActivity.kt`; [ID-INT-07](internal-review.md#id-int-07)) | `FfiFailureHandlingTest` (7 tests, no ejecutados). **Límite**: el test solo busca `catch (e: OpException)` sin captura amplia; un sitio sin ningún `catch` no lo vería |
 | 4 | Prueba aislada de `SecretString` | **Hecho** | `2bd56ce` (`ffi/src/secret.rs`) | Bindings regenerados: `uniffi::custom_type!` con `String`; `debug_hides_the_value`, `zeroize_empties_the_text` |
-| 5 | `SecretString` y `Zeroizing` en toda la API | **Hecho** | `2bd56ce` (`ffi/src/lib.rs`, `ffi/Cargo.toml` +`zeroize`) | `cargo test -p op-ffi` (14), `debug_hides_the_value`, `zeroize_empties_the_text`, `secret_strings_cross_records_and_options` (`lib.rs:880`) |
+| 5 | `SecretString` y `Zeroizing` en toda la API | **Hecho** | `2bd56ce` (`ffi/src/lib.rs`, `ffi/Cargo.toml` +`zeroize`) | `cargo test -p op-ffi` (16 hoy; 14 cuando se hizo el paso), `debug_hides_the_value`, `zeroize_empties_the_text`, `secret_strings_cross_records_and_options` (`lib.rs:880`) |
 | 6 | `check_within`, `MOBILE_MAXIMUM`, `KdfTooExpensive`, `backup_kdf` | **Hecho** en `2bd56ce` | `core/src/crypto/kdf.rs:48-66`, `ffi/src/lib.rs:33,472-501` | `check_within_applies_each_axis_of_a_lower_ceiling` (`kdf.rs`), `backup_above_the_mobile_ceiling_fails_fast` (`lib.rs:801`), `mobile_ceiling_is_inclusive` (`:828`), `local_header_above_the_mobile_ceiling_is_refused_before_the_kdf` (`:867`), `backup_kdf_reports_the_header_cost` (`:844`) |
-| 7 | Comprobación previa de RAM y mensaje | **Hecho** en `2bd56ce` | `session/KdfMemory.kt`, `VaultSession.kt:126-129,502-504` | `KdfMemoryTest` (6 tests, no ejecutados) |
+| 7 | Comprobación previa de RAM y mensaje | **Hecho** en `2bd56ce` para `.opvault`; **ampliado sin commit** a la importación KDBX (`checkImportKdfFits`, [ID-INT-02](internal-review.md#id-int-02)) | `session/KdfMemory.kt`, `VaultSession.kt:126-129,502-504`, `ui/settings/ExternalImport.kt:57` | `KdfMemoryTest` (6 tests, no ejecutados); `import_kdf_reports_the_kdbx_argon2_cost_before_the_kdf` (`ffi/src/lib.rs`, ejecutado) |
 | 8 | Presupuesto de KDBX y límites del XML | **Hecho** en `2bd56ce` (su aprobación, decisión nº 4, **sigue pendiente de aprobación humana**) | `core/src/import/kdbx.rs:36-51` (`MAX_ARGON2_BYTES` 512 MiB y `MAX_ARGON2_WORK` 3 GiB·pasada, alineados con el techo móvil: ajuste **sin commit**; `MAX_GROUP_DEPTH` 100, `MAX_XML_DEPTH` 256, `MAX_ENTRIES` 100 000) y `check_argon2_cost` (`:544`) | `argon2_budget_accepts_the_edge_and_refuses_above_it`, `deep_group_nesting_is_refused_before_it_costs_memory`, `nesting_and_entry_limits_accept_their_edge` (la memoria pasa de cuadrática a lineal; ver [ID-INT-01](internal-review.md#id-int-01)) |
-| 9 | Protección contra *overlays* (A7) | **Parcial** | `3725741` (`OverlayProtection.kt`, `ProtectedAlertDialog` en `Components.kt:187-205`, manifiesto, `VerifyManifest` en `build.gradle.kts:174-176`) | `OverlayProtectionTest` unitario (6) e instrumentado (1, solo `MainActivity`); **faltan** las pruebas de las otras dos actividades y de los diálogos y el banner en las dos actividades de autorrelleno ([ID-INT-13](internal-review.md#id-int-13)) |
+| 9 | Protección contra *overlays* (A7) | **Parcial** | `3725741` (`OverlayProtection.kt`, `ProtectedAlertDialog` en `Components.kt:187-205`, manifiesto, `VerifyManifest` en `build.gradle.kts:174-176`) | `OverlayProtectionTest` unitario (6) e instrumentado (4 `@Test` tras el bloque sin commit: `MainActivity`, `AutofillAuthActivity`, `SaveLoginActivity` y un `ProtectedAlertDialog`; **no ejecutado**); **faltan** el banner en las dos actividades de autorrelleno (solo hay un `Toast`) y ejecutar la prueba instrumentada ([ID-INT-13](internal-review.md#id-int-13), Parcial) |
 | 10 | Detección de root (A10) | **Hecho** | `3725741` (`RootSignals.kt`, `AndroidDeviceProbe.kt`, `<queries>`, `RootWarning` en `Components.kt:226`) | `RootDetectorTest` (10 tests, no ejecutados) |
-| 11 | Ganchos `cfg(fuzzing)` y objetivos con *seeds* | **Hecho** | `2bd56ce`: `core/src/lib.rs`, `vault/mod.rs`, `backup/mod.rs`, `import/kdbx.rs` (módulo `fuzzing`), `fuzz/`: 6 objetivos nuevos (`vault_json`, `item_open`, `item_plaintext`, `backup_body`, `ffi_records`, `kdbx_container`) sobre los 5 de `8063fd1`: **11 en total** | `cargo +nightly fuzz build` (no ejecutado aquí); `strings` sobre `libop_ffi.so`: 0 símbolos del gancho ([`fuzzing.md`](fuzzing.md) §2). **Sin commit**: guardia `compile_error!` en `core/src/lib.rs:20-22` para `cfg(fuzzing)` sin `debug_assertions` (compilación `release`), que no sustituye a la comprobación sobre el `.so` ([ID-INT-21](internal-review.md#id-int-21), abierto) |
+| 11 | Ganchos `cfg(fuzzing)` y objetivos con *seeds* | **Hecho** | `2bd56ce`: `core/src/lib.rs`, `vault/mod.rs`, `backup/mod.rs`, `import/kdbx.rs` (módulo `fuzzing`), `fuzz/`: 6 objetivos nuevos (`vault_json`, `item_open`, `item_plaintext`, `backup_body`, `ffi_records`, `kdbx_container`) sobre los 5 de `8063fd1`: **11 en total** | `cargo +nightly fuzz build` (no ejecutado aquí); `strings` sobre `libop_ffi.so`: 0 símbolos del gancho ([`fuzzing.md`](fuzzing.md) §2). **Sin commit**: guardia `compile_error!` en `core/src/lib.rs:20-22` para `cfg(fuzzing)` sin `debug_assertions` (compilación `release`), que no sustituía a la comprobación sobre el `.so` (ahora `scripts/check-no-fuzzing-hooks.sh` con `HOOKS_MARKER` y controles positivo y negativo, integrado en la CI, sin ejecutar allí: [ID-INT-21](internal-review.md#id-int-21), corregido) |
 | 12 | Fuzzing nocturno | **Hecho** | `2bd56ce`: `.github/workflows/fuzz-nightly.yml` (11 objetivos, 10 min cada uno) | **Ninguna ejecución** en GitHub; falta el `workflow_dispatch` en verde |
 | 13 | Tests de invariantes de `LoginMatcher` | **Hecho** en `2bd56ce` | `LoginMatcherTest.kt` (+232 líneas; 29 tests; `Random(20260630)`, `Random(7)`) | No ejecutados aquí |
 | 14 | `cargo-deny` | **Hecho** en `2bd56ce` | `deny.toml`, `.github/workflows/ci.yml` (job `audit`), `.cargo/audit.toml` borrado | `cargo deny --locked check` → `advisories ok, bans ok, licenses ok, sources ok` (ejecutado) |
@@ -62,9 +62,9 @@ Existían antes de esta fase y siguen en el árbol. El commit es el primero que 
 | Claves de Keystore (dispositivo y biométrica) con invalidación por alta biométrica | Hecho | `a46b8c9` (biometría) | `BiometricKeyStore.kt:40-56` |
 | Espera exponencial tras fallos | Hecho | `5490f62` | `VaultSession.kt:477-481`; `UnlockBackoffTest` |
 | Exclusión del autorrelleno del sistema en las ventanas propias | Hecho | `6383ec1` | `AutofillExclusion.kt:11-13` |
-| Marca de «sensible» (API 33+) y borrado del portapapeles | Hecho (el borrado, **ineficaz en segundo plano: sin verificar**) | `e8a2c69` | `SensitiveClipboard.kt:21-39`, [ID-INT-14](internal-review.md#id-int-14) |
+| Marca de «sensible» (API 33+) y borrado del portapapeles | Hecho (el borrado: mitigado en código sin commit con plazo persistido y `Handler`; **sin verificar en dispositivo**) | `e8a2c69`; mitigación sin commit (`ClipboardClearPolicy.kt`) | `SensitiveClipboard.kt`, [ID-INT-14](internal-review.md#id-int-14) (Parcial) |
 | Autobloqueo para todo el proceso | Hecho | `55f9054` | `VaultSession.kt:386-425`, `OpenPasswordApp.kt:69-83` |
-| Token aleatorio para guardar logins | Hecho | `938761d` | `PendingSaves.kt` (caducidad perezosa: [ID-INT-17](internal-review.md#id-int-17)) |
+| Token aleatorio para guardar logins | Hecho | `938761d` | `PendingSaves.kt` (caducidad con barrido y vaciado al bloquear, sin commit: [ID-INT-17](internal-review.md#id-int-17), corregido) |
 | Fuzzing de 5 objetivos y `SECURITY.md` | Hecho | `8063fd1` | `fuzz/`, `SECURITY.md` |
 
 ## 3. Otras medidas de esta fase no listadas como pasos
@@ -86,20 +86,20 @@ Existían antes de esta fase y siguen en el árbol. El commit es el primero que 
 | ~~P1~~ | ID-INT-26 | Que el destino del autorrelleno no viaje en extras del `PendingIntent` mutable | **Hecho, sin commit**: token aleatorio de 16 bytes, un solo uso, TTL 5 min (`AutofillRequestTokens.kt`); `AutofillAuthActivity.kt:87-98` borra los extras antiguos y falla cerrado; no se ofrece «recordar» en navegadores (`:102,124`). `AutofillRequestTokensTest` (7 `@Test`), no ejecutado. Sin prueba en dispositivo |
 | ~~P1~~ | ID-INT-05 | Cerrar el `Vault` en los tres caminos de desbloqueo que fallan tras abrirlo | **Hecho** en `2bd56ce` (`VaultSession.discardOnFailure`); `FfiFailureHandlingTest` prueba la función auxiliar, no los tres caminos. **Sin commit**: `create()` también libera el `Vault` si falla la persistencia (`VaultSession.kt:94-101`) |
 | ~~P1~~ | ID-INT-01 | Quitar la memoria cuadrática de `read_entries` y poner un tope de profundidad; semilla y test | **Hecho** en `2bd56ce` (`MAX_GROUP_DEPTH` 100, `MAX_XML_DEPTH` 256, `MAX_ENTRIES` 100 000); tests `deep_group_nesting_is_refused_before_it_costs_memory`, `nesting_and_entry_limits_accept_their_edge`; semillas en `fuzz/seeds/kdbx_xml/` |
-| **P1** | ID-INT-14 | Probar el borrado del portapapeles en API 29, 33 y 36 y corregirlo | **Pendiente** (sin verificar en dispositivo; prueba preparada: [DT-04](device-tests.md#dt-04), sin ejecutar) |
+| **P1** | ID-INT-14 | Probar el borrado del portapapeles en API 29, 33 y 36 y corregirlo | **Parcial**: mitigación en código sin commit (`ClipboardClearPolicy.kt`, plazo persistido y `Handler`; `ClipboardClearPolicyTest` 7, no ejecutado); **pendiente de verificar en dispositivo** ([DT-04](device-tests.md#dt-04), sin ejecutar) |
 | ~~P1~~ | ID-INT-25 | Gancho `cfg(fuzzing)` para `kdbx::parse` (contraseña y KDF fijas) y corregir el README | **Hecho** en `2bd56ce` (`kdbx_fuzzing::{file, container}`, objetivo `kdbx_container`); README corregido (sin commit todavía) |
 | ~~P2~~ | ID-INT-07 | Capturar `InternalException` en los 4 sitios y ampliar el test | **Hecho** en `2bd56ce` los 4 sitios; **pendiente** ampliar el test para detectar un sitio sin ningún `catch` |
-| **P2** | ID-INT-02 | Decidir la política de KDF de KeePass frente al techo móvil (decisión humana nº 3-4) | **Pendiente**: el presupuesto de KDBX está hecho (ahora 512 MiB / 3 GiB·pasada, sin commit), pero `parse_import` no pasa por `MOBILE_MAXIMUM` ni por la comprobación de RAM |
-| **P2** | ID-INT-08 | `lock()` coordinado con `mutex`, o `IllegalStateException` como `Locked` | **Pendiente** |
-| **P2** | ID-INT-17 | Vaciar `PendingSaves` al bloquear y caducidad real | **Pendiente** |
-| **P2** | ID-INT-21 | Sustituir la comprobación de símbolos del README por la del `.so` con control positivo | **Pendiente** |
-| **P2** | ID-INT-06 | Decidir qué hacer con un elemento ilegible | **Pendiente** |
-| **P2** | ID-INT-09 | Contar intentos en `verifyPassword` | **Pendiente** |
-| **P2** | ID-INT-12 | Leer el fichero sin copias en claro intermedias | **Pendiente** |
-| **P2** | ID-INT-13 | Banner en las actividades de autorrelleno y pruebas instrumentadas de actividades y diálogos | **Pendiente** |
-| **P3** | ID-INT-03 | Documentar los residuos de los importadores | **Pendiente** |
-| **P3** | ID-INT-18 | Recorrido iterativo con tope en `StructureParser` | **Pendiente** |
-| **P3** | ID-INT-10, 11, 22, 23 | Robustez menor y limpieza | **Pendiente** |
+| ~~P2~~ | ID-INT-02 | Decidir la política de KDF de KeePass frente al techo móvil (decisión humana nº 3-4) | **Hecho, sin commit**: techo de KDBX igual al móvil (512 MiB / 3 GiB·pasada), `importKdf`/`kdbx_argon2_cost` y `checkImportKdfFits` antes de pedir la contraseña. **Pendiente de aprobación humana** (decisión nº 4); `KdfMemoryTest` sin ejecutar |
+| ~~P2~~ | ID-INT-08 | `lock()` coordinado con `mutex`, o `IllegalStateException` como `Locked` | **Hecho, sin commit** (`KeyHolder.kt`, `AtomicReference`; `KeyHolderTest` 7, no ejecutado) |
+| ~~P2~~ | ID-INT-17 | Vaciar `PendingSaves` al bloquear y caducidad real | **Hecho, sin commit** (`PendingStore`, barrido, `session.onLocked`; `PendingStoreTest` 6, no ejecutado) |
+| ~~P2~~ | ID-INT-21 | Sustituir la comprobación de símbolos del README por la del `.so` con control positivo | **Hecho, sin commit** (`HOOKS_MARKER`, `scripts/check-no-fuzzing-hooks.sh`, CI; **no ejecutado en la CI**) |
+| ~~P2~~ | ID-INT-06 | Decidir qué hacer con un elemento ilegible | **Hecho, sin commit** (omitir y avisar: `EntryLoading.kt`, `Unlocked.unreadable`; `EntryLoadingTest` 4, no ejecutado) |
+| ~~P2~~ | ID-INT-09 | Contar intentos en `verifyPassword` | **Hecho, sin commit** (`AttemptLimiter`; `AttemptLimiterTest` 5, no ejecutado) |
+| ~~P2~~ | ID-INT-12 | Leer el fichero sin copias en claro intermedias | **Hecho, sin commit** (`ui/WipingRead.kt`; `WipingReadTest` 5, no ejecutado) |
+| **P2** | ID-INT-13 | Banner en las actividades de autorrelleno y pruebas instrumentadas de actividades y diálogos | **Parcial**: prueba instrumentada ampliada (4 `@Test`, sin commit, **no ejecutada**); el banner en las actividades de autorrelleno sigue **pendiente** |
+| ~~P3~~ | ID-INT-03 | Documentar los residuos de los importadores | **Hecho, sin commit** (`Zeroizing` y borrado en `import/mod.rs`, `kdbx.rs`, `totp.rs`; residuos en `docs/threat-model.md`) |
+| ~~P3~~ | ID-INT-18 | Recorrido iterativo con tope en `StructureParser` | **Hecho, sin commit** (`TreeWalker.kt`, 100 de profundidad y 20 000 nodos; `TreeWalkerTest` 6, no ejecutado) |
+| **P3** | ID-INT-10, 11, 22, 23 | Robustez menor y limpieza | **Hecho, sin commit**: ID-INT-10 (`AtomicWrite.kt`, `fd.sync()`; residuo: fsync de directorio) y 11 (`AutoBackup` relanza `CancellationException`). **Parcial**: 23 (`fuzz/deny.toml` y paso de CI hechos, **pendiente de aprobación humana** por la licencia NCSA). **Pendiente**: 22 |
 | P3 | ID-INT-24 | Corregir `fuzz/README.md` (30 s y límites de KDBX) | **Hecho** (documentación, sin commit todavía) |
 
 ### 4.2 Pendiente del plan y de la congelación
@@ -144,12 +144,14 @@ sufijos y navegadores en un dispositivo, biometría en API 28, KDBX 4 real, bloq
 [`device-tests.md`](device-tests.md). Está en blanco: ninguna de esas pruebas se ha ejecutado.
 
 ```sh
-cargo test --workspace --locked                      # 95 pasan, 1 ignorada
+cargo test --workspace --locked                      # 102 pasan, 1 ignorada
 cargo deny --locked check                            # advisories, bans, licenses, sources ok
+cargo deny --manifest-path fuzz/Cargo.toml --locked --config fuzz/deny.toml check   # ídem (fuzz/)
+scripts/check-no-fuzzing-hooks.sh --self-test        # controles positivo y negativo (compila op-ffi; no ejecutado aquí)
 cargo audit --deny warnings                          # sin vulnerabilidades
 git status --short                                   # qué está sin confirmar
 grep -n "uses:" .github/workflows/*.yml              # todo con SHA
 grep -rn "catch (e: OpException)" android/app/src/main   # cada uno con InternalException al lado
-strings -a android/app/build/rust/jniLibs/arm64-v8a/libop_ffi.so | grep -cE 'seal_backup|seal_item_part|TEST_VAULT_KEY'   # 0
+scripts/check-no-fuzzing-hooks.sh android/app/build/rust/jniLibs/arm64-v8a/libop_ffi.so   # «ok … no fuzzing hooks (control string present)»
 unzip -l android/app/build/outputs/apk/release/app-release.apk | grep -E 'lib/|public_suffix'
 ```

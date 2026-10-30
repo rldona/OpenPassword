@@ -8,8 +8,10 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.provider.Settings
 import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import io.github.rldona.openpassword.autofill.PendingSaves
 import io.github.rldona.openpassword.backup.AutoBackup
 import io.github.rldona.openpassword.core.KdfProfile
 import io.github.rldona.openpassword.data.VaultStorage
@@ -54,7 +56,11 @@ class OpenPasswordApp : Application() {
         _rootWarningDismissed.value = getSharedPreferences("device_warning", MODE_PRIVATE).getStringSet("dismissed", emptySet()).orEmpty().toSet()
         val probe = AndroidDeviceProbe(this)
         MainScope().launch { _rootSignals.value = withContext(Dispatchers.IO) { RootDetector.evaluate(probe) } }
-        clipboard = SensitiveClipboard(this)
+        clipboard = SensitiveClipboard(this, isForeground = {
+            ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+        })
+        // A copy may be pending from a process that died; this also re-arms its timer.
+        clipboard.onForeground()
         session = VaultSession(
             storage = VaultStorage(this),
             prefs = getSharedPreferences("security", MODE_PRIVATE),
@@ -66,8 +72,12 @@ class OpenPasswordApp : Application() {
         autoBackup = AutoBackup(this, session, getSharedPreferences("backup", MODE_PRIVATE), MainScope())
         session.onChanged = autoBackup::onVaultChanged
         session.onUnlocked = autoBackup::onUnlocked
+        session.onLocked = PendingSaves::clear
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
-            override fun onStart(owner: LifecycleOwner) = session.onAppForegrounded()
+            override fun onStart(owner: LifecycleOwner) {
+                session.onAppForegrounded()
+                clipboard.onForeground()
+            }
             override fun onStop(owner: LifecycleOwner) = session.onAppBackgrounded()
         })
         // For the whole process, not one activity: the vault can also be unlocked from the

@@ -124,7 +124,7 @@ comprobación válida.
 rustup toolchain install nightly --profile minimal && cargo install cargo-fuzz
 cd fuzz
 mkdir -p corpus/kdbx_xml && cp seeds/kdbx_xml/* corpus/kdbx_xml/
-cargo +nightly fuzz run -O kdbx_xml corpus/kdbx_xml -- -max_total_time=60 -max_len=65536 -rss_limit_mb=2048 -timeout=10
+cargo +nightly fuzz run -O -a kdbx_xml corpus/kdbx_xml -- -max_total_time=60 -max_len=65536 -rss_limit_mb=2048 -timeout=10
 ```
 
 El XML de [ID-INT-01](internal-review.md#id-int-01) ya no se reproduce: lo cubre el test
