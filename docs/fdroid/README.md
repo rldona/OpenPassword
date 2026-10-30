@@ -40,6 +40,8 @@ clave. Así los usuarios reciben siempre la misma firma, vengan de F-Droid o de 
    ```sh
    scripts/firmar-release.sh <id-de-la-ejecución> 0.1.0
    ```
+   El artefacto de la CI caduca a los 14 días (`retention-days: 14` en `ci.yml`): firma el APK dentro de ese plazo
+   o tendrás que relanzar la ejecución.
    No compiles el APK de la release en macOS: no coincidiría con el de F-Droid.
 4. **Crea la release en GitHub** con ese APK, con el nombre exacto que espera la receta:
    ```sh
