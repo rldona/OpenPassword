@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.view.MotionEvent
 import android.view.WindowManager
 import android.view.autofill.AutofillId
 import android.view.autofill.AutofillManager
@@ -49,6 +50,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.rldona.openpassword.OpenPasswordApp
 import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.security.excludeFromAutofill
+import io.github.rldona.openpassword.security.protectFromOverlays
+import io.github.rldona.openpassword.security.warnIfObscured
 import io.github.rldona.openpassword.security.strongBiometricsAvailable
 import io.github.rldona.openpassword.session.SessionState
 import io.github.rldona.openpassword.session.VaultEntry
@@ -112,6 +115,12 @@ class AutofillAuthActivity : ComponentActivity() {
             }
         }
         excludeFromAutofill(this)
+        protectFromOverlays(this)
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        warnIfObscured(this, ev)
+        return super.dispatchTouchEvent(ev)
     }
 
     private fun finishWith(usernameId: AutofillId?, passwordId: AutofillId?, entry: VaultEntry, credentials: Credentials) {

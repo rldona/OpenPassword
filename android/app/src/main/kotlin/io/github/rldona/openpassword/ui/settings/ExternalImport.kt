@@ -7,7 +7,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -22,9 +21,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import io.github.rldona.openpassword.core.ImportResult
+import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.core.importNeedsPassword
 import io.github.rldona.openpassword.core.parseImport
+import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
 import io.github.rldona.openpassword.session.VaultSession
 import io.github.rldona.openpassword.ui.PasswordField
 import io.github.rldona.openpassword.ui.displayNameOf
@@ -32,6 +33,7 @@ import io.github.rldona.openpassword.ui.readBackupFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import io.github.rldona.openpassword.ui.ProtectedAlertDialog
 
 /** A picked export file, parsed and waiting for the user to confirm. */
 class PendingImport(val uri: Uri, val result: ImportResult)
@@ -106,7 +108,7 @@ fun ExternalImportDialogs(
 
     val summary = imported
     if (summary == null) {
-        AlertDialog(
+        ProtectedAlertDialog(
             onDismissRequest = { if (!busy) onDone("") },
             title = { Text("Importar ${result.items.size} elementos") },
             text = {
@@ -137,6 +139,8 @@ fun ExternalImportDialogs(
                             }
                         } catch (e: OpException) {
                             "No se pudo importar: el baúl está bloqueado."
+                        } catch (_: InternalException) {
+                            INTERNAL_ERROR_MESSAGE
                         }
                         // A .kdbx is the user's own encrypted database, not a plaintext export: keep it.
                         if (result.format == "keepass-kdbx") onDone(message) else imported = message
@@ -147,7 +151,7 @@ fun ExternalImportDialogs(
             dismissButton = { TextButton(enabled = !busy, onClick = { onDone("") }) { Text("Cancelar") } },
         )
     } else {
-        AlertDialog(
+        ProtectedAlertDialog(
             onDismissRequest = { onDone(summary) },
             title = { Text("Borra el fichero exportado") },
             text = {
@@ -211,7 +215,7 @@ fun KeePassPasswordDialog(
         }
     }
 
-    AlertDialog(
+    ProtectedAlertDialog(
         onDismissRequest = { if (!busy) close(onCancel) },
         title = { Text("Base de datos de KeePass") },
         text = {

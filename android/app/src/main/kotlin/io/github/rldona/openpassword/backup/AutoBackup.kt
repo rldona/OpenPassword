@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
 import android.provider.DocumentsContract
+import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.session.VaultSession
 import kotlinx.coroutines.CoroutineScope
@@ -100,6 +101,8 @@ class AutoBackup(
             // Stays pending: done on the next unlock.
             return "El baúl está bloqueado: la copia se hará al desbloquear."
         } catch (e: OpException) {
+            return fail("No se pudo cifrar la copia.")
+        } catch (_: InternalException) {
             return fail("No se pudo cifrar la copia.")
         }
         return try {

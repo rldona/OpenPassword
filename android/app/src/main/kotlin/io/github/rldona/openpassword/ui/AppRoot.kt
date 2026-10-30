@@ -1,6 +1,8 @@
 package io.github.rldona.openpassword.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -8,6 +10,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.rldona.openpassword.backup.AutoBackup
@@ -38,6 +42,14 @@ private sealed interface Screen {
 @Composable
 fun AppRoot(session: VaultSession, clipboard: SensitiveClipboard, autoBackup: AutoBackup) {
     val state by session.state.collectAsStateWithLifecycle()
+    Box {
+        AppContent(state, session, clipboard, autoBackup)
+        OverlayWarningBanner(Modifier.align(Alignment.TopCenter).statusBarsPadding())
+    }
+}
+
+@Composable
+private fun AppContent(state: SessionState, session: VaultSession, clipboard: SensitiveClipboard, autoBackup: AutoBackup) {
     when (val s = state) {
         SessionState.NoVault -> OnboardingScreen(onCreate = session::create, onRestore = session::restore)
         SessionState.Locked -> {

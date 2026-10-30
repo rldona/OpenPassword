@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -48,9 +49,13 @@ import io.github.rldona.openpassword.core.FieldRecord
 import io.github.rldona.openpassword.core.ItemDetailsRecord
 import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.core.ItemOverviewRecord
+import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.security.excludeFromAutofill
+import io.github.rldona.openpassword.security.protectFromOverlays
+import io.github.rldona.openpassword.security.warnIfObscured
 import io.github.rldona.openpassword.security.strongBiometricsAvailable
+import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
 import io.github.rldona.openpassword.session.SessionState
 import io.github.rldona.openpassword.session.VaultEntry
 import io.github.rldona.openpassword.session.VaultSession
@@ -104,6 +109,12 @@ class SaveLoginActivity : ComponentActivity() {
             }
         }
         excludeFromAutofill(this)
+        protectFromOverlays(this)
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        warnIfObscured(this, ev)
+        return super.dispatchTouchEvent(ev)
     }
 
     override fun onDestroy() {
@@ -190,6 +201,9 @@ private fun SaveForm(pending: PendingSave, entries: List<VaultEntry>, session: V
                 onDone()
             } catch (e: OpException) {
                 error = e.toUserMessage()
+                busy = false
+            } catch (_: InternalException) {
+                error = INTERNAL_ERROR_MESSAGE
                 busy = false
             }
         }

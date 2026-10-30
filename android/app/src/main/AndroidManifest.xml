@@ -8,8 +8,20 @@
     <!-- Only to scan TOTP setup QR codes; requested when the user taps "Escanear QR". -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- Android 12+: hides other apps' overlay windows while OpenPassword is on screen (anti-tapjacking). Normal permission, granted at install. -->
+    <uses-permission android:name="android.permission.HIDE_OVERLAY_WINDOWS" />
     <!-- CameraX pulls media3 (for video, unused here), which declares this; the app has no network at all. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+
+    <!-- Package visibility (Android 11+) for the local root-manager check. Names only; no QUERY_ALL_PACKAGES. Keep in sync with RootDetector.ROOT_PACKAGES. -->
+    <queries>
+        <package android:name="com.topjohnwu.magisk" />
+        <package android:name="me.weishu.kernelsu" />
+        <package android:name="eu.chainfire.supersu" />
+        <package android:name="com.koushikdutta.superuser" />
+        <package android:name="com.noshufou.android.su" />
+        <package android:name="com.kingroot.kinguser" />
+    </queries>
 
     <application
         android:name=".OpenPasswordApp"

@@ -1,9 +1,11 @@
 package io.github.rldona.openpassword.ui.unlock
 
 import android.content.Context
+import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.security.BiometricResult
 import io.github.rldona.openpassword.security.authenticateBiometric
+import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
 import io.github.rldona.openpassword.session.UnlockResult
 import io.github.rldona.openpassword.session.VaultSession
 import io.github.rldona.openpassword.session.toUserMessage
@@ -31,6 +33,9 @@ suspend fun enableBiometricUnlock(context: Context, session: VaultSession): Stri
         } catch (e: OpException) {
             session.disableBiometric()
             e.toUserMessage()
+        } catch (_: InternalException) {
+            session.disableBiometric()
+            INTERNAL_ERROR_MESSAGE
         }
         BiometricResult.Cancelled -> {
             session.disableBiometric()

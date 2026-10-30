@@ -33,10 +33,12 @@ Pendiente de publicación: la funcionalidad prevista para la v0.1.0 está hecha;
 
 ## Seguridad que impone la build
 
-- `verify<Variant>Manifest` hace fallar la compilación si el manifiesto final declara `INTERNET` o `ACCESS_NETWORK_STATE`, o si `allowBackup` no es `false`.
+- `verify<Variant>Manifest` hace fallar la compilación si el manifiesto final declara `INTERNET` o `ACCESS_NETWORK_STATE`, si falta `HIDE_OVERLAY_WINDOWS`, si se declara `QUERY_ALL_PACKAGES`, o si `allowBackup` no es `false`.
+- Anti-tapjacking: `filterTouchesWhenObscured` y `setHideOverlayWindows` en las tres actividades y en todos los diálogos (`ProtectedAlertDialog`); si un toque llega tapado, se avisa.
+- Aviso (nunca bloqueo) si el dispositivo parece tener root o una compilación de depuración: heurísticas locales sin red; el manifiesto declara en `<queries>` solo los nombres de los paquetes de gestores de root.
 - `FLAG_SECURE` en la actividad: sin capturas, grabación ni miniatura en recientes.
 - La clave secreta se guarda sellada con una clave AES-256-GCM de Android Keystore (StrongBox si existe).
-- Huella: la clave del baúl se sella con otra clave de Keystore que exige una autenticación biométrica fuerte en cada uso, solo funciona con el teléfono desbloqueado y Android la destruye si se añade una huella o cara nueva. Los únicos permisos del manifiesto son `USE_BIOMETRIC` y `CAMERA`; la cámara se pide solo al pulsar «Escanear QR» y es opcional (`required="false"`): leer el QR de una imagen no necesita ningún permiso. CameraX arrastra `ACCESS_NETWORK_STATE` desde media3 y el manifiesto lo elimina.
+- Huella: la clave del baúl se sella con otra clave de Keystore que exige una autenticación biométrica fuerte en cada uso, solo funciona con el teléfono desbloqueado y Android la destruye si se añade una huella o cara nueva. Los únicos permisos del manifiesto son `USE_BIOMETRIC`, `CAMERA` y `HIDE_OVERLAY_WINDOWS` (permiso normal de Android 12+ que oculta las ventanas superpuestas de otras apps; anti-tapjacking); la cámara se pide solo al pulsar «Escanear QR» y es opcional (`required="false"`): leer el QR de una imagen no necesita ningún permiso. CameraX arrastra `ACCESS_NETWORK_STATE` desde media3 y el manifiesto lo elimina.
 - Los elementos se guardan en SQLite como blobs opacos con `secure_delete`. Se usa SQLite directo en lugar de Room para no depender de procesadores de anotaciones.
 - Nada sensible se guarda en el estado de instancia de Compose (`rememberSaveable`).
 - Las ventanas de la app se excluyen de todos los servicios de autorrelleno, así que ni el de Google ni ningún otro puede leer u ofrecer guardar lo que se escribe en el baúl.

@@ -12,6 +12,7 @@ import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.core.ItemDetailsRecord
 import io.github.rldona.openpassword.core.ItemOverviewRecord
 import io.github.rldona.openpassword.core.KdfProfile
+import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.core.Vault
 import io.github.rldona.openpassword.core.normalizeSecretKey
@@ -21,6 +22,7 @@ import io.github.rldona.openpassword.health.HealthInput
 import io.github.rldona.openpassword.health.HealthReport
 import io.github.rldona.openpassword.health.VaultHealth
 import io.github.rldona.openpassword.security.BiometricKeyStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -111,6 +113,8 @@ class VaultSession(
                 UnlockResult.WrongPassword(remainingWait())
             } catch (e: OpException) {
                 UnlockResult.Failed(e.toUserMessage())
+            } catch (_: InternalException) {
+                UnlockResult.Failed(INTERNAL_ERROR_MESSAGE)
             }
         }
     }
@@ -189,6 +193,8 @@ class VaultSession(
             true
         } catch (_: OpException) {
             false
+        } catch (_: InternalException) {
+            false
         }
     }
 
@@ -265,6 +271,8 @@ class VaultSession(
                 UnlockResult.Success
             } catch (e: OpException) {
                 UnlockResult.Failed(e.toUserMessage())
+            } catch (_: InternalException) {
+                UnlockResult.Failed(INTERNAL_ERROR_MESSAGE)
             } finally {
                 key.fill(0)
             }
@@ -407,9 +415,19 @@ class VaultSession(
 
     // ---- Internals ----
 
+    /**
+     * The single point where a failed FFI call degrades the session: an [InternalException]
+     * (a Rust panic) or an unexpected [OpException.Locked] (the vault is open here but the
+     * native key is gone) locks the session and empties the entries.
+     */
     private suspend fun <T> withVault(block: (Vault) -> T): T = mutex.withLock {
-        withContext(Dispatchers.Default) {
-            block(vault ?: throw OpException.Locked())
+        try {
+            withContext(Dispatchers.Default) {
+                block(vault ?: throw OpException.Locked())
+            }
+        } catch (e: Exception) {
+            if (e !is CancellationException && shouldLockAfter(e, _state.value is SessionState.Unlocked)) lock()
+            throw e
         }
     }
 
@@ -435,6 +453,10 @@ class VaultSession(
     )
 
     companion object {
+        /** True if [error] means the native vault can no longer be trusted. */
+        internal fun shouldLockAfter(error: Throwable, sessionUnlocked: Boolean): Boolean =
+            error is InternalException || (error is OpException.Locked && sessionUnlocked)
+
         const val BACKGROUND_TIMEOUT_MS = 30_000L
         const val PICKER_TIMEOUT_MS = 3 * 60_000L
         const val IDLE_TIMEOUT_MS = 5 * 60_000L
@@ -467,5 +489,8 @@ fun OpException.toUserMessage(): String = when (this) {
     is OpException.Corrupted -> "Los datos están dañados o han sido modificados."
     is OpException.UnsupportedVersion -> "Este fichero es de una versión más nueva de OpenPassword."
     is OpException.Locked -> "El baúl está bloqueado."
-    is OpException.Internal -> "Error interno: $reason."
+    is OpException.Internal -> INTERNAL_ERROR_MESSAGE
 }
+
+/** Generic message for a failure inside the native core. The panic text is never shown. */
+const val INTERNAL_ERROR_MESSAGE = "Ha ocurrido un error interno. Vuelve a desbloquear el baúl."

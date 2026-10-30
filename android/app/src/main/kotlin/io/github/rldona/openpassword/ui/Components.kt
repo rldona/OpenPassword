@@ -1,16 +1,24 @@
 package io.github.rldona.openpassword.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -20,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -30,6 +39,12 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.rldona.openpassword.OpenPasswordApp
+import io.github.rldona.openpassword.security.OVERLAY_WARNING_TEXT
+import io.github.rldona.openpassword.security.OverlayWarning
+import io.github.rldona.openpassword.security.ProtectDialogWindow
+import io.github.rldona.openpassword.security.ROOT_WARNING_TEXT
+import io.github.rldona.openpassword.security.RootDetector
 import io.github.rldona.openpassword.ui.theme.SecretText
 
 /**
@@ -163,3 +178,61 @@ suspend fun writeDocument(context: android.content.Context, uri: android.net.Uri
 
 /** File name for the emergency kit, so it is easy to find and delete after printing. */
 const val EMERGENCY_KIT_FILE_NAME = "openpassword-kit-de-emergencia.pdf"
+
+/**
+ * The only way to show an AlertDialog in the app: dialogs are separate windows, so each one
+ * must be protected against tapjacking on its own. Do not call AlertDialog directly.
+ */
+@Composable
+fun ProtectedAlertDialog(
+    onDismissRequest: () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    dismissButton: @Composable (() -> Unit)? = null,
+    title: @Composable (() -> Unit)? = null,
+    text: @Composable (() -> Unit)? = null,
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        confirmButton = confirmButton,
+        modifier = modifier,
+        dismissButton = dismissButton,
+        title = title,
+        text = {
+            ProtectDialogWindow()
+            text?.invoke()
+        },
+    )
+}
+
+/** Non-blocking notice shown once another app has been seen covering the app. */
+@Composable
+fun OverlayWarningBanner(modifier: Modifier = Modifier) {
+    val detected by OverlayWarning.detected.collectAsState()
+    if (!detected) return
+    Card(
+        modifier.fillMaxWidth().padding(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+    ) {
+        Text(OVERLAY_WARNING_TEXT, Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onErrorContainer)
+    }
+}
+
+/**
+ * Advisory only: root or debug-build heuristics. Never blocks anything. With [dismissable]
+ * the user can hide it until a new signal appears; without it, it is a plain info block.
+ */
+@Composable
+fun RootWarning(dismissable: Boolean, modifier: Modifier = Modifier) {
+    val app = LocalContext.current.applicationContext as? OpenPasswordApp ?: return
+    val signals by app.rootSignals.collectAsState()
+    val dismissed by app.rootWarningDismissed.collectAsState()
+    if (signals.isEmpty() || (dismissable && !RootDetector.shouldWarn(signals, dismissed))) return
+    Card(modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Seguridad del dispositivo", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onTertiaryContainer)
+            Text(ROOT_WARNING_TEXT, color = MaterialTheme.colorScheme.onTertiaryContainer)
+            if (dismissable) TextButton(onClick = app::dismissRootWarning) { Text("Entendido") }
+        }
+    }
+}
