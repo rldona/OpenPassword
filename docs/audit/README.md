@@ -51,6 +51,10 @@ Documentos del repositorio que el auditor debe leer y que **no** se copian aquí
 - [`docs/threat-model.md`](../threat-model.md): activos, atacantes A1–A18 y riesgos residuales.
 - [`SECURITY.md`](../../SECURITY.md): cómo se notifican vulnerabilidades y plazos.
 - [`android/README.md`](../../android/README.md) y [`docs/fdroid/README.md`](../fdroid/README.md): compilación y build reproducible.
+
+> **Publicación en F-Droid: en pausa** por decisión del responsable del proyecto (30-oct-2026). No bloquea
+> el paquete de auditoría: la versión que se audita se entrega como pre-release de GitHub, no desde
+> F-Droid. Ver [`docs/fdroid/README.md`](../fdroid/README.md) para retomarla.
 - [`core/tests/vectors/op-v1.json`](../../core/tests/vectors/op-v1.json): vectores dorados del formato.
 
 ## Cómo se usa el paquete con un proveedor
