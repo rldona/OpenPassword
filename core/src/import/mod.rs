@@ -7,6 +7,8 @@
 //! The input is plaintext secrets: callers should offer to delete the file afterwards.
 
 mod kdbx;
+#[cfg(fuzzing)]
+pub use kdbx::fuzzing as kdbx_fuzzing;
 
 use serde_json::Value;
 

@@ -1,0 +1,1 @@
+otpauth://totp/Google:raul@ejemplo.com?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=Google&algorithm=SHA256&digits=8&period=60

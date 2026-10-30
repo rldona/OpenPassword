@@ -606,6 +606,25 @@ fn resolve_entity(r: &quick_xml::events::BytesRef<'_>) -> Result<char> {
 ///
 /// Text is accumulated per element (text, entity and CDATA events) and never trimmed:
 /// a password may start or end with spaces.
+/// Entry points for `cargo fuzz` into the parts behind the KDF. Not built otherwise.
+#[cfg(fuzzing)]
+pub mod fuzzing {
+    /// Inner XML with protected values under a ChaCha20 stream, as KDBX 4 writes it.
+    pub fn xml(xml: &str) {
+        if let Ok(mut inner) = super::InnerStream::new(3, &[7; 64]) {
+            if let Ok(entries) = super::read_entries(xml, &mut inner) {
+                for e in &entries {
+                    let _ = super::entry_to_item(e, 0);
+                }
+            }
+        }
+    }
+
+    pub fn key_file(data: &[u8]) {
+        let _ = super::key_file_key(data);
+    }
+}
+
 fn read_entries(xml: &str, inner: &mut InnerStream) -> Result<Vec<Entry>> {
     let mut reader = Reader::from_str(xml);
     let malformed = |_| Error::Malformed("KDBX XML");

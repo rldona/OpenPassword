@@ -2,7 +2,7 @@
 
 Gestor de contraseñas, tarjetas, PINs y secretos, de código abierto, offline y sin servidor. Android primero.
 
-> **Estado: Fase 1 en curso.** La app Android ya crea, desbloquea y gestiona el baúl, pero no ha pasado ninguna auditoría. No guardes datos reales todavía.
+> **Estado: Fase 2 terminada, pendiente de publicar en F-Droid.** La app Android ya es de uso diario (autorrelleno, TOTP, copias automáticas, importadores), pero no ha pasado ninguna auditoría externa. No guardes datos reales todavía. Para avisar de un fallo de seguridad, ver [SECURITY.md](SECURITY.md).
 
 ## Qué hay en el repositorio
 
@@ -11,6 +11,7 @@ Gestor de contraseñas, tarjetas, PINs y secretos, de código abierto, offline y
 | [`core/`](core) | `op-core`, el núcleo en Rust: derivación de claves, cifrado por elemento y formato `.opvault` |
 | [`ffi/`](ffi) | `op-ffi`, bindings UniFFI de `op-core` para Kotlin (y en el futuro Swift) |
 | [`cli/`](cli) | `opvault`, herramienta para inspeccionar y descifrar respaldos sin la app |
+| [`fuzz/`](fuzz) | Objetivos de `cargo-fuzz` para los parsers que leen datos no confiables. Ver [fuzz/README.md](fuzz/README.md) |
 | [`android/`](android) | App Android: Kotlin + Jetpack Compose. Ver [android/README.md](android/README.md) |
 | [`docs/crypto-spec.md`](docs/crypto-spec.md) | Especificación criptográfica v1 (normativa) |
 | [`docs/opvault-format.md`](docs/opvault-format.md) | Formato del fichero de respaldo |
@@ -26,7 +27,7 @@ Gestor de contraseñas, tarjetas, PINs y secretos, de código abierto, offline y
 
 ## Desarrollo
 
-Requiere Rust 1.85 o posterior.
+Usa la versión de Rust fijada en [`rust-toolchain.toml`](rust-toolchain.toml); rustup la instala sola.
 
 ```sh
 cargo test --workspace          # tests unitarios, vectores oficiales y vectores dorados v1

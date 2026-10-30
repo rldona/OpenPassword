@@ -1,0 +1,51 @@
+[package]
+name = "op-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+license = "GPL-3.0-or-later"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+op-core = { path = "../core" }
+
+# Not part of the main workspace: it needs nightly and libFuzzer.
+[workspace]
+
+[[bin]]
+name = "import"
+path = "fuzz_targets/import.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "kdbx_xml"
+path = "fuzz_targets/kdbx_xml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "key_file"
+path = "fuzz_targets/key_file.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "backup_header"
+path = "fuzz_targets/backup_header.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "totp"
+path = "fuzz_targets/totp.rs"
+test = false
+doc = false
+bench = false
