@@ -47,7 +47,8 @@ jobs:
         run: |
           for t in import kdbx_xml key_file backup_header totp; do
             mkdir -p "corpus/$t" && cp seeds/$t/* "corpus/$t/"
-            cargo +nightly fuzz run -O "$t" "corpus/$t" -- -max_total_time=60 -max_len=65536 -rss_limit_mb=2048 -timeout=10
+            # The prebuilt cargo-fuzz is a musl binary and would default to that target.
+            cargo +nightly fuzz run -O --target x86_64-unknown-linux-gnu "$t" "corpus/$t" -- -max_total_time=60 -max_len=65536 -rss_limit_mb=2048 -timeout=10
           done
       - uses: actions/upload-artifact@v7
         if: failure()
