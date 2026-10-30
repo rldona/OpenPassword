@@ -35,6 +35,18 @@ const SALSA20_IV: [u8; 8] = [0xe8, 0x30, 0x09, 0x4b, 0x97, 0x20, 0x5d, 0x2a];
 const MAX_AES_ROUNDS: u64 = 200_000_000;
 const MAX_ARGON2_BYTES: u64 = 1 << 30;
 const MAX_ARGON2_ITERATIONS: u64 = 1_000;
+/// Joint Argon2 budget, `memory × iterations` in bytes: 16 GiB·pass (for example
+/// 1 GiB × 16 or 64 MiB × 256). The separate caps above alone allowed 1 GiB × 1000.
+const MAX_ARGON2_WORK: u64 = 16 << 30;
+
+// Limits on the decrypted XML. Real databases nest groups a dozen levels deep and hold a
+// few thousand entries; a hostile one must not turn that into unbounded work or memory.
+/// Open `<Group>` elements at once.
+const MAX_GROUP_DEPTH: usize = 100;
+/// Open elements at once, of any kind.
+const MAX_XML_DEPTH: usize = 256;
+/// Entries outside the history.
+const MAX_ENTRIES: usize = 100_000;
 
 const fn hex16(s: &str) -> [u8; 16] {
     let b = s.as_bytes();
@@ -161,6 +173,27 @@ pub fn parse(
     key_file: Option<&[u8]>,
     now: u64,
 ) -> Result<Imported> {
+    let (h, v4, header_end) = read_header(bytes)?;
+
+    // Composite key: SHA-256 of the password hash followed by the key file's key.
+    let mut composite = Sha256::new();
+    if let Some(p) = password {
+        composite.update(Sha256::digest(p.as_bytes()));
+    }
+    if let Some(k) = key_file {
+        composite.update(*key_file_key(k)?);
+    }
+    let composite = Zeroizing::new(composite.finalize().to_vec());
+    let transformed = Zeroizing::new(if v4 {
+        kdf_v4(&h.kdf, &composite)?
+    } else {
+        aes_kdf(&composite, &h.transform_seed, h.transform_rounds)?
+    });
+    open_payload(bytes, &h, v4, header_end, &transformed, now)
+}
+
+/// The outer header: `(fields, is KDBX 4, offset where the header ends)`.
+fn read_header(bytes: &[u8]) -> Result<(Header, bool, usize)> {
     let mut c = Cursor {
         data: bytes,
         pos: 0,
@@ -211,24 +244,25 @@ pub fn parse(
         return Err(Error::Malformed("KDBX master seed"));
     }
 
-    // Composite key: SHA-256 of the password hash followed by the key file's key.
-    let mut composite = Sha256::new();
-    if let Some(p) = password {
-        composite.update(Sha256::digest(p.as_bytes()));
-    }
-    if let Some(k) = key_file {
-        composite.update(*key_file_key(k)?);
-    }
-    let composite = Zeroizing::new(composite.finalize().to_vec());
-    let transformed = Zeroizing::new(if v4 {
-        kdf_v4(&h.kdf, &composite)?
-    } else {
-        aes_kdf(&composite, &h.transform_seed, h.transform_rounds)?
-    });
+    Ok((h, v4, header_end))
+}
 
+/// Everything behind the key derivation: checks, blocks, outer cipher, gunzip, XML.
+fn open_payload(
+    bytes: &[u8],
+    h: &Header,
+    v4: bool,
+    header_end: usize,
+    transformed: &[u8],
+    now: u64,
+) -> Result<Imported> {
+    let mut c = Cursor {
+        data: bytes,
+        pos: header_end,
+    };
     let mut hasher = Sha256::new();
     hasher.update(&h.master_seed);
-    hasher.update(&*transformed);
+    hasher.update(transformed);
     let cipher_key = Zeroizing::new(hasher.finalize().to_vec());
 
     let ciphertext: Vec<u8> = if v4 {
@@ -238,15 +272,10 @@ pub fn parse(
         }
         let mut hmac_base = Sha512::new();
         hmac_base.update(&h.master_seed);
-        hmac_base.update(&*transformed);
+        hmac_base.update(transformed);
         hmac_base.update([1u8]);
         let hmac_base = Zeroizing::new(hmac_base.finalize().to_vec());
-        let block_key = |index: u64| -> Zeroizing<Vec<u8>> {
-            let mut k = Sha512::new();
-            k.update(index.to_le_bytes());
-            k.update(&*hmac_base);
-            Zeroizing::new(k.finalize().to_vec())
-        };
+        let block_key = |index: u64| block_key(&hmac_base, index);
         // A wrong password shows up here, before any decryption.
         let stored_hmac = c.take(32)?;
         let mut mac = hmac_sha256(&block_key(u64::MAX));
@@ -464,6 +493,13 @@ fn decode_hex(s: &str) -> Option<Vec<u8>> {
         .collect()
 }
 
+fn block_key(hmac_base: &[u8], index: u64) -> Zeroizing<Vec<u8>> {
+    let mut k = Sha512::new();
+    k.update(index.to_le_bytes());
+    k.update(hmac_base);
+    Zeroizing::new(k.finalize().to_vec())
+}
+
 fn hmac_sha256(key: &[u8]) -> Hmac<Sha256> {
     <Hmac<Sha256> as Mac>::new_from_slice(key).expect("HMAC accepts keys of any length")
 }
@@ -488,11 +524,7 @@ fn kdf_v4(dict: &[(String, Vec<u8>)], composite: &[u8]) -> Result<Vec<u8>> {
         Some(0x10) => Version::V0x10,
         _ => Version::V0x13,
     };
-    if memory > MAX_ARGON2_BYTES || iterations > MAX_ARGON2_ITERATIONS || lanes > 64 {
-        return Err(bad(
-            "the KeePass key derivation is too costly for this device",
-        ));
-    }
+    check_argon2_cost(memory, iterations, lanes)?;
     let params = Params::new(
         (memory / 1024) as u32,
         iterations as u32,
@@ -505,6 +537,19 @@ fn kdf_v4(dict: &[(String, Vec<u8>)], composite: &[u8]) -> Result<Vec<u8>> {
         .hash_password_into(composite, salt, &mut out)
         .map_err(|_| Error::Kdf)?;
     Ok(out)
+}
+
+fn check_argon2_cost(memory: u64, iterations: u64, lanes: u64) -> Result<()> {
+    if memory > MAX_ARGON2_BYTES
+        || iterations > MAX_ARGON2_ITERATIONS
+        || lanes > 64
+        || memory * iterations > MAX_ARGON2_WORK
+    {
+        return Err(bad(
+            "this KeePass database cannot be imported: its key derivation is too costly for this device",
+        ));
+    }
+    Ok(())
 }
 
 /// KeePass AES-KDF: encrypt both halves of the key `rounds` times with AES-256-ECB, then SHA-256.
@@ -567,6 +612,11 @@ impl InnerStream {
     }
 }
 
+struct Group {
+    uuid: String,
+    parent: Option<usize>,
+}
+
 #[derive(Default)]
 struct Entry {
     strings: Vec<(String, String, bool)>,
@@ -623,6 +673,136 @@ pub mod fuzzing {
     pub fn key_file(data: &[u8]) {
         let _ = super::key_file_key(data);
     }
+
+    /// Stands for the output of the KDF. Not secret: it exists so that the code behind the
+    /// KDF (whose cost the file sets) can be fuzzed.
+    const TRANSFORMED_KEY: [u8; 32] = [9; 32];
+
+    fn open(file: &[u8]) {
+        if let Ok((header, v4, end)) = super::read_header(file) {
+            if let Ok(imported) = super::open_payload(file, &header, v4, end, &TRANSFORMED_KEY, 0) {
+                assert!(imported.items.len() + imported.skipped <= super::MAX_ENTRIES);
+            }
+        }
+    }
+
+    /// Any file that starts like a KDBX: header parsing, then the checks that a file not
+    /// made with [`TRANSFORMED_KEY`] fails (header hash and HMAC, or the start bytes).
+    pub fn file(data: &[u8]) {
+        if super::is_kdbx(data) {
+            open(data);
+        }
+    }
+
+    /// Builds a file that passes those checks, so that the block framing, the outer
+    /// cipher, gunzip, the inner header and the XML are reached. The first byte picks the
+    /// shape: bit 0 KDBX 4 (else 3.1), bit 1 gzip, bit 2 ChaCha20 (else AES-256), bit 3
+    /// ChaCha20 inner stream (else Salsa20), bit 4 (3.1 only) the rest is the whole
+    /// hashed-block stream instead of one well-formed block. The rest is the payload.
+    pub fn container(data: &[u8]) {
+        let Some((&flags, payload)) = data.split_first() else {
+            return;
+        };
+        open(&seal(flags, payload));
+    }
+
+    fn field(out: &mut Vec<u8>, v4: bool, id: u8, data: &[u8]) {
+        out.push(id);
+        if v4 {
+            out.extend((data.len() as u32).to_le_bytes());
+        } else {
+            out.extend((data.len() as u16).to_le_bytes());
+        }
+        out.extend(data);
+    }
+
+    fn encrypt(chacha: bool, key: &[u8], iv: &[u8], plain: &[u8]) -> Vec<u8> {
+        use aes::cipher::{BlockEncryptMut, KeyIvInit, StreamCipher, block_padding::Pkcs7};
+        if chacha {
+            let mut data = plain.to_vec();
+            chacha20::ChaCha20::new_from_slices(key, iv)
+                .expect("32-byte key, 12-byte IV")
+                .apply_keystream(&mut data);
+            data
+        } else {
+            cbc::Encryptor::<aes::Aes256>::new_from_slices(key, iv)
+                .expect("32-byte key, 16-byte IV")
+                .encrypt_padded_vec_mut::<Pkcs7>(plain)
+        }
+    }
+
+    fn seal(flags: u8, payload: &[u8]) -> Vec<u8> {
+        use hmac::Mac;
+        use sha2::{Digest, Sha256, Sha512};
+
+        let (v4, gzip, chacha) = (flags & 1 != 0, flags & 2 != 0, flags & 4 != 0);
+        let seed = [1u8; 32];
+        let iv = [2u8; 16];
+        let iv = if chacha { &iv[..12] } else { &iv[..] };
+        let mut header = super::SIGNATURE.to_vec();
+        header.extend(0u16.to_le_bytes());
+        header.extend(if v4 { 4u16 } else { 3u16 }.to_le_bytes());
+        let cipher = if chacha {
+            super::CIPHER_CHACHA20
+        } else {
+            super::CIPHER_AES256
+        };
+        field(&mut header, v4, 2, &cipher);
+        field(&mut header, v4, 3, &u32::from(gzip).to_le_bytes());
+        field(&mut header, v4, 4, &seed);
+        field(&mut header, v4, 7, iv);
+        let start_bytes = [3u8; 32];
+        if !v4 {
+            field(&mut header, v4, 8, &[4; 32]);
+            field(&mut header, v4, 9, &start_bytes);
+            let inner = if flags & 8 != 0 { 3u32 } else { 2 };
+            field(&mut header, v4, 10, &inner.to_le_bytes());
+        }
+        field(&mut header, v4, 0, &[]);
+
+        let cipher_key = Sha256::new()
+            .chain_update(seed)
+            .chain_update(TRANSFORMED_KEY)
+            .finalize();
+        let mut file = header.clone();
+        if v4 {
+            let hmac_base = Sha512::new()
+                .chain_update(seed)
+                .chain_update(TRANSFORMED_KEY)
+                .chain_update([1u8])
+                .finalize();
+            file.extend(Sha256::digest(&header));
+            let mut mac = super::hmac_sha256(&super::block_key(&hmac_base, u64::MAX));
+            mac.update(&header);
+            file.extend(mac.finalize().into_bytes());
+            let body = encrypt(chacha, &cipher_key, iv, payload);
+            for (index, data) in [(0u64, body.as_slice()), (1, &[][..])] {
+                let size = (data.len() as i32).to_le_bytes();
+                let mut mac = super::hmac_sha256(&super::block_key(&hmac_base, index));
+                mac.update(&index.to_le_bytes());
+                mac.update(&size);
+                mac.update(data);
+                file.extend(mac.finalize().into_bytes());
+                file.extend(size);
+                file.extend(data);
+            }
+        } else {
+            let mut plain = start_bytes.to_vec();
+            if flags & 16 != 0 {
+                plain.extend(payload);
+            } else {
+                plain.extend(0u32.to_le_bytes());
+                plain.extend(Sha256::digest(payload));
+                plain.extend((payload.len() as u32).to_le_bytes());
+                plain.extend(payload);
+                plain.extend(1u32.to_le_bytes());
+                plain.extend([0; 32]);
+                plain.extend(0u32.to_le_bytes());
+            }
+            file.extend(encrypt(chacha, &cipher_key, iv, &plain));
+        }
+        file
+    }
 }
 
 fn read_entries(xml: &str, inner: &mut InnerStream) -> Result<Vec<Entry>> {
@@ -632,9 +812,11 @@ fn read_entries(xml: &str, inner: &mut InnerStream) -> Result<Vec<Entry>> {
     let mut path: Vec<String> = Vec::new();
     let mut text = Zeroizing::new(String::new());
     let mut recycle_bin = String::new();
-    // UUID of each open group, innermost last.
-    let mut group_uuids: Vec<String> = Vec::new();
-    let mut entries: Vec<(Entry, Vec<String>)> = Vec::new();
+    // Every group seen, once; `open` holds the indices of the currently open ones, innermost
+    // last. An entry keeps only the index of its group, so memory is linear in the input.
+    let mut groups: Vec<Group> = Vec::new();
+    let mut open: Vec<usize> = Vec::new();
+    let mut entries: Vec<(Entry, Option<usize>)> = Vec::new();
     let mut current: Option<Entry> = None;
     let mut history_depth = 0;
     let (mut key, mut value, mut protected) = (String::new(), String::new(), false);
@@ -644,8 +826,24 @@ fn read_entries(xml: &str, inner: &mut InnerStream) -> Result<Vec<Entry>> {
             Event::Start(e) => {
                 let name = e.name().as_ref().to_owned();
                 text.clear();
+                if path.len() >= MAX_XML_DEPTH {
+                    return Err(bad(
+                        "this KeePass database cannot be imported: its XML nests too deeply",
+                    ));
+                }
                 match name.as_str() {
-                    "Group" => group_uuids.push(String::new()),
+                    "Group" => {
+                        if open.len() >= MAX_GROUP_DEPTH {
+                            return Err(bad(
+                                "this KeePass database cannot be imported: its groups nest too deeply",
+                            ));
+                        }
+                        groups.push(Group {
+                            uuid: String::new(),
+                            parent: open.last().copied(),
+                        });
+                        open.push(groups.len() - 1);
+                    }
                     "Entry" if history_depth == 0 => current = Some(Entry::default()),
                     "History" => history_depth += 1,
                     "String" => (key, value, protected) = (String::new(), String::new(), false),
@@ -668,8 +866,8 @@ fn read_entries(xml: &str, inner: &mut InnerStream) -> Result<Vec<Entry>> {
                 match (e.name().as_ref(), parent) {
                     ("RecycleBinUUID", Some("Meta")) => recycle_bin = text.trim().to_owned(),
                     ("UUID", Some("Group")) => {
-                        if let Some(u) = group_uuids.last_mut() {
-                            *u = text.trim().to_owned();
+                        if let Some(&g) = open.last() {
+                            groups[g].uuid = text.trim().to_owned();
                         }
                     }
                     ("Key", Some("String")) => key = text.to_string(),
@@ -681,7 +879,7 @@ fn read_entries(xml: &str, inner: &mut InnerStream) -> Result<Vec<Entry>> {
                         }
                     }
                     ("Group", _) => {
-                        group_uuids.pop();
+                        open.pop();
                     }
                     ("History", _) => history_depth -= 1,
                     ("String", _) => {
@@ -695,7 +893,12 @@ fn read_entries(xml: &str, inner: &mut InnerStream) -> Result<Vec<Entry>> {
                     }
                     ("Entry", _) if history_depth == 0 => {
                         if let Some(entry) = current.take() {
-                            entries.push((entry, group_uuids.clone()));
+                            if entries.len() >= MAX_ENTRIES {
+                                return Err(bad(
+                                    "this KeePass database cannot be imported: it has too many entries",
+                                ));
+                            }
+                            entries.push((entry, open.last().copied()));
                         }
                     }
                     _ => {}
@@ -707,14 +910,16 @@ fn read_entries(xml: &str, inner: &mut InnerStream) -> Result<Vec<Entry>> {
             _ => {}
         }
     }
-    let in_bin = |groups: &[String]| {
-        !recycle_bin.is_empty()
-            && recycle_bin != "AAAAAAAAAAAAAAAAAAAAAA=="
-            && groups.contains(&recycle_bin)
+    let bin_enabled = !recycle_bin.is_empty() && recycle_bin != "AAAAAAAAAAAAAAAAAAAAAA==";
+    // An entry is in the bin when its group or any ancestor is the bin group.
+    let in_bin = |group: Option<usize>| {
+        bin_enabled
+            && std::iter::successors(group, |&g| groups[g].parent)
+                .any(|g| groups[g].uuid == recycle_bin)
     };
     Ok(entries
         .into_iter()
-        .filter(|(_, groups)| !in_bin(groups))
+        .filter(|(_, group)| !in_bin(*group))
         .map(|(e, _)| e)
         .collect())
 }
@@ -978,5 +1183,103 @@ mod tests {
                 .to_string()
                 .contains("too costly")
         );
+    }
+
+    #[test]
+    fn argon2_budget_accepts_the_edge_and_refuses_above_it() {
+        const MIB: u64 = 1 << 20;
+        // 1 GiB × 16 and 64 MiB × 256 sit exactly on the 16 GiB·pass budget.
+        assert!(check_argon2_cost(1024 * MIB, 16, 4).is_ok());
+        assert!(check_argon2_cost(64 * MIB, 256, 4).is_ok());
+        // Typical KeePass defaults stay far below it.
+        assert!(check_argon2_cost(64 * MIB, 2, 2).is_ok());
+        // One step above the budget.
+        for (m, t) in [(1024 * MIB, 17), (64 * MIB, 257), (1024 * MIB, 1000)] {
+            assert!(
+                check_argon2_cost(m, t, 4)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("cannot be imported"),
+                "{m} × {t}"
+            );
+        }
+        // The individual caps still apply.
+        assert!(check_argon2_cost(1024 * MIB + 1, 1, 1).is_err());
+        assert!(check_argon2_cost(MIB, 1001, 1).is_err());
+        assert!(check_argon2_cost(MIB, 1, 65).is_err());
+    }
+
+    fn nested_xml(groups: usize, entries: usize) -> String {
+        let mut xml = String::from("<KeePassFile><Root>");
+        xml.push_str(&"<Group>".repeat(groups));
+        xml.push_str(&"<Entry></Entry>".repeat(entries));
+        xml.push_str(&"</Group>".repeat(groups));
+        xml.push_str("</Root></KeePassFile>");
+        xml
+    }
+
+    fn read(xml: &str) -> Result<Vec<Entry>> {
+        read_entries(xml, &mut InnerStream::new(3, &[7; 64]).unwrap())
+    }
+
+    #[test]
+    fn deep_group_nesting_is_refused_before_it_costs_memory() {
+        // 180 KB of XML: 5000 nested groups and 7000 entries. Cloning the stack of open
+        // groups per entry took ~900 MB of RSS for this file.
+        let xml = nested_xml(5000, 7000);
+        assert!(xml.len() < 200_000);
+        let err = read(&xml).err().expect("refused");
+        assert!(err.to_string().contains("nest too deeply"), "{err}");
+        let deep = format!(
+            "{}{}",
+            "<a>".repeat(MAX_XML_DEPTH + 1),
+            "</a>".repeat(MAX_XML_DEPTH + 1)
+        );
+        assert!(
+            read(&deep)
+                .err()
+                .expect("refused")
+                .to_string()
+                .contains("nests too deeply")
+        );
+    }
+
+    #[test]
+    fn nesting_and_entry_limits_accept_their_edge() {
+        assert_eq!(read(&nested_xml(MAX_GROUP_DEPTH, 10)).unwrap().len(), 10);
+        assert!(read(&nested_xml(MAX_GROUP_DEPTH + 1, 10)).is_err());
+        assert_eq!(
+            read(&nested_xml(MAX_GROUP_DEPTH, MAX_ENTRIES))
+                .unwrap()
+                .len(),
+            MAX_ENTRIES
+        );
+        let err = read(&nested_xml(MAX_GROUP_DEPTH, MAX_ENTRIES + 1))
+            .err()
+            .expect("refused");
+        assert!(err.to_string().contains("too many entries"), "{err}");
+    }
+
+    #[test]
+    fn recycle_bin_applies_to_every_descendant_group() {
+        let xml = "<KeePassFile><Meta><RecycleBinUUID>BIN</RecycleBinUUID></Meta><Root>\
+            <Group><UUID>ROOT</UUID>\
+              <Entry><String><Key>Title</Key><Value>kept</Value></String></Entry>\
+              <Group><UUID>BIN</UUID>\
+                <Entry><String><Key>Title</Key><Value>in bin</Value></String></Entry>\
+                <Group><UUID>SUB</UUID>\
+                  <Entry><String><Key>Title</Key><Value>deeper in bin</Value></String></Entry>\
+                </Group>\
+              </Group>\
+              <Group><UUID>OTHER</UUID>\
+                <Entry><String><Key>Title</Key><Value>sibling</Value></String></Entry>\
+              </Group>\
+            </Group></Root></KeePassFile>";
+        let titles: Vec<_> = read(xml)
+            .unwrap()
+            .iter()
+            .map(|e| e.get("Title").to_owned())
+            .collect();
+        assert_eq!(titles, ["kept", "sibling"]);
     }
 }

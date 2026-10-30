@@ -61,6 +61,7 @@ class OpenPasswordApp : Application() {
             kdfProfile = kdfProfileFor(this),
             biometricKeys = BiometricKeyStore(),
             bootCount = { Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT, 0) },
+            totalMemory = { ActivityManager.MemoryInfo().also(getSystemService(ActivityManager::class.java)::getMemoryInfo).totalMem },
         )
         autoBackup = AutoBackup(this, session, getSharedPreferences("backup", MODE_PRIVATE), MainScope())
         session.onChanged = autoBackup::onVaultChanged

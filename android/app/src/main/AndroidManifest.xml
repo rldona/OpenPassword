@@ -21,6 +21,17 @@
         <package android:name="com.koushikdutta.superuser" />
         <package android:name="com.noshufou.android.su" />
         <package android:name="com.kingroot.kinguser" />
+        <!-- Which packages are real browsers (autofill only trusts a page's domain from one). Names only; no QUERY_ALL_PACKAGES. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="http" />
+        </intent>
     </queries>
 
     <application

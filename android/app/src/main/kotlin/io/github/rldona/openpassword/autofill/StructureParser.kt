@@ -23,8 +23,12 @@ object StructureParser {
         return null
     }
 
+    /** A claimed web domain is honoured only from a real browser; otherwise the request is about the app. */
+    fun targetFor(packageName: String, webDomain: String?, browsers: BrowserCheck): FillTarget =
+        if (webDomain != null && browsers.isBrowser(packageName)) FillTarget.Web(webDomain) else FillTarget.App(packageName)
+
     /** Null if there is nothing to fill, or the request comes from OpenPassword itself. */
-    fun parse(structure: AssistStructure, ownPackage: String): LoginRequest? {
+    fun parse(structure: AssistStructure, ownPackage: String, browsers: BrowserCheck): LoginRequest? {
         val packageName = structure.activityComponent?.packageName ?: return null
         if (packageName == ownPackage) return null
 
@@ -50,7 +54,6 @@ object StructureParser {
 
         val (username, password) = pickLoginFields(fields)
         if (username == null && password == null) return null
-        val target = webDomain?.let { FillTarget.Web(it) } ?: FillTarget.App(packageName)
-        return LoginRequest(target, username, password)
+        return LoginRequest(targetFor(packageName, webDomain, browsers), username, password)
     }
 }

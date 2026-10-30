@@ -54,6 +54,18 @@ Pendiente de publicación: la funcionalidad prevista para la v0.1.0 está hecha;
 - Si no hay coincidencia, el usuario puede elegir un login a mano. En apps puede recordarlo para esa app; en webs se le avisa de que compruebe el sitio.
 - Los campos se detectan en `autofill/FieldClassifier.kt` (pistas de autorrelleno, tipo de entrada, atributos HTML y nombres en español e inglés). La lógica de detección y de coincidencia tiene tests unitarios.
 
+## Verificación de dependencias
+
+`gradle/verification-metadata.xml` guarda el SHA-256 de cada artefacto Maven (dependencias, plugins y herramientas de build). Gradle lo comprueba en cada resolución y el build falla si una suma no coincide o falta.
+
+**Una dependencia nueva, o una subida de versión, exige actualizar ese fichero.** Con JDK 17, desde `android/`:
+
+    ./gradlew --write-verification-metadata sha256 :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:cyclonedxDirectBom
+
+Revisa el diff del XML (solo deben aparecer los artefactos nuevos) y súbelo en el mismo commit. Es la misma lista de tareas que ejecuta la CI.
+
+Limitación: hay artefactos que dependen de la plataforma. En macOS, Gradle solo resuelve `aapt2-<versión>-osx.jar`; la CI (Linux) necesita también `aapt2-<versión>-linux.jar`, que se añade a mano con el SHA-256 del fichero descargado de `https://dl.google.com/dl/android/maven2/com/android/tools/build/aapt2/<versión>/`. Si la CI falla con «Dependency verification failed» tras una subida de AGP, empieza por ahí; si no, regenera el fichero en Linux (`--write-verification-metadata` fusiona con lo que ya hay).
+
 ## Compilar
 
 Requisitos: JDK 17, Android SDK con la plataforma 37, NDK `30.0.16248370`, Rust con los targets de Android y `cargo-ndk`.

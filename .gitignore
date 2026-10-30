@@ -2,6 +2,7 @@
 *.opvault
 !core/tests/vectors/*.opvault
 .DS_Store
+*.cdx.json
 .idea/
 local.properties
 

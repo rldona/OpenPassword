@@ -49,4 +49,31 @@ class FfiFailureHandlingTest {
             }.toList()
         assertEquals(emptyList<String>(), offenders)
     }
+
+    @Test
+    fun `a failure after opening the vault releases it and rethrows`() {
+        var released = 0
+        val failures = listOf(OpException.Corrupted(), InternalException("panic"), IllegalStateException("x"))
+        for (failure in failures) {
+            val thrown = runCatching { VaultSession.discardOnFailure({ released++ }) { throw failure } }.exceptionOrNull()
+            assertTrue(thrown === failure)
+        }
+        assertEquals(failures.size, released)
+    }
+
+    @Test
+    fun `a failing release does not hide the original error`() {
+        val original = OpException.Corrupted()
+        val thrown = runCatching {
+            VaultSession.discardOnFailure({ throw IllegalStateException("close failed") }) { throw original }
+        }.exceptionOrNull()
+        assertTrue(thrown === original)
+    }
+
+    @Test
+    fun `success does not release the vault`() {
+        var released = 0
+        assertEquals(7, VaultSession.discardOnFailure({ released++ }) { 7 })
+        assertEquals(0, released)
+    }
 }

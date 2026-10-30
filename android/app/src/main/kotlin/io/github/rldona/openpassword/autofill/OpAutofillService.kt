@@ -24,10 +24,16 @@ import kotlinx.coroutines.launch
  */
 class OpAutofillService : AutofillService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val browsers by lazy { CachedBrowserCheck.forPackageManager(packageManager) }
+
+    override fun onConnected() {
+        // Build the browser list off the main thread, before the first fill request needs it.
+        scope.launch(Dispatchers.Default) { browsers.warm() }
+    }
 
     override fun onFillRequest(request: FillRequest, cancellationSignal: CancellationSignal, callback: FillCallback) {
         val structure = request.fillContexts.lastOrNull()?.structure ?: return callback.onSuccess(null)
-        val login = StructureParser.parse(structure, packageName) ?: return callback.onSuccess(null)
+        val login = StructureParser.parse(structure, packageName, browsers) ?: return callback.onSuccess(null)
         val session = (application as OpenPasswordApp).session
 
         val job = scope.launch {
@@ -65,7 +71,7 @@ class OpAutofillService : AutofillService() {
      */
     override fun onSaveRequest(request: SaveRequest, callback: SaveCallback) {
         val structures = request.fillContexts.map { it.structure }
-        val login = structures.lastOrNull()?.let { StructureParser.parse(it, packageName) }
+        val login = structures.lastOrNull()?.let { StructureParser.parse(it, packageName, browsers) }
         val password = login?.password?.let { StructureParser.textValue(structures, it) }
         if (login == null || password.isNullOrEmpty()) return callback.onSuccess()
         val username = login.username?.let { StructureParser.textValue(structures, it) }.orEmpty()

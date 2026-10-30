@@ -139,3 +139,48 @@ fn decrypt_body(parsed: &Parsed<'_>, vault: &UnlockedVault) -> Result<Vec<Encryp
     let body: Body = serde_json::from_slice(&plain).map_err(|_| Error::Malformed("body JSON"))?;
     Ok(body.items)
 }
+
+/// Fuzzing hooks, compiled only with `--cfg fuzzing` (see `crate::fuzzing`).
+#[cfg(fuzzing)]
+pub mod fuzzing {
+    use super::*;
+
+    /// File key of [`seal_backup`]. A public constant, for tests only.
+    const TEST_FILE_KEY: [u8; 32] = [4; 32];
+    const TEST_NONCE: [u8; STREAM_NONCE_LEN] = [6; STREAM_NONCE_LEN];
+
+    /// A backup of `vault` whose body is `body` (any bytes), sealed with the STREAM cipher and
+    /// fixed keys, so that opening it reaches the JSON of the body. No KDF runs.
+    pub fn seal_backup(vault: &UnlockedVault, body: &[u8]) -> Vec<u8> {
+        let file_key = Key::from_bytes(TEST_FILE_KEY);
+        let header = BackupHeader {
+            format_version: FORMAT_VERSION,
+            created_at: 0,
+            vault: vault.header().clone(),
+            stream_nonce: TEST_NONCE,
+            wrapped_file_key: crypto::seal_with_nonce(
+                vault.vault_key(),
+                &[8; crypto::NONCE_LEN],
+                file_key.expose(),
+                &file_key_aad(vault.vault_id(), &TEST_NONCE),
+            ),
+        };
+        let header_json = serde_json::to_vec(&header).expect("header serializes");
+        let mut out = Vec::new();
+        out.extend_from_slice(MAGIC);
+        out.extend_from_slice(
+            &u32::try_from(header_json.len())
+                .expect("small")
+                .to_le_bytes(),
+        );
+        out.extend_from_slice(&header_json);
+        let aad = body_aad(&out);
+        out.extend_from_slice(&stream::encrypt(&file_key, &TEST_NONCE, body, &aad));
+        out
+    }
+
+    /// [`open`] with an already unlocked vault, skipping the KDF.
+    pub fn open_with_vault(bytes: &[u8], vault: &UnlockedVault) -> Result<Vec<EncryptedItem>> {
+        decrypt_body(&parse(bytes)?, vault)
+    }
+}

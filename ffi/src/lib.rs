@@ -1,16 +1,36 @@
 //! UniFFI bindings of `op-core`.
 //!
 //! A thin translation layer: records mirror the core types, and every call
-//! goes through `op-core`, which stays free of FFI concerns. Passwords and
-//! plaintext cross the boundary as JVM `String`s, which the JVM cannot wipe;
-//! see docs/crypto-spec.md section 10.
+//! goes through `op-core`, which stays free of FFI concerns.
+//!
+//! Secrets and plaintext cross the boundary as `String`s (Kotlin side: JVM `String`s, which
+//! cannot be wiped; see docs/crypto-spec.md section 10). Ownership contract:
+//! - text secrets (passwords, secret keys, field values, notes, history, TOTP seeds) use
+//!   [`SecretString`], which Rust wipes when dropped; Kotlin still sees `String`;
+//! - byte inputs that carry secrets (`vault_key`, `key_file`, imported files) are wrapped in
+//!   `Zeroizing` as soon as they enter; whoever creates a buffer wipes it, so Kotlin wipes
+//!   what it passes in and what `vault_key_bytes` returns;
+//! - accepted leftovers: JVM and Compose `String`s, and the outgoing `RustBuffer` plus the
+//!   `String` Rust hands over to build it, which UniFFI frees without wiping.
 
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+
+use zeroize::Zeroizing;
 
 use op_core::vault::{Field, FieldKind, ItemDetails, ItemKind, ItemOverview, PasswordChange};
 use op_core::{EncryptedItem, Item, KdfParams, Key, SecretKey, UnlockedVault, VaultHeader, backup};
 
+mod secret;
+
+pub use secret::SecretString;
+
 uniffi::setup_scaffolding!();
+
+/// Platform ceiling for the KDF cost of a header or backup read from outside: 512 MiB,
+/// 6 passes, 8 lanes. Lower than the format's [`KdfParams::MAXIMUM`] (2 GiB / 16 / 16),
+/// which stays as is: a phone cannot afford that. Four times the cost of
+/// [`KdfParams::RECOMMENDED`], and above anything the app creates.
+pub const MOBILE_MAXIMUM: KdfParams = KdfParams::argon2id(524_288, 6, 8);
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum OpError {
@@ -26,6 +46,10 @@ pub enum OpError {
     Corrupted,
     #[error("unsupported format version {version}")]
     UnsupportedVersion { version: u32 },
+    #[error(
+        "the key derivation is too expensive for this device ({m_kib} KiB, {t} passes, {p} lanes)"
+    )]
+    KdfTooExpensive { m_kib: u32, t: u32, p: u32 },
     #[error("the vault is locked")]
     Locked,
     #[error("internal error: {reason}")]
@@ -42,7 +66,8 @@ impl From<op_core::Error> for OpError {
             E::InvalidInput(r) => OpError::InvalidInput { reason: r.into() },
             E::Decrypt | E::Malformed(_) => OpError::Corrupted,
             E::UnsupportedVersion(version) => OpError::UnsupportedVersion { version },
-            E::Rng | E::Kdf | E::KdfParams(_) => OpError::Internal {
+            E::KdfParams(r) => OpError::InvalidInput { reason: r.into() },
+            E::Rng | E::Kdf => OpError::Internal {
                 reason: e.to_string(),
             },
         }
@@ -117,13 +142,13 @@ pub struct ItemOverviewRecord {
 pub struct FieldRecord {
     pub label: String,
     pub kind: FieldKindRecord,
-    pub value: String,
+    pub value: SecretString,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct ItemDetailsRecord {
     pub fields: Vec<FieldRecord>,
-    pub notes: String,
+    pub notes: SecretString,
     /// Previous passwords, newest first. Ignored by `update_item`, which computes it.
     #[uniffi(default = [])]
     pub history: Vec<PasswordChangeRecord>,
@@ -132,7 +157,7 @@ pub struct ItemDetailsRecord {
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct PasswordChangeRecord {
     pub label: String,
-    pub value: String,
+    pub value: SecretString,
     pub changed_at: u64,
 }
 
@@ -185,16 +210,16 @@ impl From<&ItemDetails> for ItemDetailsRecord {
                 .map(|f| FieldRecord {
                     label: f.label.clone(),
                     kind: f.kind.into(),
-                    value: f.value.clone(),
+                    value: f.value.as_str().into(),
                 })
                 .collect(),
-            notes: d.notes.clone(),
+            notes: d.notes.as_str().into(),
             history: d
                 .history
                 .iter()
                 .map(|h| PasswordChangeRecord {
                     label: h.label.clone(),
-                    value: h.value.clone(),
+                    value: h.value.as_str().into(),
                     changed_at: h.changed_at,
                 })
                 .collect(),
@@ -208,15 +233,15 @@ impl From<ItemDetailsRecord> for ItemDetails {
             fields: d
                 .fields
                 .into_iter()
-                .map(|f| Field::new(f.label, f.kind.into(), f.value))
+                .map(|f| Field::new(f.label, f.kind.into(), f.value.expose().to_owned()))
                 .collect(),
-            notes: d.notes,
+            notes: d.notes.expose().to_owned(),
             history: d
                 .history
                 .into_iter()
                 .map(|h| PasswordChange {
                     label: h.label,
-                    value: h.value,
+                    value: h.value.expose().to_owned(),
                     changed_at: h.changed_at,
                 })
                 .collect(),
@@ -305,10 +330,14 @@ fn parse_header(header_json: &str) -> Result<VaultHeader> {
 impl Vault {
     /// Creates a vault. Runs Argon2id: call it off the main thread.
     #[uniffi::constructor]
-    pub fn create(password: String, secret_key: String, profile: KdfProfile) -> Result<Arc<Self>> {
-        let sk = SecretKey::parse(&secret_key)?;
+    pub fn create(
+        password: SecretString,
+        secret_key: SecretString,
+        profile: KdfProfile,
+    ) -> Result<Arc<Self>> {
+        let sk = SecretKey::parse(secret_key.expose())?;
         Ok(Self::wrap(UnlockedVault::create(
-            &password,
+            password.expose(),
             &sk,
             profile.into(),
         )?))
@@ -316,11 +345,17 @@ impl Vault {
 
     /// Unlocks with the master password. Runs Argon2id: call it off the main thread.
     #[uniffi::constructor]
-    pub fn unlock(header_json: String, password: String, secret_key: String) -> Result<Arc<Self>> {
-        let sk = SecretKey::parse(&secret_key)?;
+    pub fn unlock(
+        header_json: String,
+        password: SecretString,
+        secret_key: SecretString,
+    ) -> Result<Arc<Self>> {
+        let sk = SecretKey::parse(secret_key.expose())?;
+        let header = parse_header(&header_json)?;
+        check_mobile_kdf(&header.kdf)?;
         Ok(Self::wrap(UnlockedVault::unlock(
-            &parse_header(&header_json)?,
-            &password,
+            &header,
+            password.expose(),
             &sk,
         )?))
     }
@@ -328,12 +363,17 @@ impl Vault {
     /// Unlocks with a vault key released by Android Keystore after biometric auth.
     #[uniffi::constructor]
     pub fn unlock_with_vault_key(header_json: String, vault_key: Vec<u8>) -> Result<Arc<Self>> {
-        let bytes: [u8; 32] = vault_key.try_into().map_err(|_| OpError::InvalidInput {
-            reason: "vault key must be 32 bytes".into(),
-        })?;
+        let vault_key = Zeroizing::new(vault_key);
+        let mut bytes = Zeroizing::new([0u8; 32]);
+        if vault_key.len() != bytes.len() {
+            return Err(OpError::InvalidInput {
+                reason: "vault key must be 32 bytes".into(),
+            });
+        }
+        bytes.copy_from_slice(&vault_key);
         Ok(Self::wrap(UnlockedVault::unlock_with_vault_key(
             &parse_header(&header_json)?,
-            Key::from_bytes(bytes),
+            Key::from_bytes(*bytes),
         )))
     }
 
@@ -342,7 +382,9 @@ impl Vault {
         self.with(|v| Ok(serde_json::to_string(v.header()).expect("header serializes")))
     }
 
-    /// Raw vault key, only to seal it with Android Keystore for biometric unlock.
+    /// Raw vault key, only to seal it with Android Keystore for biometric unlock. The caller
+    /// owns the returned bytes and must wipe them; the `RustBuffer` UniFFI builds is a
+    /// leftover Rust cannot wipe.
     pub fn vault_key_bytes(&self) -> Result<Vec<u8>> {
         self.with(|v| Ok(v.vault_key().expose().to_vec()))
     }
@@ -407,27 +449,70 @@ pub struct BackupContents {
     pub items: Vec<EncryptedItemRecord>,
 }
 
-/// Opens a `.opvault` backup. Runs Argon2id: call it off the main thread.
+/// Opens a `.opvault` backup. Fails with [`OpError::KdfTooExpensive`], before deriving
+/// anything, if its KDF is above [`MOBILE_MAXIMUM`]. Runs Argon2id: call it off the main
+/// thread.
 #[uniffi::export]
-pub fn open_backup(bytes: Vec<u8>, password: String, secret_key: String) -> Result<BackupContents> {
-    let sk = SecretKey::parse(&secret_key)?;
-    let (vault, items) = backup::open(&bytes, &password, &sk)?;
+pub fn open_backup(
+    bytes: Vec<u8>,
+    password: SecretString,
+    secret_key: SecretString,
+) -> Result<BackupContents> {
+    let bytes = Zeroizing::new(bytes);
+    let sk = SecretKey::parse(secret_key.expose())?;
+    check_mobile_kdf(&backup::read_header(&bytes)?.vault.kdf)?;
+    let (vault, items) = backup::open(&bytes, password.expose(), &sk)?;
     Ok(BackupContents {
         vault: Vault::wrap(vault),
         items: items.into_iter().map(Into::into).collect(),
     })
 }
 
+/// Rejects a header whose KDF is above [`MOBILE_MAXIMUM`], before any derivation.
+fn check_mobile_kdf(kdf: &KdfParams) -> Result<()> {
+    if kdf.exceeds(&MOBILE_MAXIMUM) {
+        return Err(OpError::KdfTooExpensive {
+            m_kib: kdf.m_kib,
+            t: kdf.t,
+            p: kdf.p,
+        });
+    }
+    Ok(kdf.check_within(&MOBILE_MAXIMUM)?)
+}
+
+/// KDF cost of a backup, so the app can compare it with the device's memory first.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Record)]
+pub struct KdfInfo {
+    pub m_kib: u32,
+    pub t: u32,
+    pub p: u32,
+}
+
+/// Reads the KDF parameters from a backup's plaintext header. Carries no secret and runs no
+/// KDF. Fails if the header is malformed or above the format's maximum.
+#[uniffi::export]
+pub fn backup_kdf(bytes: Vec<u8>) -> Result<KdfInfo> {
+    let kdf = backup::read_header(&bytes)?.vault.kdf;
+    Ok(KdfInfo {
+        m_kib: kdf.m_kib,
+        t: kdf.t,
+        p: kdf.p,
+    })
+}
+
 /// A new random secret key in display form (`OP1-…`).
 #[uniffi::export]
-pub fn generate_secret_key() -> Result<String> {
-    Ok(SecretKey::generate()?.to_display().to_string())
+pub fn generate_secret_key() -> Result<SecretString> {
+    Ok(SecretKey::generate()?.to_display().to_string().into())
 }
 
 /// Validates user input and returns the canonical display form.
 #[uniffi::export]
-pub fn normalize_secret_key(input: String) -> Result<String> {
-    Ok(SecretKey::parse(&input)?.to_display().to_string())
+pub fn normalize_secret_key(input: SecretString) -> Result<SecretString> {
+    Ok(SecretKey::parse(input.expose())?
+        .to_display()
+        .to_string()
+        .into())
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -447,7 +532,7 @@ pub struct ImportResult {
 /// True if the file is encrypted and [`parse_import`] needs its password (KeePass).
 #[uniffi::export]
 pub fn import_needs_password(bytes: Vec<u8>) -> bool {
-    op_core::import::needs_password(&bytes)
+    op_core::import::needs_password(&Zeroizing::new(bytes))
 }
 
 /// Parses another manager's export. Nothing is stored: the app encrypts the items.
@@ -456,14 +541,16 @@ pub fn import_needs_password(bytes: Vec<u8>) -> bool {
 #[uniffi::export]
 pub fn parse_import(
     bytes: Vec<u8>,
-    password: Option<String>,
+    password: Option<SecretString>,
     key_file: Option<Vec<u8>>,
     now: u64,
 ) -> Result<ImportResult> {
+    let bytes = Zeroizing::new(bytes);
+    let key_file = key_file.map(Zeroizing::new);
     let imported = op_core::import::parse_with_credentials(
         &bytes,
-        password.as_deref(),
-        key_file.as_deref(),
+        password.as_ref().map(SecretString::expose),
+        key_file.as_ref().map(|k| k.as_slice()),
         now,
     )?;
     Ok(ImportResult {
@@ -498,8 +585,8 @@ pub struct TotpCode {
 
 /// Current code for an `otpauth://totp/...` link or a base32 secret.
 #[uniffi::export]
-pub fn totp_code(input: String, unix_time: u64) -> Result<TotpCode> {
-    let totp = op_core::totp::Totp::parse(&input)?;
+pub fn totp_code(input: SecretString, unix_time: u64) -> Result<TotpCode> {
+    let totp = op_core::totp::Totp::parse(input.expose())?;
     Ok(TotpCode {
         code: totp.code_at(unix_time),
         seconds_remaining: totp.seconds_remaining(unix_time),
@@ -533,10 +620,12 @@ mod tests {
                 kind: FieldKindRecord::Pin,
                 value: "2958".into(),
             }],
-            notes: String::new(),
+            notes: SecretString::default(),
             history: Vec::new(),
         }
     }
+
+    const PASSWORD: &str = "contraseña larga de prueba";
 
     // Uses the minimum profile (64 MiB): this crate does not enable the test-only KDF feature.
     #[test]
@@ -558,7 +647,9 @@ mod tests {
             "Alarma casa"
         );
         assert_eq!(
-            vault.decrypt_details(enc2.clone()).unwrap().fields[0].value,
+            vault.decrypt_details(enc2.clone()).unwrap().fields[0]
+                .value
+                .expose(),
             "2958"
         );
 
@@ -566,7 +657,7 @@ mod tests {
         let reopened = Vault::unlock(
             header.clone(),
             "contraseña larga de prueba".into(),
-            sk.to_lowercase(),
+            sk.expose().to_lowercase().into(),
         )
         .unwrap();
         assert_eq!(
@@ -580,7 +671,10 @@ mod tests {
 
         let key = vault.vault_key_bytes().unwrap();
         let bio = Vault::unlock_with_vault_key(header, key).unwrap();
-        assert_eq!(bio.decrypt_details(enc2.clone()).unwrap().notes, "");
+        assert_eq!(
+            bio.decrypt_details(enc2.clone()).unwrap().notes.expose(),
+            ""
+        );
 
         let file = vault.export_backup(vec![enc2.clone()], 1).unwrap();
         let restored = open_backup(file, "contraseña larga de prueba".into(), sk).unwrap();
@@ -634,8 +728,10 @@ mod tests {
         ));
         let sk = generate_secret_key().unwrap();
         assert_eq!(
-            normalize_secret_key(sk.replace('-', " ").to_lowercase()).unwrap(),
-            sk
+            normalize_secret_key(sk.expose().replace('-', " ").to_lowercase().into())
+                .unwrap()
+                .expose(),
+            sk.expose()
         );
     }
 
@@ -680,5 +776,128 @@ mod tests {
             vault.decrypt_overview(enc),
             Err(OpError::Corrupted)
         ));
+    }
+
+    /// A real backup whose header declares `kdf`. The header is not authenticated until the
+    /// body is decrypted, so a rewritten one parses fine and only the KDF would reject it.
+    fn backup_with_kdf(kdf: KdfParams) -> (Vec<u8>, SecretString) {
+        let sk = generate_secret_key().unwrap();
+        let vault = Vault::create(PASSWORD.into(), sk.clone(), KdfProfile::Minimum).unwrap();
+        let file = vault.export_backup(Vec::new(), 1).unwrap();
+        let start = backup::MAGIC.len() + 4;
+        let len = u32::from_le_bytes(file[start - 4..start].try_into().unwrap()) as usize;
+        let mut header: serde_json::Value =
+            serde_json::from_slice(&file[start..start + len]).unwrap();
+        header["vault"]["kdf"] = serde_json::to_value(kdf).unwrap();
+        let header = serde_json::to_vec(&header).unwrap();
+        let mut out = file[..start - 4].to_vec();
+        out.extend_from_slice(&u32::try_from(header.len()).unwrap().to_le_bytes());
+        out.extend_from_slice(&header);
+        out.extend_from_slice(&file[start + len..]);
+        (out, sk)
+    }
+
+    #[test]
+    fn backup_above_the_mobile_ceiling_fails_fast() {
+        for kdf in [
+            KdfParams::argon2id(524_289, 6, 8),
+            KdfParams::argon2id(524_288, 7, 8),
+            KdfParams::argon2id(524_288, 6, 9),
+            KdfParams::MAXIMUM,
+        ] {
+            let (file, sk) = backup_with_kdf(kdf);
+            let started = std::time::Instant::now();
+            let result = open_backup(file, PASSWORD.into(), sk);
+            assert!(
+                matches!(
+                    result,
+                    Err(OpError::KdfTooExpensive { m_kib, t, p })
+                        if (m_kib, t, p) == (kdf.m_kib, kdf.t, kdf.p)
+                ),
+                "{kdf:?}"
+            );
+            // Argon2 at these costs takes seconds and gigabytes: this must not run it.
+            assert!(
+                started.elapsed() < std::time::Duration::from_secs(1),
+                "{kdf:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn mobile_ceiling_is_inclusive() {
+        // Checked directly: opening would run a 512 MiB Argon2 for nothing.
+        assert!(check_mobile_kdf(&MOBILE_MAXIMUM).is_ok());
+        assert!(check_mobile_kdf(&KdfParams::RECOMMENDED).is_ok());
+        assert!(matches!(
+            check_mobile_kdf(&KdfParams::argon2id(524_289, 6, 8)),
+            Err(OpError::KdfTooExpensive { .. })
+        ));
+        // Unusable parameters under the ceiling are invalid input, not "too expensive".
+        assert!(matches!(
+            check_mobile_kdf(&KdfParams::argon2id(16, 1, 4)),
+            Err(OpError::InvalidInput { .. })
+        ));
+    }
+
+    #[test]
+    fn backup_kdf_reports_the_header_cost() {
+        let (file, _) = backup_with_kdf(KdfParams::argon2id(524_289, 6, 8));
+        assert_eq!(
+            backup_kdf(file).unwrap(),
+            KdfInfo {
+                m_kib: 524_289,
+                t: 6,
+                p: 8
+            }
+        );
+        // Above the format's own maximum, `read_header` already refuses it.
+        let (file, _) = backup_with_kdf(KdfParams::argon2id(2_097_153, 3, 4));
+        assert!(matches!(
+            backup_kdf(file),
+            Err(OpError::InvalidInput { .. })
+        ));
+        assert!(matches!(
+            backup_kdf(b"nope".to_vec()),
+            Err(OpError::Corrupted)
+        ));
+    }
+
+    #[test]
+    fn local_header_above_the_mobile_ceiling_is_refused_before_the_kdf() {
+        let sk = generate_secret_key().unwrap();
+        let vault = Vault::create(PASSWORD.into(), sk.clone(), KdfProfile::Minimum).unwrap();
+        let mut header: serde_json::Value =
+            serde_json::from_str(&vault.header_json().unwrap()).unwrap();
+        header["kdf"] = serde_json::to_value(KdfParams::argon2id(524_289, 6, 8)).unwrap();
+        assert!(matches!(
+            Vault::unlock(header.to_string(), PASSWORD.into(), sk),
+            Err(OpError::KdfTooExpensive { m_kib: 524_289, .. })
+        ));
+    }
+
+    #[test]
+    fn secret_strings_cross_records_and_options() {
+        let details = ItemDetailsRecord {
+            fields: vec![FieldRecord {
+                label: "x".into(),
+                kind: FieldKindRecord::Concealed,
+                value: "s3cret".into(),
+            }],
+            notes: "nota".into(),
+            history: vec![PasswordChangeRecord {
+                label: "x".into(),
+                value: "old".into(),
+                changed_at: 1,
+            }],
+        };
+        let item: ItemDetails = details.clone().into();
+        assert_eq!(item.fields[0].value, "s3cret");
+        assert_eq!(item.notes, "nota");
+        let back = ItemDetailsRecord::from(&item);
+        assert_eq!(back.history[0].value.expose(), "old");
+        assert!(!format!("{back:?}").contains("s3cret"));
+        let none: Option<SecretString> = None;
+        assert!(format!("{none:?}") == "None");
     }
 }

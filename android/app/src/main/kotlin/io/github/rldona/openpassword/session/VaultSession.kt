@@ -16,6 +16,7 @@ import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.core.Vault
 import io.github.rldona.openpassword.core.normalizeSecretKey
+import io.github.rldona.openpassword.core.backupKdf
 import io.github.rldona.openpassword.core.openBackup
 import io.github.rldona.openpassword.data.VaultStorage
 import io.github.rldona.openpassword.health.HealthInput
@@ -70,6 +71,8 @@ class VaultSession(
     private val biometricKeys: BiometricKeyStore,
     /** Device boot counter, to require the master password after every reboot. */
     private val bootCount: () -> Int,
+    /** Physical RAM of the device in bytes, to refuse a backup whose KDF would not fit. */
+    private val totalMemory: () -> Long = { Long.MAX_VALUE },
 ) {
     private val mutex = Mutex()
     private var vault: Vault? = null
@@ -102,7 +105,7 @@ class VaultSession(
         withContext(Dispatchers.Default) {
             try {
                 val unlocked = Vault.unlock(storage.readHeader(), password, storage.loadSecretKey())
-                val entries = storage.items().map { VaultEntry(it, unlocked.decryptOverview(it)) }
+                val entries = discardOnFailure(unlocked::discard) { storage.items().map { VaultEntry(it, unlocked.decryptOverview(it)) } }
                 prefs.edit().putInt(KEY_FAILURES, 0).apply()
                 recordPasswordUnlock()
                 replaceVault(unlocked, entries)
@@ -119,6 +122,12 @@ class VaultSession(
         }
     }
 
+    /** Throws [OpException.KdfTooExpensive] if the backup's KDF asks for more memory than the device has. */
+    private fun checkKdfFits(backup: ByteArray) {
+        val kdf = backupKdf(backup)
+        if (!kdfMemoryFits(kdf.mKib, totalMemory())) throw OpException.KdfTooExpensive(kdf.mKib, kdf.t, kdf.p)
+    }
+
     /**
      * Makes a `.opvault` backup this device's vault: same vault key, same items.
      * Only allowed while there is no vault on the device.
@@ -127,8 +136,9 @@ class VaultSession(
         check(!storage.hasVault()) { "a vault already exists on this device" }
         withContext(Dispatchers.Default) {
             val normalizedKey = normalizeSecretKey(secretKey)
+            checkKdfFits(backup)
             val contents = openBackup(backup, password, normalizedKey)
-            val entries = contents.items.map { VaultEntry(it, contents.vault.decryptOverview(it)) }
+            val entries = discardOnFailure(contents.vault::discard) { contents.items.map { VaultEntry(it, contents.vault.decryptOverview(it)) } }
             try {
                 storage.clearItems()
                 contents.items.forEach(storage::upsert)
@@ -137,7 +147,7 @@ class VaultSession(
                 storage.writeHeader(contents.vault.headerJson())
             } catch (e: Exception) {
                 storage.clearItems()
-                contents.vault.lock()
+                contents.vault.discard()
                 throw e
             }
             recordPasswordUnlock()
@@ -155,6 +165,7 @@ class VaultSession(
             val current = vault ?: throw OpException.Locked()
             // No key given: a backup made on this device, so use the one stored here.
             val key = secretKey?.let(::normalizeSecretKey) ?: storage.loadSecretKey()
+            checkKdfFits(backup)
             val contents = openBackup(backup, password, key)
             val source = contents.vault
             try {
@@ -266,7 +277,7 @@ class VaultSession(
             }
             try {
                 val unlocked = Vault.unlockWithVaultKey(storage.readHeader(), key)
-                val entries = storage.items().map { VaultEntry(it, unlocked.decryptOverview(it)) }
+                val entries = discardOnFailure(unlocked::discard) { storage.items().map { VaultEntry(it, unlocked.decryptOverview(it)) } }
                 replaceVault(unlocked, entries)
                 UnlockResult.Success
             } catch (e: OpException) {
@@ -453,6 +464,15 @@ class VaultSession(
     )
 
     companion object {
+        /** Runs [block]; if it throws, calls [release] (best effort) and rethrows, so a half-opened vault never keeps its key. */
+        internal inline fun <T> discardOnFailure(release: () -> Unit, block: () -> T): T =
+            try {
+                block()
+            } catch (e: Throwable) {
+                runCatching(release)
+                throw e
+            }
+
         /** True if [error] means the native vault can no longer be trusted. */
         internal fun shouldLockAfter(error: Throwable, sessionUnlocked: Boolean): Boolean =
             error is InternalException || (error is OpException.Locked && sessionUnlocked)
@@ -488,9 +508,18 @@ fun OpException.toUserMessage(): String = when (this) {
     is OpException.InvalidInput -> "Dato no válido: $reason."
     is OpException.Corrupted -> "Los datos están dañados o han sido modificados."
     is OpException.UnsupportedVersion -> "Este fichero es de una versión más nueva de OpenPassword."
+    is OpException.KdfTooExpensive ->
+        "Esta copia necesita ${mKib / 1024u} MiB de memoria para abrirse y este dispositivo no puede darlos. " +
+            "Ábrela en un dispositivo con más memoria."
     is OpException.Locked -> "El baúl está bloqueado."
     is OpException.Internal -> INTERNAL_ERROR_MESSAGE
 }
 
 /** Generic message for a failure inside the native core. The panic text is never shown. */
 const val INTERNAL_ERROR_MESSAGE = "Ha ocurrido un error interno. Vuelve a desbloquear el baúl."
+
+/** Wipes the key and frees the native handle. */
+private fun Vault.discard() {
+    runCatching { lock() }
+    runCatching { close() }
+}

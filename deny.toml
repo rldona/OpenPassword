@@ -1,0 +1,45 @@
+# cargo-deny: advisories, licenses, bans and sources. CI runs `cargo deny --locked check`.
+# Adding a license or an exception needs human approval (docs/audit/decisions.md, ADR-AUD-04).
+
+[graph]
+# Dependencies of the shipped targets and of the host tooling (bindgen, CLI, fuzz harness).
+all-features = true
+
+[advisories]
+ignore = [
+    # basic-toml is unmaintained (no known vulnerability). It is only pulled in by
+    # uniffi_bindgen -> askama, the host tool that generates the Kotlin bindings at
+    # build time; it is not linked into libop_ffi.so or any shipped binary.
+    # Revisit when uniffi drops it.
+    "RUSTSEC-2026-0374",
+]
+
+[licenses]
+# Compatible with GPL-3.0-or-later (a requirement for F-Droid). Only what the current tree needs.
+allow = [
+    "GPL-3.0-or-later",          # this project's own crates
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-3-Clause",              # subtle
+    "MPL-2.0",                   # uniffi (file-level copyleft, compatible with GPL-3.0)
+    "Unicode-3.0",               # unicode-ident, unicode-normalization data
+    "Unlicense",                 # memchr (dual-licensed with MIT)
+    "Zlib",                      # tinyvec, zlib-rs
+    "LGPL-2.1-or-later",         # r-efi (triple-licensed MIT OR Apache-2.0 OR LGPL-2.1-or-later)
+]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "warn"
+# Should be "deny": the only hits are the `op-core = { path = "../core" }` entries of op-ffi and
+# opvault-cli, which cargo-deny treats as wildcards because those crates are not `publish = false`.
+# Add `publish = false` to them (ffi/Cargo.toml, cli/Cargo.toml) together with
+# `allow-wildcard-paths = true` here, then switch this to "deny".
+wildcards = "warn"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

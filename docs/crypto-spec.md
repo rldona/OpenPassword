@@ -73,6 +73,8 @@ La contraseña no se recorta ni se modifica salvo la normalización NFKD, para q
 | Mínimo | 65 536 (64 MiB) | 2 | 1 | Gama baja; no se PUEDE crear por debajo |
 | Máximo aceptado al leer | 2 097 152 (2 GiB) | 16 | 16 | Rechazar cabeceras más costosas (evita denegación de servicio) |
 
+Las plataformas PUEDEN aplicar un techo más bajo que el máximo del formato. Android: 512 MiB / 6 / 8 (`MOBILE_MAXIMUM` en `op-ffi`), comprobado antes de derivar la clave.
+
 Al leer un baúl o respaldo ya existente se aceptan parámetros por debajo del mínimo (pueden venir de un dispositivo antiguo), pero la app DEBE proponer recifrar con parámetros actuales.
 
 ## 6. Cifrado autenticado
