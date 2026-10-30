@@ -129,7 +129,7 @@ fun ExternalImportDialogs(
                                 " de un tipo que OpenPassword aún no admite (identidades, claves SSH…).",
                         )
                     }
-                    Text("Se cifrarán con las claves de tu baúl. Lo que ya tengas no se duplica.", style = MaterialTheme.typography.bodySmall)
+                    Text("Se cifrarán con las claves de tu caja fuerte. Lo que ya tengas no se duplica.", style = MaterialTheme.typography.bodySmall)
                 }
             },
             confirmButton = {
@@ -139,15 +139,15 @@ fun ExternalImportDialogs(
                         val message = try {
                             val s = session.importExternal(result.items)
                             when {
-                                s.added == 0 && s.duplicates == 1 -> "No había nada nuevo: ese elemento ya estaba en tu baúl."
-                                s.added == 0 -> "No había nada nuevo: los ${s.duplicates} ya estaban en tu baúl."
+                                s.added == 0 && s.duplicates == 1 -> "No había nada nuevo: ese elemento ya estaba en tu caja fuerte."
+                                s.added == 0 -> "No había nada nuevo: los ${s.duplicates} ya estaban en tu caja fuerte."
                                 else -> buildString {
                                     append(if (s.added == 1) "Importado 1 elemento." else "Importados ${s.added} elementos.")
-                                    if (s.duplicates > 0) append(if (s.duplicates == 1) " 1 ya estaba en tu baúl." else " ${s.duplicates} ya estaban en tu baúl.")
+                                    if (s.duplicates > 0) append(if (s.duplicates == 1) " 1 ya estaba en tu caja fuerte." else " ${s.duplicates} ya estaban en tu caja fuerte.")
                                 }
                             }
                         } catch (e: OpException) {
-                            "No se pudo importar: el baúl está bloqueado."
+                            "No se pudo importar: la caja fuerte está bloqueada."
                         } catch (_: InternalException) {
                             INTERNAL_ERROR_MESSAGE
                         }

@@ -114,7 +114,7 @@ fun UnlockScreen(
             ) {
                 Icon(Icons.Filled.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(34.dp))
             }
-            Text("Baúl bloqueado", style = MaterialTheme.typography.headlineMedium)
+            Text("Caja fuerte bloqueada", style = MaterialTheme.typography.headlineMedium)
             notice?.let {
                 Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
             }

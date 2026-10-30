@@ -317,7 +317,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                 scope.launch {
                     snackbar.showSnackbar(
                         when {
-                            summary.added == 0 && summary.updated == 0 -> "No había nada nuevo: tu baúl ya tenía todo lo de esa copia."
+                            summary.added == 0 && summary.updated == 0 -> "No había nada nuevo: tu caja fuerte ya tenía todo lo de esa copia."
                             else -> "Importados: ${summary.added} nuevos, ${summary.updated} actualizados."
                         },
                     )
@@ -431,7 +431,7 @@ private fun ImportDialog(onDismiss: () -> Unit, onImport: suspend (password: Str
                 password = ""
                 busy = false
             } catch (_: InternalException) {
-                error = "No se pudo leer la copia. Vuelve a desbloquear el baúl e inténtalo de nuevo."
+                error = "No se pudo leer la copia. Vuelve a desbloquear la caja fuerte e inténtalo de nuevo."
                 password = ""
                 busy = false
             }

@@ -87,7 +87,7 @@ fun VaultListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Baúl") },
+                title = { Text("Caja fuerte") },
                 actions = {
                     IconButton(onClick = onLock) { Icon(Icons.Filled.Lock, contentDescription = "Bloquear") }
                     IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, contentDescription = "Ajustes") }
@@ -124,7 +124,7 @@ fun VaultListScreen(
             }
             when {
                 entries.isEmpty() -> EmptyState(
-                    "Tu baúl está vacío",
+                    "Tu caja fuerte está vacía",
                     "Pulsa + para guardar tu primera contraseña, tarjeta o PIN.",
                 )
                 visible.isEmpty() -> EmptyState("Sin resultados", "Ningún elemento coincide con «$query».")
@@ -201,7 +201,7 @@ private fun UnreadableBanner(count: Int, modifier: Modifier = Modifier) {
                 Text(if (count == 1) "1 elemento no se puede leer" else "$count elementos no se pueden leer")
             },
             supportingContent = {
-                Text("Los datos están dañados. No se han borrado ni tocado: siguen en el baúl y en las copias. Importa una copia reciente para recuperarlos.")
+                Text("Los datos están dañados. No se han borrado ni tocado: siguen en la caja fuerte y en las copias. Importa una copia reciente para recuperarlos.")
             },
             leadingContent = { Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.errorContainer),

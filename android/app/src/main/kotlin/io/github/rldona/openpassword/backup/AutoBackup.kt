@@ -100,7 +100,7 @@ class AutoBackup(
             session.exportBackup()
         } catch (_: OpException.Locked) {
             // Stays pending: done on the next unlock.
-            return "El baúl está bloqueado: la copia se hará al desbloquear."
+            return "La caja fuerte está bloqueada: la copia se hará al desbloquear."
         } catch (e: OpException) {
             return fail("No se pudo cifrar la copia.")
         } catch (_: InternalException) {

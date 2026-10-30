@@ -93,7 +93,7 @@ object EmergencyKit {
         y = paragraph(
             c, y, content,
             "Escríbela solo si vas a guardar este papel en un lugar realmente seguro. Quien tenga el papel con la " +
-                "contraseña y una copia de tu baúl podrá abrirla.",
+                "contraseña y una copia de tu caja fuerte podrá abrirla.",
             text(10f, MUTED),
         ) + 26f
 
