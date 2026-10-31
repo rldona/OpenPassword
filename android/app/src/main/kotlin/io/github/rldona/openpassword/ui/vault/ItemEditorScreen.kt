@@ -66,7 +66,7 @@ import io.github.rldona.openpassword.qr.TotpScan
 import io.github.rldona.openpassword.qr.decodeQrImage
 import io.github.rldona.openpassword.security.PasswordGenerator
 import io.github.rldona.openpassword.security.Wordlist
-import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
+import io.github.rldona.openpassword.session.internalMessage
 import io.github.rldona.openpassword.session.ImageQuotaExceeded
 import io.github.rldona.openpassword.session.VaultEntry
 import io.github.rldona.openpassword.session.VaultSession
@@ -117,9 +117,9 @@ fun ItemEditorScreen(
                 notes = d.notes
                 loaded = true
             } catch (e: OpException) {
-                loadError = e.toUserMessage()
+                loadError = e.toUserMessage(context.resources)
             } catch (_: InternalException) {
-                loadError = INTERNAL_ERROR_MESSAGE
+                loadError = internalMessage(context.resources)
             }
         }
     }
@@ -142,11 +142,11 @@ fun ItemEditorScreen(
             newAttachmentId()
         } catch (_: OpException) {
             jpeg.fill(0)
-            error = INTERNAL_ERROR_MESSAGE
+            error = internalMessage(context.resources)
             return
         } catch (_: InternalException) {
             jpeg.fill(0)
-            error = INTERNAL_ERROR_MESSAGE
+            error = internalMessage(context.resources)
             return
         }
         val position = fields.count { it.kind == FieldKindRecord.IMAGE } + 1
@@ -239,10 +239,10 @@ fun ItemEditorScreen(
                 error = "No cabe más imágenes: la caja fuerte llega a su límite. Borra alguna o usa fotos más pequeñas."
                 saving = false
             } catch (e: OpException) {
-                error = e.toUserMessage()
+                error = e.toUserMessage(context.resources)
                 saving = false
             } catch (_: InternalException) {
-                error = INTERNAL_ERROR_MESSAGE
+                error = internalMessage(context.resources)
                 saving = false
             }
         }

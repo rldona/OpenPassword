@@ -29,6 +29,9 @@ import java.time.LocalDateTime
  * seconds after each change, and on unlock when the last one is older than a day.
  * Changes made right before locking are backed up on the next unlock.
  */
+/** Why the last automatic backup failed, as data: the interface translates it. */
+enum class BackupError { DISABLED, LOCKED, ENCRYPT_FAILED, PERMISSION_LOST, WRITE_FAILED, LEGACY }
+
 class AutoBackup(
     private val context: Context,
     private val session: VaultSession,
@@ -39,7 +42,7 @@ class AutoBackup(
         val folder: Uri? = null,
         val folderName: String? = null,
         val lastBackupAt: Long? = null,
-        val lastError: String? = null,
+        val lastError: BackupError? = null,
         val pending: Boolean = false,
     ) {
         val enabled: Boolean get() = folder != null
@@ -81,7 +84,7 @@ class AutoBackup(
     }
 
     /** Backs up now. Returns null on success or the message to show. */
-    suspend fun backupNow(): String? {
+    suspend fun backupNow(): BackupError? {
         scheduled?.cancel()
         return runBackup()
     }
@@ -94,17 +97,17 @@ class AutoBackup(
         }
     }
 
-    private suspend fun runBackup(): String? {
-        val tree = _status.value.folder ?: return "La copia automática está desactivada."
+    private suspend fun runBackup(): BackupError? {
+        val tree = _status.value.folder ?: return BackupError.DISABLED
         val bytes = try {
             session.exportBackup()
         } catch (_: OpException.Locked) {
             // Stays pending: done on the next unlock.
-            return "La caja fuerte está bloqueada: la copia se hará al desbloquear."
+            return BackupError.LOCKED
         } catch (e: OpException) {
-            return fail("No se pudo cifrar la copia.")
+            return fail(BackupError.ENCRYPT_FAILED)
         } catch (_: InternalException) {
-            return fail("No se pudo cifrar la copia.")
+            return fail(BackupError.ENCRYPT_FAILED)
         }
         return try {
             withContext(Dispatchers.IO) { write(tree, bytes) }
@@ -116,12 +119,12 @@ class AutoBackup(
             publish()
             null
         } catch (_: SecurityException) {
-            fail("OpenPassword ya no tiene permiso para usar esa carpeta. Elígela de nuevo.")
+            fail(BackupError.PERMISSION_LOST)
         } catch (e: CancellationException) {
             // Cancelled by disable() or a newer schedule: not a write error, so no message is stored.
             throw e
         } catch (_: Exception) {
-            fail("No se pudo escribir en la carpeta. ¿Sigue existiendo?")
+            fail(BackupError.WRITE_FAILED)
         }
     }
 
@@ -149,10 +152,10 @@ class AutoBackup(
         }
     }
 
-    private fun fail(message: String): String {
-        prefs.edit().putString(KEY_ERROR, message).apply()
+    private fun fail(error: BackupError): BackupError {
+        prefs.edit().putString(KEY_ERROR, error.name).apply()
         publish()
-        return message
+        return error
     }
 
     private fun markPending() = prefs.edit().putBoolean(KEY_PENDING, true).apply()
@@ -174,9 +177,16 @@ class AutoBackup(
         folder = prefs.getString(KEY_FOLDER, null)?.let(Uri::parse),
         folderName = prefs.getString(KEY_FOLDER_NAME, null),
         lastBackupAt = prefs.getLong(KEY_LAST, 0).takeIf { it > 0 },
-        lastError = prefs.getString(KEY_ERROR, null),
+        lastError = parseError(prefs.getString(KEY_ERROR, null)),
         pending = prefs.getBoolean(KEY_PENDING, false),
     )
+
+    /** Reads a stored error, including the free text an older version wrote. */
+    private fun parseError(stored: String?): BackupError? = when {
+        stored == null -> null
+        BackupError.entries.any { it.name == stored } -> BackupError.valueOf(stored)
+        else -> BackupError.LEGACY
+    }
 
     companion object {
         const val KEEP = 10

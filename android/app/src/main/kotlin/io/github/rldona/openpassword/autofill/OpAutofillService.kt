@@ -17,12 +17,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import io.github.rldona.openpassword.locale.AppLocales
 
 /**
  * Offers logins to other apps and browsers. Never fills on its own: Android shows the
  * suggestions and fills only the one the user taps.
  */
 class OpAutofillService : AutofillService() {
+
+    /** Suggestions must come out in the app language, not in the device language (28-32). */
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(AppLocales.wrap(newBase))
+    }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val browsers by lazy { CachedBrowserCheck.forPackageManager(packageManager) }
 

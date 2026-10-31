@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import io.github.rldona.openpassword.locale.AppLocales
 
 class OpenPasswordApp : Application() {
     lateinit var session: VaultSession
@@ -54,6 +55,8 @@ class OpenPasswordApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // A choice made on Android 12 or below moves into the platform when it can hold it.
+        AppLocales.migrateLegacy(this)
         _rootWarningDismissed.value = getSharedPreferences("device_warning", MODE_PRIVATE).getStringSet("dismissed", emptySet()).orEmpty().toSet()
         val probe = AndroidDeviceProbe(this)
         MainScope().launch { _rootSignals.value = withContext(Dispatchers.IO) { RootDetector.evaluate(probe) } }

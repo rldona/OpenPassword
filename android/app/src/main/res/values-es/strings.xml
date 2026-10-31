@@ -49,4 +49,34 @@
     <string name="strength_weak">Débil</string>
     <string name="strength_acceptable">Aceptable</string>
     <string name="strength_strong">Fuerte</string>
+
+    <string name="error_internal">Ha ocurrido un error interno. Vuelve a desbloquear la caja fuerte.</string>
+    <string name="error_wrong_credentials">Contraseña maestra incorrecta.</string>
+    <string name="error_wrong_secret_key">La clave secreta no corresponde a esta caja fuerte.</string>
+    <string name="error_invalid_secret_key">La clave secreta no es válida. Revisa si hay erratas.</string>
+    <string name="error_invalid_data">Dato no válido.</string>
+    <string name="error_backup_too_large">La caja fuerte no cabe en una copia de 64 MiB. Borra alguna imagen o reduce su tamaño.</string>
+    <string name="error_image_metadata">La imagen lleva datos de cámara que no se guardan. Prueba con otra foto.</string>
+    <string name="error_image_too_large">La imagen es demasiado grande. Prueba con una foto más pequeña.</string>
+    <string name="error_corrupted">Los datos están dañados o han sido modificados.</string>
+    <string name="error_unsupported_version">Este fichero es de una versión más nueva de OpenPassword.</string>
+    <string name="error_kdf_too_expensive">Esta copia necesita %1$d MiB de memoria para abrirse y este dispositivo no puede darlos. Ábrela en un dispositivo con más memoria.</string>
+    <string name="error_locked">La caja fuerte está bloqueada.</string>
+    <string name="error_biometric_unusable">No se pudo usar la huella. Introduce tu contraseña maestra.</string>
+    <string name="error_password_check_failed">No se pudo comprobar la contraseña.</string>
+    <string name="error_biometric_no_key">El sistema no devolvió la clave.</string>
+    <string name="password_reason_rebooted">El teléfono se ha reiniciado: introduce tu contraseña maestra.</string>
+    <string name="password_reason_periodic">Han pasado 14 días: introduce tu contraseña maestra para no olvidarla.</string>
+    <string name="backup_error_disabled">La copia automática está desactivada.</string>
+    <string name="backup_error_locked">La caja fuerte está bloqueada: la copia se hará al desbloquear.</string>
+    <string name="backup_error_encrypt">No se pudo cifrar la copia.</string>
+    <string name="backup_error_permission">OpenPassword ya no tiene permiso para usar esa carpeta. Elígela de nuevo.</string>
+    <string name="backup_error_write">No se pudo escribir en la carpeta. ¿Sigue existiendo?</string>
+    <string name="backup_error_legacy">La última copia automática falló.</string>
+
+    <string name="error_biometrics_changed">Las huellas del teléfono han cambiado, así que hemos desactivado el desbloqueo con huella. Usa tu contraseña maestra y vuelve a activarlo en Ajustes.</string>
+    <string name="biometric_unlock_title">Desbloquear OpenPassword</string>
+    <string name="biometric_enable_title">Activar desbloqueo con huella</string>
+    <string name="biometric_enable_subtitle">Confirma con tu huella</string>
+    <string name="biometric_enabled">Desbloqueo con huella activado. Te pediremos la contraseña cada 14 días y tras reiniciar.</string>
 </resources>

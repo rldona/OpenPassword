@@ -25,7 +25,7 @@ import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.core.importNeedsPassword
 import io.github.rldona.openpassword.core.parseImport
-import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
+import io.github.rldona.openpassword.session.internalMessage
 import io.github.rldona.openpassword.session.VaultSession
 import io.github.rldona.openpassword.session.checkImportKdfFits
 import io.github.rldona.openpassword.session.deviceTotalMemory
@@ -149,7 +149,7 @@ fun ExternalImportDialogs(
                         } catch (e: OpException) {
                             "No se pudo importar: la caja fuerte está bloqueada."
                         } catch (_: InternalException) {
-                            INTERNAL_ERROR_MESSAGE
+                            internalMessage(context.resources)
                         }
                         // A .kdbx is the user's own encrypted database, not a plaintext export: keep it.
                         if (result.format == "keepass-kdbx") onDone(message) else imported = message

@@ -1,41 +1,45 @@
 package io.github.rldona.openpassword.ui.unlock
 
 import android.content.Context
+import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.security.BiometricResult
 import io.github.rldona.openpassword.security.authenticateBiometric
-import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
+import io.github.rldona.openpassword.session.Failure
 import io.github.rldona.openpassword.session.UnlockResult
 import io.github.rldona.openpassword.session.VaultSession
+import io.github.rldona.openpassword.session.message
 import io.github.rldona.openpassword.session.toUserMessage
 
 /** Unlocks with the fingerprint. Null if the user dismissed the prompt. */
 suspend fun biometricUnlock(context: Context, session: VaultSession): UnlockResult? {
-    val cipher = session.biometricUnlockCipher() ?: return UnlockResult.Failed(
-        "Las huellas del teléfono han cambiado, así que hemos desactivado el desbloqueo con huella. " +
-            "Usa tu contraseña maestra y vuelve a activarlo en Ajustes.",
-    )
-    return when (val result = authenticateBiometric(context, cipher, "Desbloquear OpenPassword")) {
+    val cipher = session.biometricUnlockCipher()
+        ?: return UnlockResult.Failed(Failure.BiometricsChanged)
+    val title = context.getString(R.string.biometric_unlock_title)
+    return when (val result = authenticateBiometric(context, cipher, title)) {
         is BiometricResult.Success -> session.unlockWithBiometric(result.cipher)
         BiometricResult.Cancelled -> null
-        is BiometricResult.Error -> UnlockResult.Failed(result.message)
+        is BiometricResult.Error -> UnlockResult.Failed(Failure.System(result.message))
     }
 }
 
 /** Turns biometric unlock on. Returns the message to show. */
 suspend fun enableBiometricUnlock(context: Context, session: VaultSession): String? {
+    val res = context.resources
     val cipher = session.biometricEnableCipher()
-    return when (val result = authenticateBiometric(context, cipher, "Activar desbloqueo con huella", "Confirma con tu huella")) {
+    val title = context.getString(R.string.biometric_enable_title)
+    val subtitle = context.getString(R.string.biometric_enable_subtitle)
+    return when (val result = authenticateBiometric(context, cipher, title, subtitle)) {
         is BiometricResult.Success -> try {
             session.enableBiometric(result.cipher)
-            "Desbloqueo con huella activado. Te pediremos la contraseña cada 14 días y tras reiniciar."
+            context.getString(R.string.biometric_enabled)
         } catch (e: OpException) {
             session.disableBiometric()
-            e.toUserMessage()
+            e.toUserMessage(res)
         } catch (_: InternalException) {
             session.disableBiometric()
-            INTERNAL_ERROR_MESSAGE
+            Failure.Internal.message(res)
         }
         BiometricResult.Cancelled -> {
             session.disableBiometric()

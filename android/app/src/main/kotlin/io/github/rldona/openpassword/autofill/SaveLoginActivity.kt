@@ -55,7 +55,7 @@ import io.github.rldona.openpassword.security.excludeFromAutofill
 import io.github.rldona.openpassword.security.protectFromOverlays
 import io.github.rldona.openpassword.security.warnIfObscured
 import io.github.rldona.openpassword.security.strongBiometricsAvailable
-import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
+import io.github.rldona.openpassword.session.internalMessage
 import io.github.rldona.openpassword.session.SessionState
 import io.github.rldona.openpassword.session.VaultEntry
 import io.github.rldona.openpassword.session.VaultSession
@@ -65,9 +65,17 @@ import io.github.rldona.openpassword.ui.theme.OpenPasswordTheme
 import io.github.rldona.openpassword.ui.unlock.UnlockScreen
 import io.github.rldona.openpassword.ui.unlock.biometricUnlock
 import kotlinx.coroutines.launch
+import io.github.rldona.openpassword.locale.AppLocales
+import io.github.rldona.openpassword.session.message
 
 /** Confirms saving (or updating) a login typed into another app or a website. */
 class SaveLoginActivity : ComponentActivity() {
+
+    /** Applies the per-app language on Android 12 and below; 13+ does it in the platform. */
+    override fun attachBaseContext(newBase: android.content.Context) {
+        AppLocales.overrideFor(newBase)?.let(::applyOverrideConfiguration)
+        super.attachBaseContext(newBase)
+    }
     private var token: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,7 +103,7 @@ class SaveLoginActivity : ComponentActivity() {
                         UnlockScreen(
                             onUnlock = session::unlock,
                             onBiometric = if (biometric) ({ biometricUnlock(context, session) }) else null,
-                            notice = remember { session.passwordRequiredReason() },
+                            notice = remember { session.passwordRequiredReason()?.message(context.resources) },
                         )
                     }
                     is SessionState.Unlocked -> SaveForm(
@@ -138,6 +146,7 @@ class SaveLoginActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SaveForm(pending: PendingSave, entries: List<VaultEntry>, session: VaultSession, appLabel: String?, onDone: () -> Unit) {
+    val res = LocalContext.current.resources
     val target = pending.target
     val where = when (target) {
         is FillTarget.Web -> target.domain.removePrefix("www.")
@@ -200,10 +209,10 @@ private fun SaveForm(pending: PendingSave, entries: List<VaultEntry>, session: V
                 }
                 onDone()
             } catch (e: OpException) {
-                error = e.toUserMessage()
+                error = e.toUserMessage(res)
                 busy = false
             } catch (_: InternalException) {
-                error = INTERNAL_ERROR_MESSAGE
+                error = internalMessage(res)
                 busy = false
             }
         }

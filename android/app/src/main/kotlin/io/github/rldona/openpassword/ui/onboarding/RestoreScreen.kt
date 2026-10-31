@@ -71,7 +71,7 @@ fun RestoreStep(
                     is OpException.WrongCredentials -> "La contraseña maestra no es la de esta copia."
                     is OpException.WrongSecretKey -> "La clave secreta no corresponde a esta copia."
                     is OpException.Corrupted -> "Este fichero no es una copia de OpenPassword o está dañado."
-                    else -> e.toUserMessage()
+                    else -> e.toUserMessage(context.resources)
                 }
                 password = ""
                 busy = false

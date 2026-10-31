@@ -57,7 +57,7 @@ import io.github.rldona.openpassword.security.excludeFromAutofill
 import io.github.rldona.openpassword.security.protectFromOverlays
 import io.github.rldona.openpassword.security.warnIfObscured
 import io.github.rldona.openpassword.security.strongBiometricsAvailable
-import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
+import io.github.rldona.openpassword.session.internalMessage
 import io.github.rldona.openpassword.session.SessionState
 import io.github.rldona.openpassword.session.VaultEntry
 import io.github.rldona.openpassword.session.VaultSession
@@ -71,12 +71,20 @@ import io.github.rldona.openpassword.ui.unlock.biometricUnlock
 import io.github.rldona.openpassword.ui.vault.avatarColor
 import io.github.rldona.openpassword.ui.vault.searchKey
 import kotlinx.coroutines.launch
+import io.github.rldona.openpassword.locale.AppLocales
+import io.github.rldona.openpassword.session.message
 
 /**
  * Opened from an autofill suggestion: unlocks the vault if needed and lets the user pick
  * the login to fill. Returns a Dataset to the autofill framework.
  */
 class AutofillAuthActivity : ComponentActivity() {
+
+    /** Applies the per-app language on Android 12 and below; 13+ does it in the platform. */
+    override fun attachBaseContext(newBase: android.content.Context) {
+        AppLocales.overrideFor(newBase)?.let(::applyOverrideConfiguration)
+        super.attachBaseContext(newBase)
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) setRecentsScreenshotEnabled(false)
@@ -115,7 +123,7 @@ class AutofillAuthActivity : ComponentActivity() {
                         UnlockScreen(
                             onUnlock = session::unlock,
                             onBiometric = if (biometric) ({ biometricUnlock(context, session) }) else null,
-                            notice = remember { session.passwordRequiredReason() },
+                            notice = remember { session.passwordRequiredReason()?.message(context.resources) },
                         )
                     }
                     is SessionState.Unlocked -> PickLogin(
@@ -171,6 +179,7 @@ private fun PickLogin(
     onPicked: (VaultEntry, Credentials) -> Unit,
     onCancel: () -> Unit,
 ) {
+    val res = LocalContext.current.resources
     var query by remember { mutableStateOf("") }
     var remember by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
@@ -198,9 +207,9 @@ private fun PickLogin(
                 }
                 onPicked(entry, details.credentials())
             } catch (e: OpException) {
-                pickError = e.toUserMessage()
+                pickError = e.toUserMessage(res)
             } catch (_: InternalException) {
-                pickError = INTERNAL_ERROR_MESSAGE
+                pickError = internalMessage(res)
             }
         }
     }

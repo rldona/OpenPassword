@@ -54,7 +54,7 @@ import io.github.rldona.openpassword.core.ItemDetailsRecord
 import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.qr.WifiQr
 import io.github.rldona.openpassword.security.SensitiveClipboard
-import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
+import io.github.rldona.openpassword.session.internalMessage
 import io.github.rldona.openpassword.session.VaultEntry
 import io.github.rldona.openpassword.session.VaultSession
 import io.github.rldona.openpassword.session.toUserMessage
@@ -81,13 +81,14 @@ fun ItemDetailScreen(
     onDeleted: () -> Unit,
 ) {
     val snackbar = remember { SnackbarHostState() }
+    val res = LocalContext.current.resources
     val details by produceState<ItemDetailsRecord?>(null, entry.record.revision) {
         try {
             value = session.details(entry)
         } catch (e: OpException) {
-            snackbar.showSnackbar(e.toUserMessage())
+            snackbar.showSnackbar(e.toUserMessage(res))
         } catch (_: InternalException) {
-            snackbar.showSnackbar(INTERNAL_ERROR_MESSAGE)
+            snackbar.showSnackbar(internalMessage(res))
         }
     }
     val revealed = remember { mutableStateMapOf<Int, Boolean>() }
@@ -95,7 +96,6 @@ fun ItemDetailScreen(
     var wifiQr by remember { mutableStateOf<String?>(null) }
     var viewing by remember { mutableStateOf<Pair<ByteArray, String>?>(null) }
     val scope = rememberCoroutineScope()
-    val res = LocalContext.current.resources
     val o = entry.overview
 
     fun copy(field: FieldRecord) {
@@ -109,9 +109,9 @@ fun ItemDetailScreen(
                 val bytes = session.image(entry, field.value)
                 if (bytes == null) snackbar.showSnackbar("Imagen no disponible.") else viewing = bytes to FieldLabels.display(field.label, res)
             } catch (e: OpException) {
-                snackbar.showSnackbar(e.toUserMessage())
+                snackbar.showSnackbar(e.toUserMessage(res))
             } catch (_: InternalException) {
-                snackbar.showSnackbar(INTERNAL_ERROR_MESSAGE)
+                snackbar.showSnackbar(internalMessage(res))
             }
         }
     }
@@ -249,9 +249,9 @@ fun ItemDetailScreen(
                             session.delete(entry)
                             onDeleted()
                         } catch (e: OpException) {
-                            snackbar.showSnackbar(e.toUserMessage())
+                            snackbar.showSnackbar(e.toUserMessage(res))
                         } catch (_: InternalException) {
-                            snackbar.showSnackbar(INTERNAL_ERROR_MESSAGE)
+                            snackbar.showSnackbar(internalMessage(res))
                         }
                     }
                 }) { Text("Borrar", color = MaterialTheme.colorScheme.error) }

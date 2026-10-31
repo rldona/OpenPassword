@@ -52,7 +52,7 @@ import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.security.EmergencyKit
 import io.github.rldona.openpassword.security.strongBiometricsAvailable
-import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
+import io.github.rldona.openpassword.session.internalMessage
 import io.github.rldona.openpassword.session.UnlockResult
 import io.github.rldona.openpassword.session.VaultSession
 import io.github.rldona.openpassword.session.toUserMessage
@@ -72,6 +72,9 @@ import java.time.LocalDate
 import java.util.Date
 import io.github.rldona.openpassword.ui.ProtectedAlertDialog
 import io.github.rldona.openpassword.ui.RootWarning
+import io.github.rldona.openpassword.session.message
+import io.github.rldona.openpassword.ui.text.backupErrorText
+import io.github.rldona.openpassword.ui.text.message
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -150,9 +153,9 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                 }
                 "Copia cifrada guardada. Para abrirla necesitarás tu contraseña maestra y tu clave secreta."
             } catch (_: InternalException) {
-                INTERNAL_ERROR_MESSAGE
+                internalMessage(context.resources)
             } catch (e: OpException) {
-                e.toUserMessage()
+                e.toUserMessage(context.resources)
             } catch (_: Exception) {
                 "No se pudo guardar la copia en esa ubicación."
             }
@@ -176,7 +179,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                 supportingContent = {
                     when {
                         !backup.enabled -> Text("Desactivada. Elige una carpeta, por ejemplo de tu nube, y guardaremos ahí una copia cifrada tras cada cambio.")
-                        backup.lastError != null -> Text(backup.lastError!!, color = MaterialTheme.colorScheme.error)
+                        backup.lastError != null -> Text(backupErrorText(backup.lastError!!), color = MaterialTheme.colorScheme.error)
                         else -> Text(
                             "En «${backup.folderName ?: "la carpeta elegida"}». " +
                                 (backup.lastBackupAt?.let { "Última copia: ${dateTime.format(Date(it))}." } ?: "Aún no hay ninguna copia.") +
@@ -202,7 +205,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                         scope.launch {
                             val error = autoBackup.backupNow()
                             backingUp = false
-                            snackbar.showSnackbar(error ?: "Copia guardada en «${backup.folderName ?: "la carpeta"}».")
+                            snackbar.showSnackbar(error?.message(context.resources) ?: "Copia guardada en «${backup.folderName ?: "la carpeta"}».")
                         }
                     },
                 )
@@ -334,9 +337,9 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                 val result = try {
                     session.verifyPassword(password)
                 } catch (_: OpException) {
-                    UnlockResult.Failed("No se pudo comprobar la contraseña.")
+                    UnlockResult.Failed(io.github.rldona.openpassword.session.Failure.PasswordCheckFailed)
                 } catch (_: InternalException) {
-                    UnlockResult.Failed(INTERNAL_ERROR_MESSAGE)
+                    UnlockResult.Failed(io.github.rldona.openpassword.session.Failure.Internal)
                 }
                 if (result is UnlockResult.Success) {
                     askingPassword = false
@@ -365,6 +368,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
 
 @Composable
 private fun ConfirmPasswordDialog(onDismiss: () -> Unit, onConfirm: suspend (String) -> UnlockResult) {
+    val res = LocalContext.current.resources
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
@@ -379,7 +383,7 @@ private fun ConfirmPasswordDialog(onDismiss: () -> Unit, onConfirm: suspend (Str
                 is UnlockResult.WrongPassword ->
                     "Contraseña incorrecta." + if (result.waitSeconds > 0) " Espera ${result.waitSeconds} s para volver a probar." else ""
                 is UnlockResult.MustWait -> "Demasiados intentos. Espera ${result.waitSeconds} s para volver a probar."
-                is UnlockResult.Failed -> result.message
+                is UnlockResult.Failed -> result.failure.message(res)
             }
             password = ""
             busy = false
@@ -408,6 +412,7 @@ private fun ConfirmPasswordDialog(onDismiss: () -> Unit, onConfirm: suspend (Str
 
 @Composable
 private fun ImportDialog(onDismiss: () -> Unit, onImport: suspend (password: String, secretKey: String) -> Unit) {
+    val res = LocalContext.current.resources
     var password by remember { mutableStateOf("") }
     var secretKey by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
@@ -426,7 +431,7 @@ private fun ImportDialog(onDismiss: () -> Unit, onImport: suspend (password: Str
                     is OpException.WrongCredentials -> "La contraseña no es la de esa copia."
                     is OpException.WrongSecretKey -> "Esa copia usa otra clave secreta: escríbela."
                     is OpException.Corrupted -> "Ese fichero no es una copia de OpenPassword o está dañado."
-                    else -> e.toUserMessage()
+                    else -> e.toUserMessage(res)
                 }
                 password = ""
                 busy = false

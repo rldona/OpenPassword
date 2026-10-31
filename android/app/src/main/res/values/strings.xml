@@ -49,4 +49,34 @@
     <string name="strength_weak">Weak</string>
     <string name="strength_acceptable">Acceptable</string>
     <string name="strength_strong">Strong</string>
+
+    <string name="error_internal">An internal error occurred. Unlock the vault again.</string>
+    <string name="error_wrong_credentials">Wrong master password.</string>
+    <string name="error_wrong_secret_key">The secret key does not match this vault.</string>
+    <string name="error_invalid_secret_key">The secret key is not valid. Check it for typos.</string>
+    <string name="error_invalid_data">Invalid data.</string>
+    <string name="error_backup_too_large">The vault does not fit in a 64 MiB backup. Delete an image or make it smaller.</string>
+    <string name="error_image_metadata">The image carries camera data that is not stored. Try another photo.</string>
+    <string name="error_image_too_large">The image is too large. Try a smaller photo.</string>
+    <string name="error_corrupted">The data is damaged or has been modified.</string>
+    <string name="error_unsupported_version">This file is from a newer version of OpenPassword.</string>
+    <string name="error_kdf_too_expensive">This backup needs %1$d MiB of memory to open and this device cannot provide it. Open it on a device with more memory.</string>
+    <string name="error_locked">The vault is locked.</string>
+    <string name="error_biometric_unusable">The fingerprint could not be used. Enter your master password.</string>
+    <string name="error_password_check_failed">The password could not be checked.</string>
+    <string name="error_biometric_no_key">The system did not return the key.</string>
+    <string name="password_reason_rebooted">The phone has restarted: enter your master password.</string>
+    <string name="password_reason_periodic">14 days have passed: enter your master password so you do not forget it.</string>
+    <string name="backup_error_disabled">Automatic backup is disabled.</string>
+    <string name="backup_error_locked">The vault is locked: the backup will be made when you unlock it.</string>
+    <string name="backup_error_encrypt">The backup could not be encrypted.</string>
+    <string name="backup_error_permission">OpenPassword no longer has permission to use that folder. Choose it again.</string>
+    <string name="backup_error_write">The folder could not be written to. Does it still exist?</string>
+    <string name="backup_error_legacy">The last automatic backup failed.</string>
+
+    <string name="error_biometrics_changed">The phone\'s fingerprints have changed, so fingerprint unlock has been disabled. Use your master password and enable it again in Settings.</string>
+    <string name="biometric_unlock_title">Unlock OpenPassword</string>
+    <string name="biometric_enable_title">Enable fingerprint unlock</string>
+    <string name="biometric_enable_subtitle">Confirm with your fingerprint</string>
+    <string name="biometric_enabled">Fingerprint unlock enabled. We will ask for your password every 14 days and after a restart.</string>
 </resources>

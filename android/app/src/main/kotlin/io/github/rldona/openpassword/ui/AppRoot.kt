@@ -30,6 +30,7 @@ import io.github.rldona.openpassword.ui.unlock.biometricUnlock
 import io.github.rldona.openpassword.ui.vault.ItemDetailScreen
 import io.github.rldona.openpassword.ui.vault.ItemEditorScreen
 import io.github.rldona.openpassword.ui.vault.VaultListScreen
+import io.github.rldona.openpassword.session.message
 
 private sealed interface Screen {
     data object List : Screen
@@ -59,7 +60,7 @@ private fun AppContent(state: SessionState, session: VaultSession, clipboard: Se
             UnlockScreen(
                 onUnlock = session::unlock,
                 onBiometric = if (biometric) ({ biometricUnlock(context, session) }) else null,
-                notice = remember { session.passwordRequiredReason() },
+                notice = remember { session.passwordRequiredReason()?.message(context.resources) },
             )
         }
         // Leaving this branch on lock discards the whole navigation stack and every decrypted value in it.

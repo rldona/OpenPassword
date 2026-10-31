@@ -54,7 +54,7 @@ import io.github.rldona.openpassword.security.PasswordGenerator
 import io.github.rldona.openpassword.security.Wordlist
 import io.github.rldona.openpassword.ui.EMERGENCY_KIT_FILE_NAME
 import io.github.rldona.openpassword.ui.writeDocument
-import io.github.rldona.openpassword.session.INTERNAL_ERROR_MESSAGE
+import io.github.rldona.openpassword.session.internalMessage
 import io.github.rldona.openpassword.session.toUserMessage
 import io.github.rldona.openpassword.ui.PasswordField
 import io.github.rldona.openpassword.ui.SectionLabel
@@ -247,10 +247,10 @@ private fun SecretKeyStep(secretKey: String, onCreate: suspend () -> Unit) {
                 try {
                     onCreate()
                 } catch (e: OpException) {
-                    error = e.toUserMessage()
+                    error = e.toUserMessage(context.resources)
                     busy = false
                 } catch (_: InternalException) {
-                    error = INTERNAL_ERROR_MESSAGE
+                    error = internalMessage(context.resources)
                     busy = false
                 }
             }

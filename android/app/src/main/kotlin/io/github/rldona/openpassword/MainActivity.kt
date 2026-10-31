@@ -17,8 +17,15 @@ import io.github.rldona.openpassword.ui.AppRoot
 import io.github.rldona.openpassword.ui.theme.OpenPasswordTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import io.github.rldona.openpassword.locale.AppLocales
 
 class MainActivity : ComponentActivity() {
+
+    /** Applies the per-app language on Android 12 and below; 13+ does it in the platform. */
+    override fun attachBaseContext(newBase: android.content.Context) {
+        AppLocales.overrideFor(newBase)?.let(::applyOverrideConfiguration)
+        super.attachBaseContext(newBase)
+    }
     private val app get() = application as OpenPasswordApp
 
     override fun onCreate(savedInstanceState: Bundle?) {

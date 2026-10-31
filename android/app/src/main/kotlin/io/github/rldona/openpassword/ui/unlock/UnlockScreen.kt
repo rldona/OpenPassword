@@ -41,6 +41,7 @@ import io.github.rldona.openpassword.ui.PasswordField
 import io.github.rldona.openpassword.ui.RootWarning
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import io.github.rldona.openpassword.session.message
 
 /**
  * @param onBiometric biometric unlock, or null if it is off or the password is required now.
@@ -57,6 +58,7 @@ fun UnlockScreen(
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var waitSeconds by remember { mutableLongStateOf(0L) }
+    val res = androidx.compose.ui.platform.LocalContext.current.resources
     val scope = rememberCoroutineScope()
     val focus = remember { FocusRequester() }
 
@@ -67,7 +69,7 @@ fun UnlockScreen(
         message = null
         scope.launch {
             when (val result = run()) {
-                is UnlockResult.Failed -> message = result.message
+                is UnlockResult.Failed -> message = result.failure.message(res)
                 else -> Unit
             }
             busy = false
@@ -95,7 +97,7 @@ fun UnlockScreen(
                     waitSeconds = result.waitSeconds
                 }
                 is UnlockResult.MustWait -> waitSeconds = result.waitSeconds
-                is UnlockResult.Failed -> message = result.message
+                is UnlockResult.Failed -> message = result.failure.message(res)
             }
             password = ""
             busy = false

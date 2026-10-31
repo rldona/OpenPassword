@@ -47,7 +47,7 @@ data class ExternalImportSummary(val added: Int, val duplicates: Int)
 data class ImportSummary(val added: Int, val updated: Int, val unchanged: Int)
 
 /** The vault has reached the image space limit; nothing was written. */
-class ImageQuotaExceeded : Exception("No cabe más imágenes en la caja fuerte.")
+class ImageQuotaExceeded : Exception("Image space limit reached")
 
 /** An item with its overview already decrypted, for the list and search. */
 data class VaultEntry(val record: EncryptedItemRecord, val overview: ItemOverviewRecord) {
@@ -65,7 +65,7 @@ sealed interface UnlockResult {
     data object Success : UnlockResult
     data class WrongPassword(val waitSeconds: Long) : UnlockResult
     data class MustWait(val waitSeconds: Long) : UnlockResult
-    data class Failed(val message: String) : UnlockResult
+    data class Failed(val failure: Failure) : UnlockResult
 }
 
 /**
@@ -128,9 +128,9 @@ class VaultSession(
                 attempts.recordFailure()
                 UnlockResult.WrongPassword(attempts.remainingWait())
             } catch (e: OpException) {
-                UnlockResult.Failed(e.toUserMessage())
+                UnlockResult.Failed(Failure.Core(e))
             } catch (_: InternalException) {
-                UnlockResult.Failed(INTERNAL_ERROR_MESSAGE)
+                UnlockResult.Failed(Failure.Internal)
             }
         }
     }
@@ -273,9 +273,9 @@ class VaultSession(
                 attempts.recordFailure()
                 UnlockResult.WrongPassword(attempts.remainingWait())
             } catch (e: OpException) {
-                UnlockResult.Failed(e.toUserMessage())
+                UnlockResult.Failed(Failure.Core(e))
             } catch (_: InternalException) {
-                UnlockResult.Failed(INTERNAL_ERROR_MESSAGE)
+                UnlockResult.Failed(Failure.Internal)
             }
         }
     }
@@ -287,13 +287,12 @@ class VaultSession(
     fun isBiometricEnabled(): Boolean = storage.hasBiometricVaultKey()
 
     /** Why the master password is required even though biometric unlock is on, or null if it is not. */
-    fun passwordRequiredReason(): String? {
+    fun passwordRequiredReason(): PasswordReason? {
         if (!isBiometricEnabled()) return null
         val last = prefs.getLong(KEY_LAST_PASSWORD_UNLOCK, 0)
         return when {
-            prefs.getInt(KEY_BOOT_COUNT, -1) != bootCount() -> "El teléfono se ha reiniciado: introduce tu contraseña maestra."
-            System.currentTimeMillis() - last >= PASSWORD_EVERY_MS ->
-                "Han pasado 14 días: introduce tu contraseña maestra para no olvidarla."
+            prefs.getInt(KEY_BOOT_COUNT, -1) != bootCount() -> PasswordReason.REBOOTED
+            System.currentTimeMillis() - last >= PASSWORD_EVERY_MS -> PasswordReason.PERIODIC
             else -> null
         }
     }
@@ -344,7 +343,7 @@ class VaultSession(
             val key = try {
                 authorized.doFinal(sealed, 1 + BIO_IV_LEN, sealed.size - 1 - BIO_IV_LEN)
             } catch (_: GeneralSecurityException) {
-                return@withContext UnlockResult.Failed("No se pudo usar la huella. Introduce tu contraseña maestra.")
+                return@withContext UnlockResult.Failed(Failure.BiometricUnusable)
             }
             try {
                 val unlocked = Vault.unlockWithVaultKey(storage.readHeader(), key)
@@ -353,9 +352,9 @@ class VaultSession(
                 replaceVault(unlocked, entries)
                 UnlockResult.Success
             } catch (e: OpException) {
-                UnlockResult.Failed(e.toUserMessage())
+                UnlockResult.Failed(Failure.Core(e))
             } catch (_: InternalException) {
-                UnlockResult.Failed(INTERNAL_ERROR_MESSAGE)
+                UnlockResult.Failed(Failure.Internal)
             } finally {
                 key.fill(0)
             }
@@ -592,28 +591,6 @@ class VaultSession(
 }
 
 private fun vaultIdOf(headerJson: String): String = JSONObject(headerJson).getString("vault_id")
-
-fun OpException.toUserMessage(): String = when (this) {
-    is OpException.WrongCredentials -> "Contraseña maestra incorrecta."
-    is OpException.WrongSecretKey -> "La clave secreta no corresponde a esta caja fuerte."
-    is OpException.InvalidSecretKey -> "La clave secreta no es válida. Revisa si hay erratas."
-    is OpException.InvalidInput -> when (reason) {
-        "backup too large" -> "La caja fuerte no cabe en una copia de 64 MiB. Borra alguna imagen o reduce su tamaño."
-        "image has metadata" -> "La imagen lleva datos de cámara que no se guardan. Prueba con otra foto."
-        "image too large" -> "La imagen es demasiado grande. Prueba con una foto más pequeña."
-        else -> "Dato no válido: $reason."
-    }
-    is OpException.Corrupted -> "Los datos están dañados o han sido modificados."
-    is OpException.UnsupportedVersion -> "Este fichero es de una versión más nueva de OpenPassword."
-    is OpException.KdfTooExpensive ->
-        "Esta copia necesita ${mKib / 1024u} MiB de memoria para abrirse y este dispositivo no puede darlos. " +
-            "Ábrela en un dispositivo con más memoria."
-    is OpException.Locked -> "La caja fuerte está bloqueada."
-    is OpException.Internal -> INTERNAL_ERROR_MESSAGE
-}
-
-/** Generic message for a failure inside the native core. The panic text is never shown. */
-const val INTERNAL_ERROR_MESSAGE = "Ha ocurrido un error interno. Vuelve a desbloquear la caja fuerte."
 
 /** Wipes the key and frees the native handle. */
 internal fun Vault.discard() {
