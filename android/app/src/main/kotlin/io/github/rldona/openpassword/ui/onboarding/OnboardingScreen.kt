@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.OpException
 import io.github.rldona.openpassword.core.generateSecretKey
@@ -82,7 +83,7 @@ fun OnboardingScreen(
             Modifier.safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            if (step in 1..2) SectionLabel("Paso $step de 2")
+            if (step in 1..2) SectionLabel(stringResource(R.string.onboarding_step, step))
             when (step) {
                 0 -> Welcome(onNext = { step = 1 }, onRestore = { step = RESTORE })
                 RESTORE -> RestoreStep(onRestore = onRestore, onBack = { step = 0 })
@@ -96,20 +97,29 @@ fun OnboardingScreen(
 @Composable
 private fun Welcome(onNext: () -> Unit, onRestore: () -> Unit) {
     Spacer(Modifier.height(32.dp))
-    Text("OpenPassword", style = MaterialTheme.typography.headlineMedium)
+    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
     Text(
-        "Tus contraseñas, tarjetas, PINs y secretos, cifrados en este teléfono.",
+        stringResource(R.string.onboarding_welcome_body),
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Point("Sin cuenta y sin servidor", "Nada sale del teléfono. La app no tiene permiso de Internet.")
-        Point("Cifrado antes de guardarse", "Todo se cifra con tu contraseña maestra y una clave secreta, títulos incluidos.")
-        Point("Código abierto", "Cualquiera puede revisar cómo funciona.")
+        Point(
+            stringResource(R.string.onboarding_point_local_title),
+            stringResource(R.string.onboarding_point_local_body),
+        )
+        Point(
+            stringResource(R.string.onboarding_point_encrypted_title),
+            stringResource(R.string.onboarding_point_encrypted_body),
+        )
+        Point(
+            stringResource(R.string.onboarding_point_open_title),
+            stringResource(R.string.onboarding_point_open_body),
+        )
     }
     Spacer(Modifier.height(8.dp))
-    Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text("Crear mi caja fuerte") }
-    OutlinedButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) { Text("Restaurar una copia de seguridad") }
+    Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.onboarding_create)) }
+    OutlinedButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.onboarding_restore)) }
 }
 
 @Composable
@@ -130,34 +140,34 @@ private fun ChoosePassword(password: String, onChange: (String) -> Unit, onNext:
     val mismatch = confirm != password
     val strength = strengthOf(password)
 
-    Text("Elige tu contraseña maestra", style = MaterialTheme.typography.headlineMedium)
+    Text(stringResource(R.string.onboarding_choose_password_title), style = MaterialTheme.typography.headlineMedium)
     Text(
-        "Es la única que tendrás que recordar. Una frase de varias palabras es más fácil de recordar y más difícil de adivinar.",
+        stringResource(R.string.onboarding_choose_password_body),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     TextButton(onClick = { suggestion = PasswordGenerator.passphrase(Wordlist.eff(context), words = 6) }) {
-        Text(if (suggestion == null) "Sugiéreme una frase de paso" else "Otra frase")
+        Text(stringResource(if (suggestion == null) R.string.onboarding_suggest_passphrase else R.string.onboarding_another_passphrase))
     }
     suggestion?.let { phrase ->
         Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(phrase, fontFamily = SecretFont, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                 Text(
-                    "6 palabras al azar de la lista de la EFF, unos 77 bits. Apréndetela: tendrás que escribirla tú en «Repite la contraseña».",
+                    stringResource(R.string.onboarding_passphrase_note),
                     style = MaterialTheme.typography.bodySmall,
                 )
-                TextButton(onClick = { onChange(phrase) }) { Text("Usar esta frase") }
+                TextButton(onClick = { onChange(phrase) }) { Text(stringResource(R.string.onboarding_use_passphrase)) }
             }
         }
     }
     PasswordField(
         value = password,
         onValueChange = onChange,
-        label = "Contraseña maestra",
+        label = stringResource(R.string.settings_master_password),
         imeAction = ImeAction.Next,
         modifier = Modifier.fillMaxWidth(),
         isError = triedNext && tooShort,
-        supportingText = if (triedNext && tooShort) "Usa al menos $MIN_PASSWORD caracteres." else null,
+        supportingText = if (triedNext && tooShort) stringResource(R.string.onboarding_password_too_short, MIN_PASSWORD) else null,
     )
     if (password.isNotEmpty()) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -168,17 +178,17 @@ private fun ChoosePassword(password: String, onChange: (String) -> Unit, onNext:
     PasswordField(
         value = confirm,
         onValueChange = { confirm = it },
-        label = "Repite la contraseña",
+        label = stringResource(R.string.onboarding_repeat_password),
         modifier = Modifier.fillMaxWidth(),
         isError = triedNext && mismatch,
-        supportingText = if (triedNext && mismatch) "Las contraseñas no coinciden." else null,
+        supportingText = if (triedNext && mismatch) stringResource(R.string.onboarding_password_mismatch) else null,
         onDone = { triedNext = true; if (!tooShort && !mismatch) onNext() },
     )
-    WarningCard("Si la olvidas, nadie podrá recuperar tus datos. Tampoco nosotros.")
+    WarningCard(stringResource(R.string.onboarding_forgot_warning))
     Button(
         onClick = { triedNext = true; if (!tooShort && !mismatch) onNext() },
         modifier = Modifier.fillMaxWidth(),
-    ) { Text("Continuar") }
+    ) { Text(stringResource(R.string.settings_continue)) }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -195,16 +205,16 @@ private fun SecretKeyStep(secretKey: String, onCreate: suspend () -> Unit) {
         scope.launch {
             kitMessage = try {
                 writeDocument(context, uri, EmergencyKit.pdf(EmergencyKit.Text.from(context.resources), secretKey))
-                "Kit guardado. Imprímelo y después borra el PDF del teléfono."
+                context.getString(R.string.settings_kit_saved)
             } catch (_: Exception) {
-                "No se pudo guardar el kit en esa ubicación."
+                context.getString(R.string.settings_kit_save_failed)
             }
         }
     }
 
-    Text("Tu clave secreta", style = MaterialTheme.typography.headlineMedium)
+    Text(stringResource(R.string.onboarding_secret_key_title), style = MaterialTheme.typography.headlineMedium)
     Text(
-        "Se combina con tu contraseña maestra. Se queda guardada en este teléfono, pero la necesitarás para abrir una copia de seguridad en otro.",
+        stringResource(R.string.onboarding_secret_key_body),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Card(
@@ -223,11 +233,11 @@ private fun SecretKeyStep(secretKey: String, onCreate: suspend () -> Unit) {
         }
     }
     Text(
-        "Guárdala en papel con tus documentos importantes. No le hagas foto ni la guardes en la nube: la app bloquea las capturas de pantalla.",
+        stringResource(R.string.onboarding_secret_key_note),
         style = MaterialTheme.typography.bodyMedium,
     )
     OutlinedButton(onClick = { kitLauncher.launch(EMERGENCY_KIT_FILE_NAME) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-        Text("Guardar kit de emergencia (PDF) para imprimir")
+        Text(stringResource(R.string.onboarding_save_kit))
     }
     kitMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary) }
     Row(
@@ -236,7 +246,7 @@ private fun SecretKeyStep(secretKey: String, onCreate: suspend () -> Unit) {
     ) {
         Checkbox(checked = saved, onCheckedChange = null, enabled = !busy)
         Spacer(Modifier.size(12.dp))
-        Text("He guardado mi clave secreta en papel")
+        Text(stringResource(R.string.onboarding_saved_key_checkbox))
     }
     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     Button(
@@ -261,9 +271,9 @@ private fun SecretKeyStep(secretKey: String, onCreate: suspend () -> Unit) {
         if (busy) {
             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
             Spacer(Modifier.size(10.dp))
-            Text("Cifrando la caja fuerte…")
+            Text(stringResource(R.string.onboarding_encrypting))
         } else {
-            Text("Crear caja fuerte")
+            Text(stringResource(R.string.onboarding_create_vault))
         }
     }
 }

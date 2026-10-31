@@ -332,4 +332,60 @@
     <string name="import_error_not_text">The file is not text. Choose the CSV or JSON export.</string>
     <string name="import_error_kdf">The KeePass database needs %1$d MiB of memory to derive the key, more than this phone can give. Lower the memory in the database settings and export it again.</string>
     <string name="import_error_generic">That file could not be read.</string>
+
+    <!-- Pantalla: bienvenida y creación de la caja fuerte -->
+    <string name="onboarding_step">Step %1$d of 2</string>
+    <string name="onboarding_welcome_body">Your passwords, cards, PINs and secrets, encrypted on this phone.</string>
+    <string name="onboarding_point_local_title">No account, no server</string>
+    <string name="onboarding_point_local_body">Nothing leaves the phone. The app has no internet permission.</string>
+    <string name="onboarding_point_encrypted_title">Encrypted before it is saved</string>
+    <string name="onboarding_point_encrypted_body">Everything is encrypted with your master password and a secret key, titles included.</string>
+    <string name="onboarding_point_open_title">Open source</string>
+    <string name="onboarding_point_open_body">Anyone can check how it works.</string>
+    <string name="onboarding_create">Create my vault</string>
+    <string name="onboarding_choose_password_title">Choose your master password</string>
+    <string name="onboarding_choose_password_body">It is the only one you will have to remember. A phrase of several words is easier to remember and harder to guess.</string>
+    <string name="onboarding_suggest_passphrase">Suggest a passphrase</string>
+    <string name="onboarding_another_passphrase">Another phrase</string>
+    <string name="onboarding_passphrase_note">6 random words from the EFF list, about 77 bits. Learn it: you will have to type it yourself in «Repeat the password».</string>
+    <string name="onboarding_use_passphrase">Use this phrase</string>
+    <string name="onboarding_password_too_short">Use at least %1$d characters.</string>
+    <string name="onboarding_repeat_password">Repeat the password</string>
+    <string name="onboarding_password_mismatch">The passwords do not match.</string>
+    <string name="onboarding_forgot_warning">If you forget it, nobody can recover your data. Not even us.</string>
+    <string name="onboarding_secret_key_title">Your secret key</string>
+    <string name="onboarding_secret_key_body">It is combined with your master password. It stays on this phone, but you will need it to open a backup on another one.</string>
+    <string name="onboarding_secret_key_note">Keep it on paper with your important documents. Do not photograph it or keep it in the cloud: the app blocks screenshots.</string>
+    <string name="onboarding_save_kit">Save emergency kit (PDF) to print</string>
+    <string name="onboarding_saved_key_checkbox">I have kept my secret key on paper</string>
+    <string name="onboarding_encrypting">Encrypting the vault…</string>
+    <string name="onboarding_create_vault">Create vault</string>
+
+    <!-- Pantalla: restaurar una copia -->
+    <string name="restore_title">Restore a backup</string>
+    <string name="restore_body">Pick the .opvault file you exported and type the secret key from your kit and your master password.</string>
+    <string name="restore_choose_file">Choose file</string>
+    <string name="restore_file_chosen">File: %1$s</string>
+    <string name="restore_file_chosen_default">chosen</string>
+    <string name="restore_wrong_password">That is not the master password for this backup.</string>
+    <string name="restore_wrong_secret_key">That secret key does not match this backup.</string>
+    <string name="restore_corrupted">This file is not an OpenPassword backup or it is damaged.</string>
+    <string name="restore_failed">The backup could not be restored.</string>
+    <string name="restore_decrypting">Decrypting the backup…</string>
+    <string name="restore_action">Restore</string>
+    <string name="restore_back">Back</string>
+
+    <!-- Pantalla: desbloquear la caja fuerte -->
+    <string name="unlock_title">Vault locked</string>
+    <string name="unlock_decrypting">Decrypting…</string>
+    <string name="unlock_action">Unlock</string>
+    <string name="unlock_use_fingerprint">Use fingerprint</string>
+
+    <!-- Componentes compartidos -->
+    <string name="component_show">Show</string>
+    <string name="component_hide">Hide</string>
+    <string name="component_secret_key_label">Secret key</string>
+    <string name="component_secret_key_placeholder">OP1-XXXXXX-…</string>
+    <string name="component_device_security">Device security</string>
+    <string name="component_understood">Got it</string>
 </resources>

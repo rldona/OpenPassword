@@ -332,4 +332,60 @@
     <string name="import_error_not_text">El fichero no es de texto. Elige la exportación en CSV o JSON.</string>
     <string name="import_error_kdf">La base de KeePass pide %1$d MiB de memoria para derivar la clave, más de lo que este teléfono puede dar. Baja la memoria en la configuración de la base y vuelve a exportarla.</string>
     <string name="import_error_generic">No se pudo leer ese fichero.</string>
+
+    <!-- Pantalla: bienvenida y creación de la caja fuerte -->
+    <string name="onboarding_step">Paso %1$d de 2</string>
+    <string name="onboarding_welcome_body">Tus contraseñas, tarjetas, PINs y secretos, cifrados en este teléfono.</string>
+    <string name="onboarding_point_local_title">Sin cuenta y sin servidor</string>
+    <string name="onboarding_point_local_body">Nada sale del teléfono. La app no tiene permiso de Internet.</string>
+    <string name="onboarding_point_encrypted_title">Cifrado antes de guardarse</string>
+    <string name="onboarding_point_encrypted_body">Todo se cifra con tu contraseña maestra y una clave secreta, títulos incluidos.</string>
+    <string name="onboarding_point_open_title">Código abierto</string>
+    <string name="onboarding_point_open_body">Cualquiera puede revisar cómo funciona.</string>
+    <string name="onboarding_create">Crear mi caja fuerte</string>
+    <string name="onboarding_choose_password_title">Elige tu contraseña maestra</string>
+    <string name="onboarding_choose_password_body">Es la única que tendrás que recordar. Una frase de varias palabras es más fácil de recordar y más difícil de adivinar.</string>
+    <string name="onboarding_suggest_passphrase">Sugiéreme una frase de paso</string>
+    <string name="onboarding_another_passphrase">Otra frase</string>
+    <string name="onboarding_passphrase_note">6 palabras al azar de la lista de la EFF, unos 77 bits. Apréndetela: tendrás que escribirla tú en «Repite la contraseña».</string>
+    <string name="onboarding_use_passphrase">Usar esta frase</string>
+    <string name="onboarding_password_too_short">Usa al menos %1$d caracteres.</string>
+    <string name="onboarding_repeat_password">Repite la contraseña</string>
+    <string name="onboarding_password_mismatch">Las contraseñas no coinciden.</string>
+    <string name="onboarding_forgot_warning">Si la olvidas, nadie podrá recuperar tus datos. Tampoco nosotros.</string>
+    <string name="onboarding_secret_key_title">Tu clave secreta</string>
+    <string name="onboarding_secret_key_body">Se combina con tu contraseña maestra. Se queda guardada en este teléfono, pero la necesitarás para abrir una copia de seguridad en otro.</string>
+    <string name="onboarding_secret_key_note">Guárdala en papel con tus documentos importantes. No le hagas foto ni la guardes en la nube: la app bloquea las capturas de pantalla.</string>
+    <string name="onboarding_save_kit">Guardar kit de emergencia (PDF) para imprimir</string>
+    <string name="onboarding_saved_key_checkbox">He guardado mi clave secreta en papel</string>
+    <string name="onboarding_encrypting">Cifrando la caja fuerte…</string>
+    <string name="onboarding_create_vault">Crear caja fuerte</string>
+
+    <!-- Pantalla: restaurar una copia -->
+    <string name="restore_title">Restaurar una copia</string>
+    <string name="restore_body">Elige el fichero .opvault que exportaste y escribe la clave secreta de tu kit y tu contraseña maestra.</string>
+    <string name="restore_choose_file">Elegir fichero</string>
+    <string name="restore_file_chosen">Fichero: %1$s</string>
+    <string name="restore_file_chosen_default">elegido</string>
+    <string name="restore_wrong_password">La contraseña maestra no es la de esta copia.</string>
+    <string name="restore_wrong_secret_key">La clave secreta no corresponde a esta copia.</string>
+    <string name="restore_corrupted">Este fichero no es una copia de OpenPassword o está dañado.</string>
+    <string name="restore_failed">No se pudo restaurar la copia.</string>
+    <string name="restore_decrypting">Descifrando la copia…</string>
+    <string name="restore_action">Restaurar</string>
+    <string name="restore_back">Volver</string>
+
+    <!-- Pantalla: desbloquear la caja fuerte -->
+    <string name="unlock_title">Caja fuerte bloqueada</string>
+    <string name="unlock_decrypting">Descifrando…</string>
+    <string name="unlock_action">Desbloquear</string>
+    <string name="unlock_use_fingerprint">Usar huella</string>
+
+    <!-- Componentes compartidos -->
+    <string name="component_show">Ver</string>
+    <string name="component_hide">Ocultar</string>
+    <string name="component_secret_key_label">Clave secreta</string>
+    <string name="component_secret_key_placeholder">OP1-XXXXXX-…</string>
+    <string name="component_device_security">Seguridad del dispositivo</string>
+    <string name="component_understood">Entendido</string>
 </resources>

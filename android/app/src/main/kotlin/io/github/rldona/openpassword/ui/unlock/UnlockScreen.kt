@@ -34,8 +34,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.session.UnlockResult
 import io.github.rldona.openpassword.ui.PasswordField
 import io.github.rldona.openpassword.ui.RootWarning
@@ -93,7 +95,7 @@ fun UnlockScreen(
             when (val result = onUnlock(password)) {
                 UnlockResult.Success -> Unit
                 is UnlockResult.WrongPassword -> {
-                    message = "Contraseña maestra incorrecta."
+                    message = res.getString(R.string.error_wrong_credentials)
                     waitSeconds = result.waitSeconds
                 }
                 is UnlockResult.MustWait -> waitSeconds = result.waitSeconds
@@ -116,14 +118,14 @@ fun UnlockScreen(
             ) {
                 Icon(Icons.Filled.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(34.dp))
             }
-            Text("Caja fuerte bloqueada", style = MaterialTheme.typography.headlineMedium)
+            Text(stringResource(R.string.unlock_title), style = MaterialTheme.typography.headlineMedium)
             notice?.let {
                 Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
             }
             PasswordField(
                 value = password,
                 onValueChange = { password = it },
-                label = "Contraseña maestra",
+                label = stringResource(R.string.settings_master_password),
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
                 enabled = !busy,
                 isError = message != null,
@@ -134,20 +136,20 @@ fun UnlockScreen(
                 if (busy) {
                     CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.size(10.dp))
-                    Text("Descifrando…")
+                    Text(stringResource(R.string.unlock_decrypting))
                 } else {
-                    Text("Desbloquear")
+                    Text(stringResource(R.string.unlock_action))
                 }
             }
             if (onBiometric != null) {
                 OutlinedButton(onClick = ::biometric, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                    Text("Usar huella")
+                    Text(stringResource(R.string.unlock_use_fingerprint))
                 }
             }
             RootWarning(dismissable = true)
             if (waitSeconds > 0) {
                 Text(
-                    "Demasiados intentos. Espera $waitSeconds s para volver a probar.",
+                    stringResource(R.string.settings_confirm_too_many_attempts, waitSeconds),
                     color = MaterialTheme.colorScheme.tertiary,
                     textAlign = TextAlign.Center,
                 )

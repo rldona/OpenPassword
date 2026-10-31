@@ -30,6 +30,7 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -39,6 +40,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.OpenPasswordApp
 import io.github.rldona.openpassword.security.OVERLAY_WARNING_TEXT
 import io.github.rldona.openpassword.security.OverlayWarning
@@ -84,7 +86,9 @@ fun PasswordField(
             onNext = { focusManager.moveFocus(FocusDirection.Down) },
         ),
         trailingIcon = {
-            TextButton(onClick = { visible = !visible }) { Text(if (visible) "Ocultar" else "Ver") }
+            TextButton(onClick = { visible = !visible }) {
+                Text(stringResource(if (visible) R.string.component_hide else R.string.component_show))
+            }
         },
     )
 }
@@ -130,8 +134,8 @@ fun SecretKeyField(
         // Never rewrite the text here (e.g. uppercase()): it fights the IME's composing text
         // and drops characters on some keyboards. op-core already ignores case and dashes.
         onValueChange = onValueChange,
-        label = { Text("Clave secreta") },
-        placeholder = { Text("OP1-XXXXXX-…") },
+        label = { Text(stringResource(R.string.component_secret_key_label)) },
+        placeholder = { Text(stringResource(R.string.component_secret_key_placeholder)) },
         modifier = modifier,
         singleLine = true,
         enabled = enabled,
@@ -221,9 +225,9 @@ fun RootWarning(dismissable: Boolean, modifier: Modifier = Modifier) {
     if (signals.isEmpty() || (dismissable && !RootDetector.shouldWarn(signals, dismissed))) return
     Card(modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Seguridad del dispositivo", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onTertiaryContainer)
+            Text(stringResource(R.string.component_device_security), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onTertiaryContainer)
             Text(ROOT_WARNING_TEXT, color = MaterialTheme.colorScheme.onTertiaryContainer)
-            if (dismissable) TextButton(onClick = app::dismissRootWarning) { Text("Entendido") }
+            if (dismissable) TextButton(onClick = app::dismissRootWarning) { Text(stringResource(R.string.component_understood)) }
         }
     }
 }
