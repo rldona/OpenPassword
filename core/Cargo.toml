@@ -34,7 +34,7 @@ sha2 = "0.10"
 thiserror = "2"
 unicode-normalization = "0.1"
 # 1Password .1pux exports. Pinned: newer 9.1.x releases are under two weeks old.
-zip = { version = "=9.0.3", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "=9.1.3", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 zeroize = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
