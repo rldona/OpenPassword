@@ -1,789 +1,789 @@
-# Decisiones técnicas previas a la auditoría externa
+# Technical decisions prior to the external audit
 
-Estado: **implementada**, salvo ADR-AUD-01 (rama `release/0.2` y etiqueta firmada: no existen). Los
-commits `3725741`, `2bd56ce` y `0ff88be` implementan ADR-AUD-02 a 07; el estado paso a paso está en
-[`hardening.md`](hardening.md)). El texto de cada ADR describe la decisión tal como se redactó, con la base
-`3e94bce`, y **no** se ha reescrito: donde el código ha quedado distinto (por ejemplo, el presupuesto de
-KDBX, que quedó en 512 MiB y 3 GiB·pase en vez de 16 GiB·pase), manda el código.
+Status: **implemented**, except ADR-AUD-01 (`release/0.2` branch and signed tag: they do not exist). The
+commits `700f1a7`, `a3daf4e` and `3868f4f` implement ADR-AUD-02 to 07; the step-by-step status is in
+[`hardening.md`](hardening.md)). The text of each ADR describes the decision as it was written, on top of
+`9eb9c7f`, and has **not** been rewritten: where the code ended up different (for example, the KDBX
+budget, which ended at 512 MiB and 3 GiB·pass instead of 16 GiB·pass), the code prevails.
 
-Base inspeccionada al redactar las decisiones: `main` en `3e94bce` («CI: fuzzing con el target gnu del runner»).
-Estado actual: `main` en `0ff88be`. Versión de espacio de trabajo `0.1.0`
-(`Cargo.toml`, `android/app/build.gradle.kts:28-29`); la `0.2.0` es el siguiente paso, al congelar.
+Base inspected when the decisions were written: `main` at `9eb9c7f` («CI: fuzz with the runner's gnu target»).
+Current status: `main` at `3868f4f`. Workspace version `0.1.0`
+(`Cargo.toml`, `android/app/build.gradle.kts:28-29`); `0.2.0` is the next step, at freeze time.
 
-Alcance de la auditoría: `op-core`, `op-ffi`, la app Android y el formato `.opvault` v1. La CLI
-`opvault` (`cli/`) **queda fuera**. Las decisiones que tocan el perfil de Cargo compartido la
-mencionan solo por su impacto.
+Audit scope: `op-core`, `op-ffi`, the Android app and the `.opvault` v1 format. The `opvault` CLI
+(`cli/`) **is out of scope**. The decisions that touch the shared Cargo profile mention it only for its
+impact.
 
-## Resumen
+## Summary
 
-| ID | Decisión | Recomendación | Coste | Reversible |
+| ID | Decision | Recommendation | Cost | Reversible |
 |---|---|---|---|---|
-| ADR-AUD-01 | Congelación de `v0.2.0` | Rama `release/0.2`, etiqueta firmada, cambios solo para correcciones; primero en `main` y después *cherry-pick* (salvo embargo) | Bajo | Sí |
-| ADR-AUD-02 | Secretos en UniFFI | Tipo propio `SecretString` (en Kotlin sigue siendo `String`) que se borra al liberarse en Rust; bytes con propietario explícito; documentar el residuo de la JVM y del `RustBuffer` | Medio | Sí |
-| ADR-AUD-03 | Panics en FFI | `panic = "unwind"` en `[profile.release]`; UniFFI ya convierte el panic en `InternalException`; arreglar el envenenamiento del `Mutex`; toda llamada FFI desde una corrutina de UI captura `InternalException` y la sesión pasa a `Locked` ante un fallo interno | Bajo-medio | Sí |
-| ADR-AUD-04 | Cadena de suministro | `cargo-deny` (sustituye a `cargo-audit`), `verification-metadata.xml` con SHA-256, Actions fijadas por SHA + Dependabot, SBOM CycloneDX y atestación de procedencia solo en la release. Sin `cargo-vet` | Medio | Sí |
-| ADR-AUD-05 | Fuzzing | Solo `cargo-fuzz`: 5 objetivos nuevos con ganchos `cfg(fuzzing)` y una ejecución nocturna con corpus en caché. Ni Jazzer ni ClusterFuzzLite ni OSS-Fuzz por ahora | Medio | Sí |
-| ADR-AUD-06 | Defensas A7 y A10 | A7: `filterTouchesWhenObscured` en la ventana + `setHideOverlayWindows` (API 31+) en las 3 actividades **y en sus diálogos**, y un aviso. A10: heurísticas locales detrás de una interfaz inyectable; **solo avisa** | Medio | Sí |
-| ADR-AUD-07 | KDF y DoS | v1 **sí** acota (2 GiB / 16 / 16), pero ese techo deja un DoS en móvil. Se mantiene en el formato y se añade en `op-ffi` un techo de plataforma (512 MiB / 6 / 8) antes de cualquier KDF, con un error nuevo y una comprobación de RAM en Kotlin. El abort por falta de memoria se reduce, no se elimina | Bajo-medio | Sí |
+| ADR-AUD-01 | Freezing `v0.2.0` | `release/0.2` branch, signed tag, changes only for fixes; first in `main` and then *cherry-pick* (except embargo) | Low | Yes |
+| ADR-AUD-02 | Secrets across UniFFI | Its own `SecretString` type (in Kotlin it is still `String`) that is wiped when freed in Rust; bytes with explicit ownership; document the JVM and `RustBuffer` residue | Medium | Yes |
+| ADR-AUD-03 | Panics in FFI | `panic = "unwind"` in `[profile.release]`; UniFFI already turns the panic into `InternalException`; fix the `Mutex` poisoning; every FFI call from a UI coroutine catches `InternalException` and the session moves to `Locked` on an internal failure | Low-medium | Yes |
+| ADR-AUD-04 | Supply chain | `cargo-deny` (replaces `cargo-audit`), `verification-metadata.xml` with SHA-256, Actions pinned by SHA + Dependabot, CycloneDX SBOM and provenance attestation only in the release. No `cargo-vet` | Medium | Yes |
+| ADR-AUD-05 | Fuzzing | `cargo-fuzz` only: 5 new targets with `cfg(fuzzing)` hooks and a nightly run with a cached corpus. Neither Jazzer nor ClusterFuzzLite nor OSS-Fuzz for now | Medium | Yes |
+| ADR-AUD-06 | A7 and A10 defenses | A7: `filterTouchesWhenObscured` on the window + `setHideOverlayWindows` (API 31+) in the 3 activities **and in their dialogs**, plus a warning. A10: local heuristics behind an injectable interface; it **only warns** | Medium | Yes |
+| ADR-AUD-07 | KDF and DoS | v1 **does** bound them (2 GiB / 16 / 16), but that ceiling leaves a DoS on mobile. It is kept in the format and a platform ceiling (512 MiB / 6 / 8) is added in `op-ffi` before any KDF, with a new error and a RAM check in Kotlin. The abort due to lack of memory is reduced, not eliminated | Low-medium | Yes |
 
 ---
 
-## ADR-AUD-01 · Estrategia de congelación
+## ADR-AUD-01 · Freeze strategy
 
-### Contexto
+### Context
 
-- En `3e94bce`, la CI (`.github/workflows/ci.yml`) solo se lanza con `push` a `main` y con
-  `pull_request`, pero `docs/fdroid/README.md` pide buscar la ejecución de la etiqueta
-  (`gh run list --branch v0.1.0`). El disparador `tags: ['v*']` se añade en el commit que cierra
-  `v0.1.0`; antes de él no existía. Sigue faltando `release/**`.
-- El APK sin firmar que se publica es el de la CI (Linux), es reproducible y su artefacto **caduca a
-  los 14 días** (`retention-days: 14`). Una auditoría dura más que eso.
-- `SECURITY.md` solo da soporte a «la última versión publicada y `main`».
+- At `9eb9c7f`, CI (`.github/workflows/ci.yml`) only runs on `push` to `main` and on
+  `pull_request`, but `docs/fdroid/README.md` asks to look for the run of the tag
+  (`gh run list --branch v0.1.0`). The `tags: ['v*']` trigger is added in the commit that closes
+  `v0.1.0`; before it, it did not exist. `release/**` is still missing.
+- The unsigned APK that is published is the one from CI (Linux), it is reproducible and its artifact
+  **expires after 14 days** (`retention-days: 14`). An audit lasts longer than that.
+- `SECURITY.md` only supports «the latest published version and `main`».
 
-### Opciones
+### Options
 
-1. Auditar una etiqueta de `main` sin rama.
-2. Rama `release/0.2` con correcciones solo en esa rama.
-3. Rama `release/0.2`: correcciones primero en `main` y después *cherry-pick*, con una excepción
-   para las vulnerabilidades bajo embargo.
+1. Audit a tag of `main` with no branch.
+2. `release/0.2` branch with fixes only in that branch.
+3. `release/0.2` branch: fixes first in `main` and then *cherry-pick*, with an exception
+   for vulnerabilities under embargo.
 
-### Decisión
+### Decision
 
-Opción 3.
+Option 3.
 
-- **Rama** `release/0.2`, creada desde el commit de `main` que cierra el endurecimiento (todas las
-  ADR de este documento implementadas y en verde).
-- **Etiqueta** `v0.2.0` anotada y **firmada** (`git tag -s`) sobre la punta de `release/0.2`. Lo que
-  se audita es el SHA de 40 caracteres, no el nombre de la etiqueta.
-- **Paquete para el auditor**, adjunto a una *pre-release* de GitHub `v0.2.0` (no a un artefacto de la
-  CI, que caduca):
-  - el SHA del commit y la etiqueta firmada;
-  - `git archive --format=tar.gz v0.2.0` con su SHA-256;
-  - el APK sin firmar que compila la CI de esa etiqueta, su SHA-256 y el enlace a la ejecución;
-  - las SBOM y la atestación de procedencia (ADR-AUD-04);
-  - las instrucciones para reproducir el build: `rust-toolchain.toml` (1.99.1), NDK
-    `30.0.16248370`, Gradle 9.8.2 con `distributionSha256Sum`, y `docs/fdroid/README.md`;
-  - opcional: `cargo vendor` del espacio de trabajo, para que el auditor revise el código exacto de
-    las dependencias sin conexión.
-- **Política en `release/0.2` durante la auditoría**:
+- **Branch** `release/0.2`, created from the `main` commit that closes hardening (all the
+  ADRs in this document implemented and green).
+- **Tag** `v0.2.0` annotated and **signed** (`git tag -s`) on the tip of `release/0.2`. What is
+  audited is the 40-character SHA, not the tag name.
+- **Package for the auditor**, attached to a GitHub *pre-release* `v0.2.0` (not to a CI
+  artifact, which expires):
+  - the commit SHA and the signed tag;
+  - `git archive --format=tar.gz v0.2.0` with its SHA-256;
+  - the unsigned APK that CI builds for that tag, its SHA-256 and the link to the run;
+  - the SBOMs and the provenance attestation (ADR-AUD-04);
+  - the instructions to reproduce the build: `rust-toolchain.toml` (1.99.1), NDK
+    `30.0.16248370`, Gradle 9.8.2 with `distributionSha256Sum`, and `docs/fdroid/README.md`;
+  - optional: `cargo vendor` of the workspace, so the auditor can review the exact code of
+    the dependencies offline.
+- **Policy in `release/0.2` during the audit**:
 
-  | Se permite | No se permite |
+  | Allowed | Not allowed |
   |---|---|
-  | Correcciones de hallazgos del auditor | Funcionalidades nuevas |
-  | Correcciones de avisos llegados por `SECURITY.md` | Refactorizaciones |
-  | Subir una dependencia **solo** por un aviso RUSTSEC o GHSA que la afecte | Subir dependencias por rutina, Dependabot incluido |
-  | Cambios de CI que no cambian los bytes del APK (fijar SHAs, disparadores) | Cambiar el *toolchain*, el NDK, AGP o Gradle |
+  | Fixes for auditor findings | New features |
+  | Fixes for advisories received through `SECURITY.md` | Refactors |
+  | Bumping a dependency **only** because of a RUSTSEC or GHSA advisory affecting it | Bumping dependencies routinely, Dependabot included |
+  | CI changes that do not change the APK bytes (pinning SHAs, triggers) | Changing the *toolchain*, the NDK, AGP or Gradle |
 
-  Cada cambio sale como `v0.2.N` (etiqueta firmada) y se entrega al auditor como `git diff v0.2.(N-1)..v0.2.N`.
-- **Flujo de correcciones**: PR a `main`, revisión y fusión; después `git cherry-pick -x` a
-  `release/0.2`. La `-x` deja la trazabilidad en el mensaje.
-  - Excepción por embargo: una vulnerabilidad sin publicar se corrige en el **fork privado
-    temporal** del GitHub Security Advisory. Se fusiona en `main` y en `release/0.2` el mismo día que
-    se publica `v0.2.N`.
-  - Excepción por divergencia: si `main` ya ha cambiado el fichero afectado, se corrige en
-    `release/0.2` y se lleva después a `main` (*forward-port*), anotándolo en el PR.
-- En `main` hay una **congelación blanda** de `core/src/crypto`, `core/src/vault`, `core/src/backup`
-  y `ffi/src` hasta que termine la auditoría: se aceptan cambios, pero cada PR debe justificar por qué
-  no espera. Así los *cherry-pick* siguen siendo triviales.
+  Each change ships as `v0.2.N` (signed tag) and is delivered to the auditor as `git diff v0.2.(N-1)..v0.2.N`.
+- **Fix flow**: PR to `main`, review and merge; then `git cherry-pick -x` into
+  `release/0.2`. The `-x` leaves traceability in the message.
+  - Embargo exception: an unpublished vulnerability is fixed in the **temporary private
+    fork** of the GitHub Security Advisory. It is merged into `main` and into `release/0.2` the same day
+    `v0.2.N` is published.
+  - Divergence exception: if `main` has already changed the affected file, it is fixed in
+    `release/0.2` and then carried to `main` (*forward-port*), noting it in the PR.
+- In `main` there is a **soft freeze** of `core/src/crypto`, `core/src/vault`, `core/src/backup`
+  and `ffi/src` until the audit finishes: changes are accepted, but each PR must justify why
+  it cannot wait. That keeps the *cherry-picks* trivial.
 
-### Justificación
+### Rationale
 
-Corregir primero en `main` evita que las ramas diverjan y que se pierdan arreglos, que es el fallo
-típico de los proyectos con una sola persona manteniéndolos. La rama da al auditor una base estable y
-diferencias pequeñas y revisables. Firmar la etiqueta y adjuntar los artefactos a la release evita
-depender de la retención de 14 días.
+Fixing first in `main` prevents the branches from diverging and fixes from being lost, which is the typical
+failure of projects maintained by a single person. The branch gives the auditor a stable base and
+small, reviewable diffs. Signing the tag and attaching the artifacts to the release avoids
+depending on the 14-day retention.
 
-### Consecuencias y coste
+### Consequences and cost
 
-- Dos ramas vivas durante la auditoría, más trabajo de *cherry-pick*.
-- `SECURITY.md` debe añadir «`release/0.2` hasta el cierre de la auditoría» a las versiones con soporte.
-- Hace falta una clave GPG o SSH de firma de etiquetas.
+- Two live branches during the audit, plus extra *cherry-pick* work.
+- `SECURITY.md` must add «`release/0.2` until the audit closes» to the supported versions.
+- A GPG or SSH tag-signing key is needed.
 
-### Migración
+### Migration
 
-1. Subir la versión a `0.2.0` en `Cargo.toml` (`[workspace.package]`) y en
-   `android/app/build.gradle.kts` (`versionCode = 2`, `versionName = "0.2.0"`), con el *changelog* en
+1. Bump the version to `0.2.0` in `Cargo.toml` (`[workspace.package]`) and in
+   `android/app/build.gradle.kts` (`versionCode = 2`, `versionName = "0.2.0"`), with the *changelog* in
    `fastlane/metadata/android/*/changelogs/2.txt`.
-2. En `ci.yml`, mantener `push.tags: ['v*']` (añadido en el commit que cierra `v0.1.0`) y añadir
+2. In `ci.yml`, keep `push.tags: ['v*']` (added in the commit that closes `v0.1.0`) and add
    `push.branches: [main, 'release/**']`.
-3. Ampliar `retention-days` o, mejor, adjuntar el APK a la release (paso de ADR-AUD-04).
-4. Crear la rama y la etiqueta firmada, montar la *pre-release* y actualizar `SECURITY.md`.
+3. Extend `retention-days` or, better, attach the APK to the release (step of ADR-AUD-04).
+4. Create the branch and the signed tag, set up the *pre-release* and update `SECURITY.md`.
 
 ---
 
-## ADR-AUD-02 · Secretos al cruzar UniFFI
+## ADR-AUD-02 · Secrets crossing UniFFI
 
-### Contexto
+### Context
 
-Estado actual (`ffi/src/lib.rs`):
+Current state (`ffi/src/lib.rs`):
 
-| Dato | Tipo FFI | Dirección | Borrado hoy |
+| Data | FFI type | Direction | Wiped today |
 |---|---|---|---|
-| Contraseña maestra | `String` (`Vault::create`, `Vault::unlock`, `open_backup`, `parse_import`) | Kotlin→Rust | No: el `String` de Rust se libera sin borrar. Solo la copia NFKD se borra (`core/src/crypto/kdf.rs`, `Zeroizing`) |
-| Clave secreta (SK) | `String` en las dos direcciones (`generate_secret_key`, `normalize_secret_key`) | ↔ | No en la FFI. `SecretKey` sí se borra en el núcleo |
-| Clave del baúl | `Vec<u8>` (`vault_key_bytes`, `unlock_with_vault_key`) | ↔ | Kotlin hace `fill(0)` (`VaultSession.kt:220-224`, `262-269`). En Rust, el `[u8; 32]` intermedio de `try_into` no se borra |
-| Valores de campo, notas, historial | `FieldRecord.value`, `ItemDetailsRecord.notes` y `PasswordChangeRecord.value`, todos `String` | ↔ | En el núcleo, `Field` y los detalles derivan `ZeroizeOnDrop` (`core/src/vault/item.rs`). Sus copias `String` en los `Record` no se borran |
-| Semilla TOTP | `totp_code(input: String)` | Kotlin→Rust | No |
-| Fichero de clave de KeePass | `Option<Vec<u8>>` | Kotlin→Rust | Kotlin hace `fill(0)` (`ExternalImport.kt:188, 198`). Rust no lo borra |
-| Ficheros importados o de respaldo | `Vec<u8>` | Kotlin→Rust | Kotlin hace `fill(0)` en la importación (`ExternalImport.kt:54, 61`) |
+| Master password | `String` (`Vault::create`, `Vault::unlock`, `open_backup`, `parse_import`) | Kotlin→Rust | No: the Rust `String` is freed without wiping. Only the NFKD copy is wiped (`core/src/crypto/kdf.rs`, `Zeroizing`) |
+| Secret key (SK) | `String` in both directions (`generate_secret_key`, `normalize_secret_key`) | ↔ | Not in FFI. `SecretKey` is wiped in the core |
+| Vault key | `Vec<u8>` (`vault_key_bytes`, `unlock_with_vault_key`) | ↔ | Kotlin does `fill(0)` (`VaultSession.kt:220-224`, `262-269`). In Rust, the intermediate `[u8; 32]` from `try_into` is not wiped |
+| Field values, notes, history | `FieldRecord.value`, `ItemDetailsRecord.notes` and `PasswordChangeRecord.value`, all `String` | ↔ | In the core, `Field` and the details derive `ZeroizeOnDrop` (`core/src/vault/item.rs`). Their `String` copies in the `Record`s are not wiped |
+| TOTP seed | `totp_code(input: String)` | Kotlin→Rust | No |
+| KeePass key file | `Option<Vec<u8>>` | Kotlin→Rust | Kotlin does `fill(0)` (`ExternalImport.kt:188, 198`). Rust does not wipe it |
+| Imported or backup files | `Vec<u8>` | Kotlin→Rust | Kotlin does `fill(0)` on import (`ExternalImport.kt:54, 61`) |
 
-Límites que no se pueden evitar:
+Limits that cannot be avoided:
 
-- Compose y la JVM trabajan con `String` inmutables, y los `TextField` de Compose ya crean `String`.
-- UniFFI copia los datos de salida a un `RustBuffer`, que libera después sin borrar.
+- Compose and the JVM work with immutable `String`, and Compose `TextField`s already create `String`.
+- UniFFI copies the output data to a `RustBuffer`, which it later frees without wiping.
 
-### Opciones
+### Options
 
-- **A. Documentar solamente.** No cuesta nada y no mejora nada.
-- **B. Pasar los secretos a `ByteArray` en la API** (`Vec<u8>`). Kotlin podría borrar su copia, pero la
-  contraseña ya es un `String` de Compose antes de llegar ahí. Rompe mucha interfaz y gana poco.
-- **C. Un tipo propio de UniFFI `SecretString`** (en Rust, `Zeroizing<String>` con `Debug` oculto; en
-  Kotlin, `String`). Rust borra todas sus copias de entrada sin depender de cada función, y la API de
-  Kotlin no cambia.
-- **D. Sesión opaca**: el texto en claro no sale de Rust y Kotlin pide un campo concreto para
-  mostrarlo o copiarlo. Es la mejor reducción, pero obliga a rediseñar la UI y el autorrelleno.
+- **A. Document only.** It costs nothing and improves nothing.
+- **B. Move the secrets to `ByteArray` in the API** (`Vec<u8>`). Kotlin could wipe its copy, but the
+  password is already a Compose `String` before reaching that point. It breaks a lot of interface and gains little.
+- **C. A UniFFI type of its own, `SecretString`** (in Rust, `Zeroizing<String>` with a hidden `Debug`; in
+  Kotlin, `String`). Rust wipes all its input copies without depending on each function, and the Kotlin
+  API does not change.
+- **D. Opaque session**: the plaintext does not leave Rust and Kotlin asks for a specific field to
+  show or copy it. It is the best reduction, but it forces a redesign of the UI and autofill.
 
-### Decisión
+### Decision
 
-**C**, más un contrato de propiedad explícito. **D** se deja para después de la auditoría, por
-ejemplo con la llegada de iOS.
+**C**, plus an explicit ownership contract. **D** is left for after the audit, for
+example with the arrival of iOS.
 
-Contrato (va como comentario de módulo en `ffi/src/lib.rs` y en `docs/crypto-spec.md` §10):
+Contract (it goes as a module comment in `ffi/src/lib.rs` and in `docs/crypto-spec.md` §10):
 
-1. **Tipo.** En `ffi/src/lib.rs` (o en un `ffi/src/secret.rs` nuevo) se define
-   `pub struct SecretString(Zeroizing<String>)`, registrado con `uniffi::custom_type!(SecretString, String, { lower, try_lift })`,
-   con `Debug` que imprime `<redacted>`, más `From<String>`, `From<&str>` y `fn expose(&self) -> &str`.
-2. **Dónde se usa**: `password` en `Vault::create`, `Vault::unlock` y `open_backup`; `password` en
-   `parse_import` (`Option<SecretString>`); `secret_key` en todas las funciones, entrada y salida;
-   `FieldRecord.value`, `ItemDetailsRecord.notes`, `PasswordChangeRecord.value`, y la entrada de
-   `totp_code`. **No** se usa en `ItemOverviewRecord`: título, URLs y etiquetas son metadatos que
-   la lista mantiene siempre en memoria. El modelo de amenazas ya los clasifica aparte (sensibilidad
-   «Alta», no «Crítica»).
-3. **Bytes.** `vault_key`, `key_file` y los ficheros siguen siendo `Vec<u8>`. En Rust, el `Vec`
-   recibido se envuelve en `Zeroizing` en cuanto entra; en `unlock_with_vault_key`, el array de 32
-   bytes se crea dentro de un `Zeroizing<[u8; 32]>`.
-4. **Propiedad.** Quien crea el buffer lo borra.
-   - Un `ByteArray` que Kotlin pasa a Rust sigue siendo de Kotlin, y Kotlin lo borra con `fill(0)` en
-     un `finally`.
-   - Lo que Rust recibe es suyo y lo borra al soltarlo (`SecretString` o `Zeroizing`).
-   - Un `ByteArray` que Rust devuelve (`vault_key_bytes`) pasa a ser de Kotlin, que debe borrarlo.
-5. **Vida útil.** La vida de los secretos en claro en Kotlin se limita a la sesión desbloqueada:
-   - al pasar a `SessionState.Locked`, `VaultSession` suelta las referencias a los
-     `ItemDetailsRecord` descifrados;
-   - la SK solo se lee de `VaultStorage` en el momento de usarla.
+1. **Type.** In `ffi/src/lib.rs` (or in a new `ffi/src/secret.rs`) the following is defined:
+   `pub struct SecretString(Zeroizing<String>)`, registered with `uniffi::custom_type!(SecretString, String, { lower, try_lift })`,
+   with a `Debug` that prints `<redacted>`, plus `From<String>`, `From<&str>` and `fn expose(&self) -> &str`.
+2. **Where it is used**: `password` in `Vault::create`, `Vault::unlock` and `open_backup`; `password` in
+   `parse_import` (`Option<SecretString>`); `secret_key` in all functions, input and output;
+   `FieldRecord.value`, `ItemDetailsRecord.notes`, `PasswordChangeRecord.value`, and the input of
+   `totp_code`. It is **not** used in `ItemOverviewRecord`: title, URLs and tags are metadata that
+   the list always keeps in memory. The threat model already classifies them separately (sensitivity
+   «High», not «Critical»).
+3. **Bytes.** `vault_key`, `key_file` and the files are still `Vec<u8>`. In Rust, the received `Vec`
+   is wrapped in `Zeroizing` as soon as it comes in; in `unlock_with_vault_key`, the 32-byte
+   array is created inside a `Zeroizing<[u8; 32]>`.
+4. **Ownership.** Whoever creates the buffer wipes it.
+   - A `ByteArray` that Kotlin passes to Rust still belongs to Kotlin, and Kotlin wipes it with `fill(0)` in
+     a `finally`.
+   - What Rust receives is its own and it wipes it on drop (`SecretString` or `Zeroizing`).
+   - A `ByteArray` that Rust returns (`vault_key_bytes`) becomes Kotlin's, which must wipe it.
+5. **Lifetime.** The life of plaintext secrets in Kotlin is limited to the unlocked session:
+   - when moving to `SessionState.Locked`, `VaultSession` drops the references to the
+     decrypted `ItemDetailsRecord`s;
+   - the SK is only read from `VaultStorage` at the moment it is used.
 
-   Es un objetivo de *best effort* que se revisa, no una garantía.
-6. **Residuos aceptados**, que se documentan en `docs/threat-model.md` («Riesgos residuales»):
-   - los `String` de JVM y Compose;
-   - el `RustBuffer` de salida, que UniFFI libera sin borrar;
-   - en la salida, la copia `String` de Rust que se entrega a UniFFI.
+   It is a *best effort* goal that is reviewed, not a guarantee.
+6. **Accepted residue**, documented in `docs/threat-model.md` («Residual risks»):
+   - the JVM and Compose `String`s;
+   - the output `RustBuffer`, which UniFFI frees without wiping;
+   - on output, the Rust `String` copy that is handed to UniFFI.
 
-   Sí queda borrado lo que entra: en el sentido Kotlin→Rust, UniFFI construye el `String` a partir del
-   propio buffer, sin copiarlo, y `SecretString` lo borra.
+   What comes in **is** wiped: in the Kotlin→Rust direction, UniFFI builds the `String` from the
+   buffer itself, without copying it, and `SecretString` wipes it.
 
-### Justificación
+### Rationale
 
-C cierra lo único que controlamos de verdad, las copias del lado Rust. Lo hace de forma estructural,
-porque una función nueva no puede olvidar el borrado si el tipo lo hace por ella, y sin tocar la API
-de Kotlin. B tiene mucho coste para muy poca ganancia, porque Compose ya produce `String`. D es
-correcta pero no cabe en una versión congelada.
+C closes the only thing we truly control, the Rust-side copies. It does so structurally,
+because a new function cannot forget the wipe if the type does it for it, and without touching the Kotlin
+API. B has a lot of cost for very little gain, because Compose already produces `String`. D is
+correct but does not fit in a frozen version.
 
-### Consecuencias y coste
+### Consequences and cost
 
-- La interfaz Kotlin no cambia: los bindings generados siguen exponiendo `String`.
-- Hay que cambiar los tests de Rust de `ffi/src/lib.rs`. Construcciones como `value: "2958".into()`
-  siguen compilando, pero aserciones como `assert_eq!(…value, "2958")` deben usar `.expose()` o
+- The Kotlin interface does not change: the generated bindings still expose `String`.
+- The Rust tests in `ffi/src/lib.rs` must be changed. Constructions such as `value: "2958".into()`
+  still compile, but assertions such as `assert_eq!(…value, "2958")` must use `.expose()` or
   `PartialEq<&str>`.
-- Tests nuevos: `Debug` oculta el valor; `zeroize()` explícito deja el texto vacío (sin `unsafe`, se
-  comprueba el contenido tras `Zeroize::zeroize`).
-- **Riesgo técnico** (verificar en el primer paso): que `uniffi::custom_type!` de la 0.32 funcione
-  dentro de `Record` con `#[uniffi(default = …)]` y en `Option<…>`. Si no funciona, la alternativa
-  es `Zeroizing::new(arg)` como primera línea de cada función exportada, más una prueba de revisión
-  (`grep`) en la CI.
+- New tests: `Debug` hides the value; an explicit `zeroize()` leaves the text empty (without `unsafe`, the
+  content is checked after `Zeroize::zeroize`).
+- **Technical risk** (to verify in the first step): that `uniffi::custom_type!` from 0.32 works
+  inside a `Record` with `#[uniffi(default = …)]` and in `Option<…>`. If it does not work, the alternative
+  is `Zeroizing::new(arg)` as the first line of each exported function, plus a review check
+  (`grep`) in CI.
 
-### Migración
+### Migration
 
-1. Prueba aislada (*spike*): `SecretString` con `custom_type!`; regenerar bindings y comprobar que
-   el `op_ffi.kt` generado (en `build/`, no versionado) no cambia de tipos.
-2. Sustituir los tipos en `ffi/src/lib.rs` y ajustar los tests.
-3. Revisar en Kotlin el borrado de `vaultKeyBytes()` y `keyFile`, y que se sueltan los detalles al bloquear.
-4. Actualizar `docs/crypto-spec.md` §10 y `docs/threat-model.md` (riesgos residuales).
+1. Isolated test (*spike*): `SecretString` with `custom_type!`; regenerate bindings and check that
+   the generated `op_ffi.kt` (in `build/`, not versioned) does not change types.
+2. Replace the types in `ffi/src/lib.rs` and adjust the tests.
+3. In Kotlin, review the wiping of `vaultKeyBytes()` and `keyFile`, and that the details are released on lock.
+4. Update `docs/crypto-spec.md` §10 and `docs/threat-model.md` (residual risks).
 
 ---
 
-## ADR-AUD-03 · Panics en la frontera FFI
+## ADR-AUD-03 · Panics at the FFI boundary
 
-### Contexto
+### Context
 
-- `[profile.release] panic = "abort"` en `Cargo.toml`, y la app siempre compila `op-ffi` en release
+- `[profile.release] panic = "abort"` in `Cargo.toml`, and the app always builds `op-ffi` in release
   (`CargoNdkBuild`, `android/app/build.gradle.kts`).
-- Los bindings que genera UniFFI (se generan en `build/` y no se versionan) ya esperan panics: el
-  código de Kotlin traduce el estado de pánico a `InternalException`, que extiende `kotlin.Exception`.
-  Con `abort`, ese camino nunca se ejecuta: un panic mata el proceso, autorrelleno incluido
-  (`OpAutofillService` vive en el mismo proceso).
-- Superficie con datos no confiables y `expect`/indexación en código de producción:
+- The bindings UniFFI generates (they are generated in `build/` and are not versioned) already expect panics:
+  the Kotlin code translates the panic state into `InternalException`, which extends `kotlin.Exception`.
+  With `abort`, that path never runs: a panic kills the process, autofill included
+  (`OpAutofillService` lives in the same process).
+- Surface with untrusted data and `expect`/indexing in production code:
   `core/src/backup/mod.rs:92`, `core/src/vault/padding.rs:26`, `core/src/crypto/stream.rs:52`
-  (estos tres están protegidos por comprobaciones de longitud previas), y los importadores
+  (these three are protected by prior length checks), and the importers
   (`core/src/import/*`).
-- **No hay tests de pánico** (`#[should_panic]` o `catch_unwind`: cero apariciones en `core`, `ffi` y `cli`).
-- Una **falta de memoria** (`handle_alloc_error`) aborta **sea cual sea** la estrategia de pánico.
-  Cambiar a `unwind` no protege de la KDF (ver ADR-AUD-07).
-- `Vault::lock` hace `if let Ok(mut guard) = self.inner.lock()` (`ffi/src/lib.rs:380-384`). Con
-  `unwind`, un panic dentro de `Vault::with` **envenena** el `Mutex`, y después **`lock()` no borra la
-  clave**. Hoy no pasa porque `abort` no deja sobrevivir a nadie.
+- **There are no panic tests** (`#[should_panic]` or `catch_unwind`: zero occurrences in `core`, `ffi` and `cli`).
+- An **out of memory** (`handle_alloc_error`) aborts **whatever** the panic strategy is.
+  Switching to `unwind` does not protect against the KDF (see ADR-AUD-07).
+- `Vault::lock` does `if let Ok(mut guard) = self.inner.lock()` (`ffi/src/lib.rs:380-384`). With
+  `unwind`, a panic inside `Vault::with` **poisons** the `Mutex`, and then **`lock()` does not wipe the
+  key**. Today that does not happen because `abort` lets nobody survive.
 
-### Opciones
+### Options
 
-1. Mantener `abort`: un fichero malicioso que provoque un panic deja la app sin servicio (DoS).
-2. `panic = "unwind"` en `[profile.release]`, sin `catch_unwind` propio: el de UniFFI ya basta.
-3. Mixta: un perfil `release-ffi` con `inherits = "release"` y `panic = "unwind"` solo para la app.
+1. Keep `abort`: a malicious file that triggers a panic leaves the app out of service (DoS).
+2. `panic = "unwind"` in `[profile.release]`, without our own `catch_unwind`: UniFFI's is enough.
+3. Mixed: a `release-ffi` profile with `inherits = "release"` and `panic = "unwind"` only for the app.
 
-### Decisión
+### Decision
 
-Opción 2.
+Option 2.
 
-- Poner `panic = "unwind"` en `[profile.release]`. La CLI hereda el cambio, pero está fuera de alcance
-  y deshacer la pila (*unwind*) en una CLI es inocuo.
-- No se escribe `catch_unwind` a mano: UniFFI ya envuelve cada llamada en su `rust_call`.
-- `Vault::lock` y `Vault::is_locked` recuperan el guard envenenado con
-  `unwrap_or_else(PoisonError::into_inner)`. El bloqueo **siempre** borra la clave.
-- `Vault::with` también trata el envenenamiento: devuelve `OpError::Internal` y **borra** la clave
-  (vacía el `Option`), para no seguir usando un estado a medias.
-- **Criterio verificable en Kotlin**: toda llamada FFI desde una corrutina de UI (o de un servicio)
-  debe capturar `InternalException`, o `Exception`/`Throwable` de forma deliberada. No se mantiene una
-  lista ad hoc de «flujos con datos no confiables»: cualquier llamada puede sufrir un panic, y un
-  `catch (e: OpException)` a secas deja pasar `InternalException` como excepción no capturada en la
-  corrutina, que cierra la app. Se comprueba con `grep` de `catch (e: OpException)` en
-  `android/app/src/main`: cada resultado debe tener a su lado un `catch` de `InternalException` o
+- Set `panic = "unwind"` in `[profile.release]`. The CLI inherits the change, but it is out of scope
+  and unwinding the stack in a CLI is harmless.
+- No hand-written `catch_unwind`: UniFFI already wraps each call in its `rust_call`.
+- `Vault::lock` and `Vault::is_locked` recover the poisoned guard with
+  `unwrap_or_else(PoisonError::into_inner)`. Locking **always** wipes the key.
+- `Vault::with` also handles poisoning: it returns `OpError::Internal` and **wipes** the key
+  (empties the `Option`), so as not to keep using a half-broken state.
+- **Verifiable criterion in Kotlin**: every FFI call from a UI coroutine (or from a service)
+  must catch `InternalException`, or `Exception`/`Throwable` deliberately. No ad hoc list of
+  «flows with untrusted data» is kept: any call can suffer a panic, and a bare
+  `catch (e: OpException)` lets `InternalException` through as an uncaught exception in the
+  coroutine, which closes the app. It is checked with a `grep` of `catch (e: OpException)` in
+  `android/app/src/main`: each result must have next to it a `catch` of `InternalException` or
   `Exception`.
-- **Sitios que ya lo cubren** (porque capturan `Exception` o usan `runCatching`; no hay que cambiarlos):
+- **Sites that already cover it** (because they catch `Exception` or use `runCatching`; they do not need changing):
   - `RestoreScreen.kt:78` (`catch (_: Exception)`);
-  - `ExternalImport.kt:48` y `:59` (`runCatching` alrededor de `parseImport`, con
+  - `ExternalImport.kt:48` and `:59` (`runCatching` around `parseImport`, with
     `importErrorMessage(Throwable)`);
-  - `ItemEditorScreen.kt:325` e `ItemDetailScreen.kt:236` (`runCatching` sobre `totpCode`);
-  - `OpAutofillService.kt:41` (`runCatching` alrededor de `session.details(...)`);
-  - `SettingsScreen.kt:148-150` (exportar copia, `catch (_: Exception)`).
-- **Sitios que hay que corregir** (solo capturan `OpException`):
-  - `SettingsScreen.kt:405-412`: importar una copia desde Ajustes. Es el único flujo de
-    restaurar/importar realmente sin cubrir;
-  - `VaultSession.kt:108-112`: desbloqueo con contraseña (y `:266`, desbloqueo con la clave del baúl
-    desde `BiometricFlows`);
-  - `SaveLoginActivity.kt:191`: guardar un login desde el autorrelleno;
-  - `ItemEditorScreen.kt:133`: guardar en el editor de elementos;
-  - `BiometricFlows.kt:31`: activar el desbloqueo biométrico;
-  - `OnboardingScreen.kt:246`: crear el baúl;
-  - `ExternalImport.kt:138`: importar elementos externos al baúl;
-  - `AutoBackup.kt:102`: copia automática (el `catch (e: OpException)` tras `exportBackup`).
-- **Estado de la sesión tras un fallo interno.** Tras un envenenamiento del `Mutex`, `Vault::with`
-  borra la clave en Rust, pero Kotlin seguiría creyendo que `SessionState` es `Unlocked`: todas las
-  llamadas posteriores devolverían `OpException.Locked` con la UI abierta y sin baúl. Por eso
-  `VaultSession` debe pasar a `Locked` y vaciar `entries` al recibir `InternalException` o un `Locked`
-  inesperado (es decir, uno que llega con `_state` en `Unlocked`). Se hace en un único punto, el
-  envoltorio `withVault` (`VaultSession.kt:412`), y no en cada pantalla.
-- **Mensajes.** «Fichero no válido» solo se usa en los flujos de ficheros (restaurar, importar). En el
-  resto (desbloqueo, editor, autorrelleno, biometría, alta del baúl) se muestra un error genérico
-  («Ha ocurrido un error interno. Vuelve a desbloquear el baúl»). El mensaje del panic **no** se
-  muestra ni se registra en el log.
+  - `ItemEditorScreen.kt:325` and `ItemDetailScreen.kt:236` (`runCatching` over `totpCode`);
+  - `OpAutofillService.kt:41` (`runCatching` around `session.details(...)`);
+  - `SettingsScreen.kt:148-150` (export backup, `catch (_: Exception)`).
+- **Sites that must be fixed** (they only catch `OpException`):
+  - `SettingsScreen.kt:405-412`: importing a backup from Settings. It is the only restore/import flow
+    that is really uncovered;
+  - `VaultSession.kt:108-112`: unlock with password (and `:266`, unlock with the vault key
+    from `BiometricFlows`);
+  - `SaveLoginActivity.kt:191`: saving a login from autofill;
+  - `ItemEditorScreen.kt:133`: saving in the item editor;
+  - `BiometricFlows.kt:31`: enabling biometric unlock;
+  - `OnboardingScreen.kt:246`: creating the vault;
+  - `ExternalImport.kt:138`: importing external items into the vault;
+  - `AutoBackup.kt:102`: automatic backup (the `catch (e: OpException)` after `exportBackup`).
+- **Session state after an internal failure.** After a `Mutex` poisoning, `Vault::with`
+  wipes the key in Rust, but Kotlin would still believe `SessionState` is `Unlocked`: all
+  later calls would return `OpException.Locked` with the UI open and no vault. That is why
+  `VaultSession` must move to `Locked` and empty `entries` when it receives `InternalException` or an
+  unexpected `Locked` (that is, one that arrives with `_state` at `Unlocked`). It is done in a single place, the
+  `withVault` wrapper (`VaultSession.kt:412`), and not in each screen.
+- **Messages.** «Fichero no válido» is only used in the file flows (restore, import). In the
+  rest (unlock, editor, autofill, biometrics, creating the vault) a generic error is shown
+  («Ha ocurrido un error interno. Vuelve a desbloquear el baúl»). The panic message is **not**
+  shown or logged.
 
-### Justificación
+### Rationale
 
-La 3 da el mismo resultado para la app con más piezas: un perfil nuevo, `cargo ndk --profile` y una
-ruta de salida distinta, con riesgo para el build reproducible. La 1 deja un DoS evidente que el
-auditor marcará. El coste de `unwind` es pequeño, porque los objetivos de Android ya emiten tablas de
-deshacer por defecto.
+Option 3 gives the same result for the app with more pieces: a new profile, `cargo ndk --profile` and a
+different output path, with risk for the reproducible build. Option 1 leaves an obvious DoS that the
+auditor will flag. The cost of `unwind` is small, because the Android targets already emit unwind
+tables by default.
 
-### Consecuencias y coste
+### Consequences and cost
 
-- Tamaño: hay que **medirlo**. Hoy `libop_ffi.so` ocupa 1,40 MB en arm64 y 1,09 MB en armv7. Se
-  espera un aumento de un dígito porcentual por las *landing pads*. Si pasa del 15 %, se vuelve a
-  valorar la opción 3.
-- El SHA-256 del APK cambia. No importa, porque es una versión nueva.
-- Tests nuevos en `ffi/src/lib.rs`:
-  - `lock_wipes_key_after_poisoned_mutex`: envenena el `Mutex` con `std::panic::catch_unwind` sobre un
-    hilo que hace panic con el guard tomado. Los tests usan siempre `unwind`.
+- Size: it must be **measured**. Today `libop_ffi.so` takes up 1.40 MB on arm64 and 1.09 MB on armv7. An
+  increase of a single-digit percentage is expected because of the *landing pads*. If it goes over 15%, option 3
+  is reconsidered.
+- The APK SHA-256 changes. It does not matter, because it is a new version.
+- New tests in `ffi/src/lib.rs`:
+  - `lock_wipes_key_after_poisoned_mutex`: poisons the `Mutex` with `std::panic::catch_unwind` on a
+    thread that panics with the guard held. Tests always use `unwind`.
   - `with_after_poison_returns_internal_and_locks`.
-- Dejar un `// panic = "unwind": see docs/audit/decisions.md ADR-AUD-03` en `Cargo.toml`.
+- Leave a `// panic = "unwind": see docs/audit/decisions.md ADR-AUD-03` in `Cargo.toml`.
 
-### Migración
+### Migration
 
-1. Arreglar `lock`, `is_locked` y `with`, con sus tests. Va **antes** del cambio de perfil.
-2. Cambiar el perfil y medir el tamaño de las tres ABI.
-3. Capturas de `InternalException` en los sitios de la lista anterior, y paso de `VaultSession` a
-   `Locked` (con `entries` vacío) al recibir `InternalException` o un `Locked` inesperado. Un test
-   unitario de `VaultSession` con un `Vault` falso que lance `InternalException`.
-4. Comprobación manual en el emulador con un `.so` de depuración que incluya una función de pánico de
-   prueba, detrás de una *feature* que nunca llega a release. Es opcional.
+1. Fix `lock`, `is_locked` and `with`, with their tests. It goes **before** the profile change.
+2. Change the profile and measure the size of the three ABIs.
+3. `InternalException` catches at the sites in the previous list, and moving `VaultSession` to
+   `Locked` (with empty `entries`) when receiving `InternalException` or an unexpected `Locked`. A unit
+   test of `VaultSession` with a fake `Vault` that throws `InternalException`.
+4. Manual check in the emulator with a debug `.so` that includes a test panic function,
+   behind a *feature* that never reaches release. It is optional.
 
 ---
 
-## ADR-AUD-04 · Cadena de suministro
+## ADR-AUD-04 · Supply chain
 
-### Contexto
+### Context
 
-- Rust: `cargo audit --deny warnings`, con ignorados en `.cargo/audit.toml` (`RUSTSEC-2026-0374`,
-  `basic-toml`, solo en el *bindgen*). `Cargo.lock` versionado; `zip` fijado (`=9.0.3`).
-- Gradle: el *wrapper* ya lleva `distributionSha256Sum`, pero **no** hay `verification-metadata.xml`.
-  Los repositorios (`google()` y `mavenCentral()`) están filtrados por contenido en `pluginManagement`.
-- Actions fijadas **por etiqueta** (`actions/checkout@v7`, `taiki-e/install-action@v2`,
-  `dtolnay/rust-toolchain@stable`…). En `3e94bce`, `cargo install cargo-ndk --locked` instala sin
-  versión fija; el commit que cierra `v0.1.0` la fija a `--version 4.1.2`.
+- Rust: `cargo audit --deny warnings`, with ignores in `.cargo/audit.toml` (`RUSTSEC-2026-0374`,
+  `basic-toml`, only in *bindgen*). `Cargo.lock` versioned; `zip` pinned (`=9.0.3`).
+- Gradle: the *wrapper* already carries `distributionSha256Sum`, but there is **no** `verification-metadata.xml`.
+  The repositories (`google()` and `mavenCentral()`) are content-filtered in `pluginManagement`.
+- Actions pinned **by tag** (`actions/checkout@v7`, `taiki-e/install-action@v2`,
+  `dtolnay/rust-toolchain@stable`…). At `9eb9c7f`, `cargo install cargo-ndk --locked` installs without a
+  pinned version; the commit that closes `v0.1.0` pins it to `--version 4.1.2`.
 
-### Opciones y valoración
+### Options and assessment
 
-| Herramienta | Qué aporta a la auditoría | Mantenimiento | Decisión |
+| Tool | What it adds to the audit | Maintenance | Decision |
 |---|---|---|---|
-| `cargo-deny` | Avisos (lo mismo que `cargo-audit`), **licencias** compatibles con GPL-3.0 (requisito de F-Droid), **orígenes** (solo crates.io) y duplicados | Bajo: un `deny.toml` | **Sí**, sustituye a `cargo-audit` |
-| `cargo-vet` | Prueba de revisión humana de cada versión de cada crate | Alto: auditar o importar en cada subida de versión; demasiado para una persona | **No** por ahora; reconsiderar después de la auditoría |
-| `verification-metadata.xml` (SHA-256) | Integridad de **todos** los artefactos Maven, plugins incluidos. Es la superficie de dependencias más grande del proyecto | Medio: regenerar al subir versiones; hay artefactos por plataforma (`aapt2` de Linux y de macOS) | **Sí**, solo sumas de comprobación; sin firmas PGP, que exigen mantener un llavero |
-| Actions por SHA | Evita que una etiqueta movida ejecute código ajeno en la CI que produce el APK publicado | Bajo, con Dependabot (`github-actions`) | **Sí** |
-| SBOM CycloneDX | Inventario exacto de lo que se distribuye: Rust de `op-ffi` y Gradle `releaseRuntimeClasspath` | Bajo si se genera solo en la release | **Sí**, adjunta a la release |
-| Atestación de procedencia (`actions/attest-build-provenance`) | Relaciona APK, commit y workflow (SLSA); complementa el build reproducible | Bajo: un paso y dos permisos en un solo job | **Sí**, solo con etiquetas |
+| `cargo-deny` | Advisories (the same as `cargo-audit`), **licenses** compatible with GPL-3.0 (an F-Droid requirement), **sources** (crates.io only) and duplicates | Low: one `deny.toml` | **Yes**, it replaces `cargo-audit` |
+| `cargo-vet` | Proof of human review of each version of each crate | High: audit or import on every version bump; too much for one person | **No** for now; reconsider after the audit |
+| `verification-metadata.xml` (SHA-256) | Integrity of **all** Maven artifacts, plugins included. It is the largest dependency surface of the project | Medium: regenerate on version bumps; there are per-platform artifacts (`aapt2` for Linux and for macOS) | **Yes**, checksums only; no PGP signatures, which require keeping a keyring |
+| Actions by SHA | Prevents a moved tag from running foreign code in the CI that produces the published APK | Low, with Dependabot (`github-actions`) | **Yes** |
+| CycloneDX SBOM | Exact inventory of what is distributed: Rust from `op-ffi` and Gradle `releaseRuntimeClasspath` | Low if it is only generated in the release | **Yes**, attached to the release |
+| Provenance attestation (`actions/attest-build-provenance`) | Ties APK, commit and workflow together (SLSA); complements the reproducible build | Low: one step and two permissions in a single job | **Yes**, only with tags |
 
-### Decisión
+### Decision
 
-El conjunto mínimo y suficiente son las cinco filas marcadas con «Sí»:
+The minimal sufficient set is the five rows marked «Yes»:
 
-1. **`deny.toml`** en la raíz:
-   - `[advisories]`: el aviso ignorado se lleva con su motivo;
-   - `[licenses]`: lista explícita de licencias admitidas, generada con `cargo deny list` y revisada;
-     cualquier licencia nueva exige aprobación;
-   - `[sources]`: `unknown-registry = "deny"` y `unknown-git = "deny"`;
+1. **`deny.toml`** at the root:
+   - `[advisories]`: the ignored advisory is carried with its reason;
+   - `[licenses]`: explicit list of allowed licenses, generated with `cargo deny list` and reviewed;
+     any new license requires approval;
+   - `[sources]`: `unknown-registry = "deny"` and `unknown-git = "deny"`;
    - `[bans]`: `multiple-versions = "warn"`.
 
-   En `ci.yml`, el job `audit` pasa a ser `cargo deny --locked check`. Se borra `.cargo/audit.toml`.
-2. **`android/gradle/verification-metadata.xml`** generado con
+   In `ci.yml`, the `audit` job becomes `cargo deny --locked check`. `.cargo/audit.toml` is deleted.
+2. **`android/gradle/verification-metadata.xml`** generated with
    `./gradlew --write-verification-metadata sha256 :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest :app:lint`
-   **en Linux y en macOS**, uniendo ambos ficheros.
-3. **SHAs en `ci.yml`**, con la versión en un comentario (`uses: actions/checkout@<sha> # v7.x.y`).
-   Además:
-   - un `.github/dependabot.yml` para `github-actions`, semanal;
-   - `cargo install cargo-ndk --locked --version 4.1.2` (ya fijado en el commit que cierra `v0.1.0`);
-   - versiones fijas en `taiki-e/install-action` (`tool: cargo-deny@x.y.z`, `cargo-fuzz@x.y.z`).
-4. **Job `release`** en `ci.yml`, solo con `tags: v*`. Necesita `id-token: write` y
-   `attestations: write` **solo en ese job**. Hace esto:
-   - compila el APK;
-   - genera `cargo cyclonedx` para `op-ffi` y la SBOM de Gradle (plugin `org.cyclonedx.bom`, con
-     versión fija y cubierto por la verificación de dependencias);
-   - publica la atestación del APK sin firmar y de las SBOM;
-   - adjunta todo a la release.
+   **on Linux and on macOS**, merging both files.
+3. **SHAs in `ci.yml`**, with the version in a comment (`uses: actions/checkout@<sha> # v7.x.y`).
+   In addition:
+   - a `.github/dependabot.yml` for `github-actions`, weekly;
+   - `cargo install cargo-ndk --locked --version 4.1.2` (already pinned in the commit that closes `v0.1.0`);
+   - pinned versions in `taiki-e/install-action` (`tool: cargo-deny@x.y.z`, `cargo-fuzz@x.y.z`).
+4. **`release` job** in `ci.yml`, only with `tags: v*`. It needs `id-token: write` and
+   `attestations: write` **only in that job**. It does this:
+   - builds the APK;
+   - generates `cargo cyclonedx` for `op-ffi` and the Gradle SBOM (plugin `org.cyclonedx.bom`, with a
+     pinned version and covered by dependency verification);
+   - publishes the attestation of the unsigned APK and of the SBOMs;
+   - attaches everything to the release.
 
-### Consecuencias y coste
+### Consequences and cost
 
-- Cada subida de una dependencia de Gradle obliga a regenerar la metadata. Se documenta en
+- Every Gradle dependency bump forces the metadata to be regenerated. It is documented in
   `android/README.md`.
-- El plugin de CycloneDX añade una dependencia de build, solo de build y verificada.
-- La atestación usa Sigstore público. Es aceptable en un proyecto de código abierto.
+- The CycloneDX plugin adds a build dependency, build-only and verified.
+- The attestation uses public Sigstore. It is acceptable in an open-source project.
 
-### Migración
+### Migration
 
-Por este orden, y cada paso en verde antes del siguiente: `deny.toml` y el job; los SHAs y
-Dependabot; la metadata de Gradle; el job `release`.
+In this order, and each step green before the next: `deny.toml` and the job; the SHAs and
+Dependabot; the Gradle metadata; the `release` job.
 
 ---
 
-## ADR-AUD-05 · Infraestructura de fuzzing
+## ADR-AUD-05 · Fuzzing infrastructure
 
-### Contexto
+### Context
 
-- Hay 5 objetivos en `fuzz/fuzz_targets/`: `import`, `kdbx_xml`, `key_file`, `backup_header` y `totp`.
-  La CI hace una pasada de 60 s por objetivo (`ci.yml`, job `fuzz`) y el corpus no persiste.
-- Lo que no se fuzzea hoy:
-  - lo que hay **después** del AEAD: `padding::unpad`, el JSON de `ItemDetails` e `ItemOverview`, y
-    el `Body` de la copia;
-  - el `serde` de `VaultHeader` y `EncryptedItem` (`encoding::hex_bytes`);
-  - la capa `op-ffi`: `parse_header` y `EncryptedItemRecord::try_from`.
+- There are 5 targets in `fuzz/fuzz_targets/`: `import`, `kdbx_xml`, `key_file`, `backup_header` and `totp`.
+  CI runs a 60 s pass per target (`ci.yml`, `fuzz` job) and the corpus does not persist.
+- What is not fuzzed today:
+  - what comes **after** the AEAD: `padding::unpad`, the JSON of `ItemDetails` and `ItemOverview`, and
+    the `Body` of the backup;
+  - the `serde` of `VaultHeader` and `EncryptedItem` (`encoding::hex_bytes`);
+  - the `op-ffi` layer: `parse_header` and `EncryptedItemRecord::try_from`.
 
-  Con entradas aleatorias el AEAD casi nunca deja pasar nada, así que esos analizadores solo se
-  alcanzan cifrando la entrada del fuzzer con una clave fija.
-- `Cargo.toml` ya declara `check-cfg = ["cfg(fuzzing)"]`.
-- No hay servidores propios. Los minutos de Actions de los repositorios públicos son gratuitos.
+  With random inputs the AEAD almost never lets anything through, so those parsers are only
+  reached by encrypting the fuzzer input with a fixed key.
+- `Cargo.toml` already declares `check-cfg = ["cfg(fuzzing)"]`.
+- There are no servers of our own. Actions minutes for public repositories are free.
 
-### Opciones
+### Options
 
-1. Solo ampliar `cargo-fuzz` y añadir una ejecución nocturna.
-2. Además, Jazzer para el Kotlin del autorrelleno.
-3. Además, ClusterFuzzLite.
+1. Only extend `cargo-fuzz` and add a nightly run.
+2. In addition, Jazzer for the Kotlin of autofill.
+3. In addition, ClusterFuzzLite.
 4. OSS-Fuzz.
 
-### Decisión
+### Decision
 
-Opción 1.
+Option 1.
 
-Objetivos nuevos, en `fuzz/fuzz_targets/` y registrados en `fuzz/Cargo.toml`:
+New targets, in `fuzz/fuzz_targets/` and registered in `fuzz/Cargo.toml`:
 
-| Objetivo | Entrada | Camino |
+| Target | Input | Path |
 |---|---|---|
-| `vault_json` | Bytes | `serde_json::from_slice::<VaultHeader>` y `::<EncryptedItem>` (cubre `hex_bytes`) |
-| `item_open` | `EncryptedItem` arbitrario (JSON) | `UnlockedVault::unlock_with_vault_key(cabecera fija, clave fija)` → `decrypt_overview` y `decrypt_details`. Cubre `unwrap_key`, longitudes y AAD |
-| `item_plaintext` | Bytes como JSON en claro | Gancho `fuzzing::seal_item_part` (clave fija) → `decrypt_details` y `decrypt_overview`. Cubre `padding::unpad` y el `serde` de los elementos |
-| `backup_body` | Bytes como cuerpo en claro | Gancho `fuzzing::seal_backup` (STREAM con clave fija) → `backup::fuzzing::open_with_vault`. Cubre `stream::decrypt` y el JSON del `Body`, **sin KDF** |
-| `ffi_records` | Bytes divididos en cabecera y registro | `op_ffi::Vault::unlock_with_vault_key(header_json, [7;32])` → `decrypt_*` con `EncryptedItemRecord` arbitrario. `fuzz/Cargo.toml` pasa a depender de `op-ffi` |
+| `vault_json` | Bytes | `serde_json::from_slice::<VaultHeader>` and `::<EncryptedItem>` (covers `hex_bytes`) |
+| `item_open` | Arbitrary `EncryptedItem` (JSON) | `UnlockedVault::unlock_with_vault_key(fixed header, fixed key)` → `decrypt_overview` and `decrypt_details`. Covers `unwrap_key`, lengths and AAD |
+| `item_plaintext` | Bytes as plaintext JSON | Hook `fuzzing::seal_item_part` (fixed key) → `decrypt_details` and `decrypt_overview`. Covers `padding::unpad` and the `serde` of the items |
+| `backup_body` | Bytes as plaintext body | Hook `fuzzing::seal_backup` (STREAM with a fixed key) → `backup::fuzzing::open_with_vault`. Covers `stream::decrypt` and the `Body` JSON, **without KDF** |
+| `ffi_records` | Bytes split into header and record | `op_ffi::Vault::unlock_with_vault_key(header_json, [7;32])` → `decrypt_*` with an arbitrary `EncryptedItemRecord`. `fuzz/Cargo.toml` starts depending on `op-ffi` |
 
-Ganchos:
+Hooks:
 
-- Un módulo `#[cfg(fuzzing)] pub mod fuzzing` en `core/src/lib.rs`, que reexporta envoltorios finos
-  de `crypto::seal`, `stream::encrypt` y de un `backup::decrypt_body` que recibe un `&UnlockedVault`.
-- Nunca se compila fuera de `cargo fuzz`. El auditor lo verá, y se documenta en `fuzz/README.md`.
+- A `#[cfg(fuzzing)] pub mod fuzzing` module in `core/src/lib.rs`, which re-exports thin wrappers
+  of `crypto::seal`, `stream::encrypt` and of a `backup::decrypt_body` that receives an `&UnlockedVault`.
+- It is never compiled outside `cargo fuzz`. The auditor will see it, and it is documented in `fuzz/README.md`.
 
 CI:
 
-- El job `fuzz` de PR y *push* baja a 30 s por objetivo (10 objetivos, unos 5 min).
-- Un workflow nuevo `.github/workflows/fuzz-nightly.yml` (`schedule`, a diario) hace 10 min por
-  objetivo:
-  - corpus en `actions/cache` por objetivo, minimizado con `cargo fuzz cmin` cada semana;
-  - si falla, sube los artefactos y el job queda en rojo.
+- The `fuzz` job for PRs and *push* drops to 30 s per target (10 targets, about 5 min).
+- A new workflow `.github/workflows/fuzz-nightly.yml` (`schedule`, daily) runs 10 min per
+  target:
+  - corpus in `actions/cache` per target, minimized with `cargo fuzz cmin` every week;
+  - if it fails, it uploads the artifacts and the job goes red.
 
-**Jazzer: no por ahora.**
+**Jazzer: not for now.**
 
-- `StructureParser` depende de `AssistStructure`, así que Jazzer no lo alcanza sin Robolectric.
-- `LoginMatcher` (A12) y `FieldClassifier` son funciones puras con tests JUnit 4. Para ellos bastan
-  **tests de invariantes con un generador determinista**, sin dependencias nuevas, en
-  `LoginMatcherTest.kt`. Ejemplos de invariantes:
-  - un host con un dominio registrable distinto nunca coincide;
-  - `hostOf` nunca lanza excepciones;
-  - una URL `androidapp://` nunca coincide con una web.
-- Jazzer obligaría a pasar a JUnit 5 y a meter más dependencias en la metadata de Gradle.
+- `StructureParser` depends on `AssistStructure`, so Jazzer does not reach it without Robolectric.
+- `LoginMatcher` (A12) and `FieldClassifier` are pure functions with JUnit 4 tests. For them
+  **invariant tests with a deterministic generator** are enough, with no new dependencies, in
+  `LoginMatcherTest.kt`. Examples of invariants:
+  - a host with a different registrable domain never matches;
+  - `hostOf` never throws exceptions;
+  - an `androidapp://` URL never matches a web one.
+- Jazzer would force moving to JUnit 5 and adding more dependencies to the Gradle metadata.
 
-**ClusterFuzzLite: pospuesto.** Para persistir el corpus necesita un repositorio o rama con un token
-(un secreto más) y un Dockerfile. El trabajo nocturno ofrece lo esencial con las mismas herramientas
-que se usan en local.
+**ClusterFuzzLite: postponed.** To persist the corpus it needs a repository or branch with a token
+(one more secret) and a Dockerfile. The nightly job offers the essentials with the same tools
+used locally.
 
-**OSS-Fuzz: descartado.** Exige base de usuarios y aceptación, y su calendario de divulgación no
-encaja con un proyecto que todavía no ha pasado la auditoría.
+**OSS-Fuzz: discarded.** It requires a user base and acceptance, and its disclosure schedule does not
+fit a project that has not yet passed the audit.
 
-### Consecuencias y coste
+### Consequences and cost
 
-Cinco ficheros de objetivo, un módulo `cfg(fuzzing)`, *seeds* nuevas en `fuzz/seeds/<objetivo>/`
-(generadas con los vectores de `core/tests/vectors/op-v1.json`) y un workflow.
+Five target files, a `cfg(fuzzing)` module, new *seeds* in `fuzz/seeds/<target>/`
+(generated from the vectors in `core/tests/vectors/op-v1.json`) and a workflow.
 
-Criterios para reconsiderar:
+Criteria to reconsider:
 
-- Jazzer, si `StructureParser` se refactoriza a una abstracción de nodos sin Android.
-- ClusterFuzzLite, si el corpus en caché se pierde a menudo (la caché caduca a los 7 días sin uso).
+- Jazzer, if `StructureParser` is refactored to a node abstraction without Android.
+- ClusterFuzzLite, if the cached corpus is lost often (the cache expires after 7 days without use).
 
 ---
 
-## ADR-AUD-06 · Defensas A7 y A10
+## ADR-AUD-06 · A7 and A10 defenses
 
-### Contexto
+### Context
 
-- `docs/threat-model.md` afirma `filterTouchesWhenObscured` (A7) y «aviso si se detecta root» (A10).
-  Ninguno de los dos existe: un `grep` de `filterTouches|HideOverlay|Build.TAGS` en `android/app/src`
-  no devuelve nada.
-- Hay **tres** actividades que muestran secretos o piden la contraseña maestra. Las tres ya ponen
+- `docs/threat-model.md` claims `filterTouchesWhenObscured` (A7) and «aviso si se detecta root» (A10).
+  Neither of the two exists: a `grep` of `filterTouches|HideOverlay|Build.TAGS` in `android/app/src`
+  returns nothing.
+- There are **three** activities that show secrets or ask for the master password. All three already set
   `FLAG_SECURE`:
   - `MainActivity.kt:23`;
   - `autofill/AutofillAuthActivity.kt:72`;
   - `autofill/SaveLoginActivity.kt:69`.
-- Patrón existente que se debe imitar: `security/AutofillExclusion.kt` (`excludeFromAutofill(activity)`,
-  que se llama después de `setContent`).
-- `minSdk = 28`, `targetSdk = 36`. Los tests unitarios son JUnit 4 sin Robolectric.
-- `VerifyManifest` (`android/app/build.gradle.kts:163-175`) ya hace fallar el build por permisos prohibidos.
+- Existing pattern to imitate: `security/AutofillExclusion.kt` (`excludeFromAutofill(activity)`,
+  which is called after `setContent`).
+- `minSdk = 28`, `targetSdk = 36`. The unit tests are JUnit 4 without Robolectric.
+- `VerifyManifest` (`android/app/build.gradle.kts:163-175`) already fails the build on forbidden permissions.
 
 ### A7 · Anti-tapjacking
 
-Decisión: proteger **por ventana**, en las tres actividades, en lugar de pantalla a pantalla. Todas
-las pantallas de esas actividades piden la contraseña, revelan o copian secretos, o confirman un
-guardado o un relleno. Proteger por pantalla dejaría huecos y añadiría complejidad.
+Decision: protect **per window**, in the three activities, instead of screen by screen. All
+the screens of those activities ask for the password, reveal or copy secrets, or confirm a
+save or a fill. Protecting per screen would leave gaps and add complexity.
 
-Límite que hay que cubrir de forma explícita: los `AlertDialog` de Compose (hay en
-`SettingsScreen.kt`, `ExternalImport.kt` y `VaultListScreen.kt`) son **ventanas aparte**, con su
-propio *decor view*. `decorView.filterTouchesWhenObscured` ni `setHideOverlayWindows` de la ventana de
-la actividad los cubren, y varios piden la contraseña maestra o confirman borrados e importaciones.
-Por tanto, «todas las pantallas» solo es cierto si se protegen también los diálogos (ver más abajo).
+Limit that must be covered explicitly: Compose `AlertDialog`s (there are some in
+`SettingsScreen.kt`, `ExternalImport.kt` and `VaultListScreen.kt`) are **separate windows**, with their
+own *decor view*. Neither `decorView.filterTouchesWhenObscured` nor the activity window's `setHideOverlayWindows`
+covers them, and several of them ask for the master password or confirm deletions and imports.
+Therefore, «all screens» is only true if the dialogs are protected too (see below).
 
-- **Fichero nuevo** `android/app/src/main/kotlin/io/github/rldona/openpassword/security/OverlayProtection.kt`:
+- **New file** `android/app/src/main/kotlin/io/github/rldona/openpassword/security/OverlayProtection.kt`:
   - `fun protectFromOverlays(activity: Activity)`:
-    - pone `activity.window.decorView.filterTouchesWhenObscured = true`. Compose recibe los toques a
-      través del `View` raíz, así que basta con el *decor view*;
-    - si `SDK_INT >= 31`, llama a `activity.window.setHideOverlayWindows(true)`.
-  - `@Composable fun ProtectDialogWindow()`: se coloca dentro del contenido de cada diálogo, obtiene
-    su ventana con `(LocalView.current.parent as? DialogWindowProvider)?.window` y le aplica lo mismo
-    (`decorView.filterTouchesWhenObscured = true` y, con `SDK_INT >= 31`, `setHideOverlayWindows(true)`).
-    Alternativa equivalente: un contenedor propio `ProtectedAlertDialog` en `ui/Components.kt` que lo
-    haga una sola vez y sustituya a todos los `AlertDialog` de la app; así un diálogo nuevo no se
-    puede olvidar. Se prefiere esta, con una comprobación por `grep` en la CI de que no queda ningún
-    `AlertDialog(` fuera de `Components.kt`.
-  - Función pura `fun obscuredTouch(flags: Int): Obscured` con los valores `NONE`, `FULL`
-    (`MotionEvent.FLAG_WINDOW_IS_OBSCURED`) y `PARTIAL` (`FLAG_WINDOW_IS_PARTIALLY_OBSCURED`, API 29+).
-    Recibe las constantes como parámetro, para poder probarla en la JVM.
-  - `object OverlayWarning { val detected: StateFlow<Boolean> }`, que se pone a `true` en cuanto llega
-    un toque `FULL` o `PARTIAL`.
-- **Actividades**: cada una llama a `protectFromOverlays(this)` junto a `excludeFromAutofill(this)`, y
-  sobrescribe `dispatchTouchEvent` para avisar a `OverlayWarning` antes de llamar a `super`.
-  - Un toque `FULL` ya lo descarta el sistema por el filtro, así que no se cambia el flujo.
-  - Un toque `PARTIAL` **no** se descarta: un globo de chat en otra zona de la pantalla es normal.
-- **Respuesta**: un aviso no bloqueante en `ui/Components.kt` (`OverlayWarningBanner`) que se muestra
-  arriba en `AppRoot` y en las dos actividades de autorrelleno: «Otra app está mostrando algo encima
-  de OpenPassword. Por seguridad se ignoran los toques tapados». No se bloquea el baúl.
-- **Manifiesto**: `<uses-permission android:name="android.permission.HIDE_OVERLAY_WINDOWS" />`.
-  Es un permiso normal (se concede al instalar) y la API lo exige. Hoy `android/README.md` (línea 39)
-  afirma que los únicos permisos del manifiesto son `USE_BIOMETRIC` y `CAMERA`: esa frase **hay que
-  actualizarla** en la migración. `VerifyManifest` pasa a
-  **exigirlo** y a comprobar que se sigue cumpliendo `FLAG_SECURE`, aunque esto último no se puede ver
-  en el manifiesto y lo cubre un test instrumentado.
-- **Falsos positivos aceptados**: con API 28-30, las apps que oscurecen la pantalla (filtros de luz
-  azul) dejan la app sin respuesta en las zonas que cubren. El aviso explica por qué. Los
-  *overlays* de accesibilidad no están afectados.
+    - sets `activity.window.decorView.filterTouchesWhenObscured = true`. Compose receives the taps
+      through the root `View`, so the *decor view* is enough;
+    - if `SDK_INT >= 31`, it calls `activity.window.setHideOverlayWindows(true)`.
+  - `@Composable fun ProtectDialogWindow()`: it is placed inside the content of each dialog, gets
+    its window with `(LocalView.current.parent as? DialogWindowProvider)?.window` and applies the same thing
+    (`decorView.filterTouchesWhenObscured = true` and, with `SDK_INT >= 31`, `setHideOverlayWindows(true)`).
+    Equivalent alternative: a `ProtectedAlertDialog` container of our own in `ui/Components.kt` that
+    does it once and replaces all the `AlertDialog`s of the app; that way a new dialog cannot be
+    forgotten. This one is preferred, with a `grep` check in CI that no
+    `AlertDialog(` remains outside `Components.kt`.
+  - Pure function `fun obscuredTouch(flags: Int): Obscured` with the values `NONE`, `FULL`
+    (`MotionEvent.FLAG_WINDOW_IS_OBSCURED`) and `PARTIAL` (`FLAG_WINDOW_IS_PARTIALLY_OBSCURED`, API 29+).
+    It receives the constants as a parameter, so it can be tested on the JVM.
+  - `object OverlayWarning { val detected: StateFlow<Boolean> }`, which is set to `true` as soon as a
+    `FULL` or `PARTIAL` tap arrives.
+- **Activities**: each one calls `protectFromOverlays(this)` next to `excludeFromAutofill(this)`, and
+  overrides `dispatchTouchEvent` to notify `OverlayWarning` before calling `super`.
+  - A `FULL` tap is already discarded by the system through the filter, so the flow is not changed.
+  - A `PARTIAL` tap is **not** discarded: a chat bubble elsewhere on the screen is normal.
+- **Response**: a non-blocking warning in `ui/Components.kt` (`OverlayWarningBanner`) that is shown
+  at the top in `AppRoot` and in the two autofill activities: «Otra app está mostrando algo encima
+  de OpenPassword. Por seguridad se ignoran los toques tapados». The vault is not locked.
+- **Manifest**: `<uses-permission android:name="android.permission.HIDE_OVERLAY_WINDOWS" />`.
+  It is a normal permission (granted at install) and the API requires it. Today `android/README.md` (line 39)
+  claims that the only permissions in the manifest are `USE_BIOMETRIC` and `CAMERA`: that sentence **must be
+  updated** in the migration. `VerifyManifest` starts
+  **requiring it** and checking that `FLAG_SECURE` is still met, although the latter cannot be seen
+  in the manifest and is covered by an instrumented test.
+- **Accepted false positives**: with API 28-30, apps that obscure the screen (blue-light
+  filters) leave the app unresponsive in the areas they cover. The warning explains why. Accessibility
+  *overlays* are not affected.
 
-### A10 · Detección de root sin red
+### A10 · Offline root detection
 
-Decisión: **solo se avisa, nunca se bloquea.** El público de F-Droid usa a menudo ROM alternativas
-(LineageOS: compilaciones `userdebug`, `test-keys`) sin root. Bloquear expulsaría a usuarios
-legítimos y, además, no sirve contra un root que se oculta (Magisk). El modelo de amenazas ya deja A10
-fuera de alcance, así que el aviso es informativo.
+Decision: it **only warns, it never blocks.** The F-Droid audience often uses alternative ROMs
+(LineageOS: `userdebug`, `test-keys` builds) without root. Blocking would push out legitimate
+users and, besides, it is useless against a root that hides itself (Magisk). The threat model already leaves A10
+out of scope, so the warning is informational.
 
-- **Fichero nuevo** `security/RootSignals.kt`, en Kotlin puro y sin Android:
+- **New file** `security/RootSignals.kt`, in pure Kotlin and without Android:
   - `interface DeviceProbe { fun fileExists(path: String): Boolean; fun packageInstalled(name: String): Boolean; val buildTags: String?; val buildType: String }`;
   - `enum class RootSignal { SU_BINARY, ROOT_MANAGER_APP, TEST_KEYS, DEBUG_BUILD }`;
   - `object RootDetector { fun evaluate(probe: DeviceProbe): Set<RootSignal> }`;
-  - las listas de rutas y paquetes como constantes del objeto, para que el test las recorra.
-- **Heurísticas**:
-  - rutas de `su`: `/system/bin/su`, `/system/xbin/su`, `/sbin/su`, `/su/bin/su`,
-    `/data/local/xbin/su`, `/data/local/bin/su`, `/system/sd/xbin/su`, `/vendor/bin/su`, y también
-    `/data/adb/magisk` y `/data/adb/ksu`;
-  - paquetes: `com.topjohnwu.magisk`, `me.weishu.kernelsu`, `eu.chainfire.supersu`,
+  - the path and package lists as constants of the object, so the test can iterate over them.
+- **Heuristics**:
+  - `su` paths: `/system/bin/su`, `/system/xbin/su`, `/sbin/su`, `/su/bin/su`,
+    `/data/local/xbin/su`, `/data/local/bin/su`, `/system/sd/xbin/su`, `/vendor/bin/su`, and also
+    `/data/adb/magisk` and `/data/adb/ksu`;
+  - packages: `com.topjohnwu.magisk`, `me.weishu.kernelsu`, `eu.chainfire.supersu`,
     `com.koushikdutta.superuser`, `com.noshufou.android.su`, `com.kingroot.kinguser`;
-  - `Build.TAGS` que contiene `test-keys`;
-  - `Build.TYPE` igual a `userdebug` o `eng`.
-- **Lo que no se usa, a propósito**:
-  - `android.os.SystemProperties` por reflexión (interfaces fuera del SDK, restringidas desde la API 28);
-  - `Runtime.exec("su")` o `getprop` (lanzar procesos es una señal sospechosa para el auditor);
-  - Play Integrity o SafetyNet (red y Google);
-  - la atestación de claves (`RootOfTrust.verifiedBootState`), que se puede hacer sin red pero exige
-    analizar ASN.1 y queda para el futuro.
-- **Visibilidad de paquetes (API 30+)**: un bloque `<queries>` con los paquetes concretos en
-  `AndroidManifest.xml`. **No** se usa `QUERY_ALL_PACKAGES`.
-- **Implementación Android** `security/AndroidDeviceProbe.kt`: usa `File.exists`,
-  `PackageManager.getPackageInfo` y `Build`.
-- **Cuándo se evalúa**: una vez en `OpenPasswordApp.onCreate`, en `Dispatchers.IO`, y se expone como
+  - `Build.TAGS` containing `test-keys`;
+  - `Build.TYPE` equal to `userdebug` or `eng`.
+- **What is deliberately not used**:
+  - `android.os.SystemProperties` through reflection (interfaces outside the SDK, restricted since API 28);
+  - `Runtime.exec("su")` or `getprop` (spawning processes is a suspicious signal for the auditor);
+  - Play Integrity or SafetyNet (network and Google);
+  - key attestation (`RootOfTrust.verifiedBootState`), which can be done offline but requires
+    parsing ASN.1 and is left for the future.
+- **Package visibility (API 30+)**: a `<queries>` block with the specific packages in
+  `AndroidManifest.xml`. `QUERY_ALL_PACKAGES` is **not** used.
+- **Android implementation** `security/AndroidDeviceProbe.kt`: it uses `File.exists`,
+  `PackageManager.getPackageInfo` and `Build`.
+- **When it is evaluated**: once in `OpenPasswordApp.onCreate`, on `Dispatchers.IO`, and exposed as
   `val rootSignals: StateFlow<Set<RootSignal>>`.
-- **Aviso en la UI**:
-  - una tarjeta descartable en `ui/unlock/UnlockScreen.kt` y una sección «Seguridad del dispositivo»
-    en `ui/settings/SettingsScreen.kt`;
-  - el descarte se guarda en `SharedPreferences` junto con el conjunto de señales: si aparece una
-    señal nueva, el aviso vuelve a salir.
-  - Texto: «Este dispositivo parece tener root o una compilación de depuración. Con root, otras apps
+- **Warning in the UI**:
+  - a dismissible card in `ui/unlock/UnlockScreen.kt` and a «Seguridad del dispositivo» section
+    in `ui/settings/SettingsScreen.kt`;
+  - the dismissal is saved in `SharedPreferences` together with the set of signals: if a new
+    signal appears, the warning shows up again.
+  - Text: «Este dispositivo parece tener root o una compilación de depuración. Con root, otras apps
     pueden leer tus secretos de la memoria. OpenPassword no puede protegerte en ese caso».
-- **Falsos positivos aceptados**: ROM personalizadas sin root (`test-keys`, `userdebug`), emuladores y
-  paquetes de gestión de root instalados pero sin usar.
-- **Falsos negativos aceptados**: Magisk oculto (paquete con otro nombre, DenyList) y KernelSU con
-  rutas ocultas.
+- **Accepted false positives**: custom ROMs without root (`test-keys`, `userdebug`), emulators and
+  root management packages that are installed but unused.
+- **Accepted false negatives**: hidden Magisk (package under another name, DenyList) and KernelSU with
+  hidden paths.
 
 ### Tests
 
-| Test | Tipo | Cubre |
+| Test | Type | Covers |
 |---|---|---|
-| `app/src/test/.../RootDetectorTest.kt` | JUnit 4 con un `DeviceProbe` falso | Cada señal por separado; ninguna señal en un perfil «limpio»; `test-keys` dentro de otras etiquetas; las rutas y paquetes de las listas |
-| `app/src/test/.../OverlayProtectionTest.kt` | JUnit 4 | `obscuredTouch` con combinaciones de banderas |
-| `app/src/androidTest/.../OverlayProtectionTest.kt` | Instrumentado (emulador de la CI local) | Las tres actividades tienen `decorView.filterTouchesWhenObscured == true` y `FLAG_SECURE` en `window.attributes.flags`; **además**, cada diálogo que muestran (contraseña maestra, importación, borrado) tiene `filterTouchesWhenObscured == true` en la ventana del propio diálogo, y un toque con la bandera `FLAG_WINDOW_IS_OBSCURED` sobre su botón de confirmar no se entrega |
-| `VerifyManifest` | Build | Que exista `HIDE_OVERLAY_WINDOWS` |
-| Manual (lista de comprobación en `docs/audit/`) | Dispositivo | Una app de *overlay* de pruebas sobre `UnlockScreen` (API 30 y 34) y un emulador `userdebug` (debe mostrar el aviso) |
+| `app/src/test/.../RootDetectorTest.kt` | JUnit 4 with a fake `DeviceProbe` | Each signal separately; no signal on a "clean" profile; `test-keys` inside other tags; the paths and packages in the lists |
+| `app/src/test/.../OverlayProtectionTest.kt` | JUnit 4 | `obscuredTouch` with combinations of flags |
+| `app/src/androidTest/.../OverlayProtectionTest.kt` | Instrumented (local CI emulator) | The three activities have `decorView.filterTouchesWhenObscured == true` and `FLAG_SECURE` in `window.attributes.flags`; **in addition**, each dialog they show (master password, import, deletion) has `filterTouchesWhenObscured == true` on the dialog's own window, and a tap with the `FLAG_WINDOW_IS_OBSCURED` flag on its confirm button is not delivered |
+| `VerifyManifest` | Build | That `HIDE_OVERLAY_WINDOWS` exists |
+| Manual (checklist in `docs/audit/`) | Device | A test *overlay* app over `UnlockScreen` (API 30 and 34) and a `userdebug` emulator (it must show the warning) |
 
-No hace falta un dispositivo rooteado: `DeviceProbe` es la frontera de prueba.
+A rooted device is not needed: `DeviceProbe` is the test boundary.
 
-### Migración
+### Migration
 
-1. Primero `OverlayProtection.kt` (incluida la protección de diálogos) con sus tests, el manifiesto y
-   las tres actividades; después el aviso.
-2. Después `RootSignals.kt` y `AndroidDeviceProbe.kt` con sus tests, `<queries>` y el aviso en la UI.
-3. Actualizar `docs/threat-model.md`:
-   - en A7, el texto real (incluye `setHideOverlayWindows` en API 31+, la protección de los diálogos y
-     las limitaciones en API 28-30);
-   - en A10: «aviso heurístico, sin red, que se puede eludir».
-4. Actualizar `android/README.md` (línea 39): la frase «los únicos permisos del manifiesto son
-   `USE_BIOMETRIC` y `CAMERA`» pasa a incluir `HIDE_OVERLAY_WINDOWS`. También `docs/fdroid/README.md`
-   si lista permisos (por verificar).
+1. First `OverlayProtection.kt` (including dialog protection) with its tests, the manifest and
+   the three activities; then the warning.
+2. Then `RootSignals.kt` and `AndroidDeviceProbe.kt` with their tests, `<queries>` and the warning in the UI.
+3. Update `docs/threat-model.md`:
+   - in A7, the real text (it includes `setHideOverlayWindows` on API 31+, dialog protection and
+     the limitations on API 28-30);
+   - in A10: «aviso heurístico, sin red, que se puede eludir».
+4. Update `android/README.md` (line 39): the sentence «los únicos permisos del manifiesto son
+   `USE_BIOMETRIC` y `CAMERA`» now includes `HIDE_OVERLAY_WINDOWS`. Also `docs/fdroid/README.md`
+   if it lists permissions (to be verified).
 
 ---
 
-## ADR-AUD-07 · Límites de la KDF y denegación de servicio
+## ADR-AUD-07 · KDF limits and denial of service
 
-### Contexto: el formato v1 sí acota los parámetros, y se demuestra en el código
+### Context: the v1 format does bound the parameters, and the code shows it
 
-- `core/src/crypto/kdf.rs` define
-  `KdfParams::MAXIMUM = argon2id(2_097_152, 16, 16)` (2 GiB, 16 pasadas, 16 carriles).
-  `check_bounds()` rechaza cualquier parámetro por encima de ese máximo y lo que `argon2::Params::new`
-  no acepte.
-- `check_bounds` se aplica en dos sitios:
-  1. en `backup::parse` (`core/src/backup/mod.rs`, `header.vault.kdf.check_bounds()?`), **antes** de
-     pedir la contraseña;
-  2. en `derive_kek` (`params.check_bounds()?` como primera instrucción). Por ahí pasan **todos** los
-     caminos hacia Argon2: `UnlockedVault::unlock`, `rekey`, `backup::open` y el `Vault::unlock` de la FFI.
-- Está especificado en `docs/crypto-spec.md` §5 (fila «Máximo aceptado al leer») y en
-  `docs/opvault-format.md:58`. Los tests están en `kdf.rs` (`bounds_reject_costly_or_invalid_params`)
-  y el objetivo `backup_header` lo recorre.
-- Hay un filtro antes de la KDF: `UnlockedVault::unlock` compara `header.secret_key_id` con el de la
-  SK del usuario y devuelve `WrongSecretKey` **antes** de derivar.
+- `core/src/crypto/kdf.rs` defines
+  `KdfParams::MAXIMUM = argon2id(2_097_152, 16, 16)` (2 GiB, 16 passes, 16 lanes).
+  `check_bounds()` rejects any parameter above that maximum and anything `argon2::Params::new`
+  does not accept.
+- `check_bounds` is applied in two places:
+  1. in `backup::parse` (`core/src/backup/mod.rs`, `header.vault.kdf.check_bounds()?`), **before**
+     asking for the password;
+  2. in `derive_kek` (`params.check_bounds()?` as the first statement). **All** the paths to Argon2
+     go through it: `UnlockedVault::unlock`, `rekey`, `backup::open` and the FFI `Vault::unlock`.
+- It is specified in `docs/crypto-spec.md` §5 (row «Máximo aceptado al leer») and in
+  `docs/opvault-format.md:58`. The tests are in `kdf.rs` (`bounds_reject_costly_or_invalid_params`)
+  and the `backup_header` target exercises it.
+- There is a filter before the KDF: `UnlockedVault::unlock` compares `header.secret_key_id` with the one of
+  the user's SK and returns `WrongSecretKey` **before** deriving.
 
-### Pero el techo deja un DoS en móvil
+### But the ceiling leaves a DoS on mobile
 
-- 2 GiB es más de lo que puede reservar un proceso de armv7 y más de lo que tienen muchos teléfonos.
-  `argon2` 0.5 reserva la memoria de bloques con una asignación infalible, así que un fallo de
-  memoria **aborta el proceso** aunque se adopte ADR-AUD-03. Si el sistema sobrecompromete memoria, el
-  *low-memory killer* mata la app durante el relleno.
-- En tiempo de cálculo: 2 GiB × 16 pasadas son unas 43 veces el coste del perfil recomendado
-  (256 MiB × 3). En un móvil, eso son minutos de CPU que no se pueden cancelar desde Kotlin.
-- **Cómo se alcanza**:
-  - `VaultSession.importBackup` con un respaldo **ajeno**: el atacante entrega el fichero **y** su
-    SK, así que el filtro de `secret_key_id` no sirve;
+- 2 GiB is more than an armv7 process can reserve and more than many phones have.
+  `argon2` 0.5 reserves the block memory with an infallible allocation, so an out-of-memory
+  **aborts the process** even if ADR-AUD-03 is adopted. If the system overcommits memory, the
+  *low-memory killer* kills the app during the fill.
+- In compute time: 2 GiB × 16 passes is about 43 times the cost of the recommended profile
+  (256 MiB × 3). On a phone, that is minutes of CPU that cannot be cancelled from Kotlin.
+- **How it is reached**:
+  - `VaultSession.importBackup` with a **foreign** backup: the attacker supplies the file **and** its
+    SK, so the `secret_key_id` filter is useless;
   - `VaultSession.restore`;
-  - un respaldo propio sustituido en la nube (A4): el `secret_key_id` es visible en cualquier cabecera
-    de un respaldo legítimo de la víctima.
+  - one's own backup replaced in the cloud (A4): the `secret_key_id` is visible in any header
+    of a legitimate backup of the victim.
 
-  El efecto es un cierre o un cuelgue que se puede repetir. No hay pérdida de datos, porque la
-  restauración solo escribe después de abrir.
-- La cabecera local (`VaultStorage.readHeader`) solo la puede manipular quien escribe en el
-  almacenamiento privado de la app, es decir, un atacante con root (fuera de alcance).
-- **KDBX**, relacionado: `core/src/import/kdbx.rs:35-37` acepta Argon2 de hasta 1 GiB con
-  **1000 iteraciones** y AES-KDF de 200 millones de rondas. 1 GiB × 1000 son horas. El usuario elige
-  el fichero, pero sigue siendo un DoS.
-- La app solo crea baúles con `RECOMMENDED` (256 MiB, 3, 4) o `MINIMUM` (64 MiB, 2, 1), según la RAM
-  (`OpenPasswordApp.kt`, `kdfProfileFor`). La CLI usa `RECOMMENDED` (`cli/src/main.rs:168`) y los
-  vectores usan 256 KiB o 64 MiB. **Ningún fichero creado por OpenPassword supera 256 MiB, 3 pasadas
-  y 4 carriles.**
+  The effect is a crash or a hang that can be repeated. There is no data loss, because
+  restore only writes after opening.
+- The local header (`VaultStorage.readHeader`) can only be manipulated by whoever writes to the app's private
+  storage, that is, an attacker with root (out of scope).
+- **KDBX**, related: `core/src/import/kdbx.rs:35-37` accepts Argon2 up to 1 GiB with
+  **1000 iterations** and AES-KDF with 200 million rounds. 1 GiB × 1000 is hours. The user chooses
+  the file, but it is still a DoS.
+- The app only creates vaults with `RECOMMENDED` (256 MiB, 3, 4) or `MINIMUM` (64 MiB, 2, 1), depending on
+  RAM (`OpenPasswordApp.kt`, `kdfProfileFor`). The CLI uses `RECOMMENDED` (`cli/src/main.rs:168`) and the
+  vectors use 256 KiB or 64 MiB. **No file created by OpenPassword exceeds 256 MiB, 3 passes
+  and 4 lanes.**
 
-### Opciones
+### Options
 
-1. No hacer nada: el formato ya acota.
-2. Bajar `KdfParams::MAXIMUM` en el núcleo. Cambia lo que el formato v1 considera válido, y con ello
-   la especificación y la CLI.
-3. Mantener el máximo del formato y añadir en `op-ffi` un **techo de plataforma** más bajo, que se
-   comprueba antes de cualquier KDF, más una comprobación de RAM en Kotlin antes de llamar.
+1. Do nothing: the format already bounds it.
+2. Lower `KdfParams::MAXIMUM` in the core. It changes what the v1 format considers valid, and with that
+   the specification and the CLI.
+3. Keep the format maximum and add a lower **platform ceiling** in `op-ffi`, checked
+   before any KDF, plus a RAM check in Kotlin before calling.
 
-### Decisión
+### Decision
 
-Opción 3.
+Option 3.
 
-- **El formato v1 no cambia**: `MAXIMUM`, la especificación y los vectores siguen igual. La validez
-  del formato y la política de una plataforma son cosas distintas, y la política vive en la capa de
-  la plataforma (`op-ffi`), lo que mantiene la dirección de dependencias.
-- **En el núcleo**, un método puro nuevo en `core/src/crypto/kdf.rs`:
-  `pub fn check_within(&self, limit: &KdfParams) -> Result<()>`. Es `check_bounds` generalizado, y
-  `check_bounds` pasa a ser `self.check_within(&Self::MAXIMUM)`, sin cambiar su comportamiento.
-- **En `op-ffi`** (`ffi/src/lib.rs`):
-  - `const MOBILE_MAXIMUM: KdfParams = KdfParams::argon2id(524_288, 6, 8)` (512 MiB, 6 pasadas, 8
-    carriles). Razonamiento con números:
-    - es el doble de memoria y de pasadas del perfil recomendado (256 MiB / 3 / 4), así que **4 veces**
-      el coste (512 × 6 = 3072 frente a 256 × 3 = 768 MiB·pasada): margen para subir el perfil en el
-      futuro sin tocar el techo;
-    - ningún baúl creado por la app lo supera (`OpenPasswordApp.kt:61` solo usa `MINIMUM` o
-      `RECOMMENDED`), de modo que no invalida nada que haya salido de OpenPassword;
-    - el techo que se descartó, 1 GiB / 8 / 8, cuesta 8192 MiB·pasada, unas 10,7 veces el recomendado,
-      y 1 GiB seguido en un proceso de 32 bits corre riesgo de fallar por fragmentación del espacio de
-      direcciones. 512 MiB lo reduce mucho, aunque no desaparece del todo en armv7;
-    - alternativa que se somete a aprobación: un techo **por ABI** (32 bits: 256 MiB / 3 / 4, que es
-      exactamente lo que crea la app; 64 bits: 512 MiB / 6 / 8). Complica el comportamiento entre
-      dispositivos (un respaldo se abre en un teléfono y no en otro) a cambio de más seguridad en
+- **The v1 format does not change**: `MAXIMUM`, the specification and the vectors stay the same. The validity
+  of the format and the policy of a platform are different things, and the policy lives in the
+  platform layer (`op-ffi`), which keeps the dependency direction.
+- **In the core**, a new pure method in `core/src/crypto/kdf.rs`:
+  `pub fn check_within(&self, limit: &KdfParams) -> Result<()>`. It is `check_bounds` generalized, and
+  `check_bounds` becomes `self.check_within(&Self::MAXIMUM)`, without changing its behavior.
+- **In `op-ffi`** (`ffi/src/lib.rs`):
+  - `const MOBILE_MAXIMUM: KdfParams = KdfParams::argon2id(524_288, 6, 8)` (512 MiB, 6 passes, 8
+    lanes). Reasoning with numbers:
+    - it is double the memory and the passes of the recommended profile (256 MiB / 3 / 4), so **4 times**
+      the cost (512 × 6 = 3072 versus 256 × 3 = 768 MiB·pass): room to raise the profile in the
+      future without touching the ceiling;
+    - no vault created by the app exceeds it (`OpenPasswordApp.kt:61` only uses `MINIMUM` or
+      `RECOMMENDED`), so it does not invalidate anything that came out of OpenPassword;
+    - the ceiling that was discarded, 1 GiB / 8 / 8, costs 8192 MiB·pass, about 10.7 times the recommended one,
+      and 1 GiB in a row in a 32-bit process risks failing due to address space
+      fragmentation. 512 MiB reduces it a lot, although it does not disappear completely on armv7;
+    - alternative submitted for approval: a ceiling **per ABI** (32-bit: 256 MiB / 3 / 4, which is
+      exactly what the app creates; 64-bit: 512 MiB / 6 / 8). It complicates behavior across
+      devices (a backup opens on one phone and not on another) in exchange for more security on
       armv7;
-    - es un techo **de plataforma** (`op-ffi`). `KdfParams::MAXIMUM` (2 GiB / 16 / 16), la
-      especificación del formato v1 y los vectores **no cambian**;
-  - se comprueba en `Vault::unlock` (después de `parse_header`) y en `open_backup`, antes de llamar a
-    `backup::open`. Para eso se lee la cabecera con `backup::read_header(&bytes)`; analizarla dos
-    veces cuesta muy poco;
-  - una variante nueva `OpError::KdfTooExpensive { m_kib: u32, t: u32, p: u32 }`. Hoy
-    `E::KdfParams(_)` se traduce a `Internal`; cuando el límite se supera, la traducción pasa a ser
+    - it is a **platform** ceiling (`op-ffi`). `KdfParams::MAXIMUM` (2 GiB / 16 / 16), the
+      specification of the v1 format and the vectors **do not change**;
+  - it is checked in `Vault::unlock` (after `parse_header`) and in `open_backup`, before calling
+    `backup::open`. For that the header is read with `backup::read_header(&bytes)`; parsing it twice
+    costs very little;
+  - a new variant `OpError::KdfTooExpensive { m_kib: u32, t: u32, p: u32 }`. Today
+    `E::KdfParams(_)` is translated to `Internal`; when the limit is exceeded, the translation becomes
     `InvalidInput`.
-- **Comprobación previa en Kotlin**: una función nueva de la FFI, `backup_kdf(bytes: Vec<u8>) -> KdfInfo { m_kib, t, p }`,
-  que no lleva ningún secreto.
-  - En `VaultSession.restore` e `importBackup`: si `m_kib × 1024 > totalMem / 2`, se rechaza con un
-    mensaje claro antes de llamar a `openBackup`. Se reutiliza la consulta de
-    `ActivityManager.MemoryInfo` de `kdfProfileFor`. Esta comprobación es **complementaria**: con 4 GB
-    de RAM el umbral es 2 GiB y deja pasar cualquier valor por debajo del techo de `op-ffi`, que es
-    la barrera real. Solo sirve para dispositivos con poca RAM (por ejemplo, 1 GB deja el umbral en
-    512 MiB; con 512 MiB de techo, solo cambia algo por debajo de 1 GB de RAM).
-  - El caso se añade a `OpException.toUserMessage()` (`VaultSession.kt:462`).
-- **KDBX**: un presupuesto conjunto `memory × iterations ≤ 16 GiB·pasada` en `argon2_kdf` (por
-  ejemplo, 64 MiB × 256 o 1 GiB × 16). Necesita aprobación (ver la lista final), porque puede rechazar
-  bases de KeePass legítimas con parámetros muy altos.
+- **Prior check in Kotlin**: a new FFI function, `backup_kdf(bytes: Vec<u8>) -> KdfInfo { m_kib, t, p }`,
+  which carries no secret.
+  - In `VaultSession.restore` and `importBackup`: if `m_kib × 1024 > totalMem / 2`, it is rejected with a
+    clear message before calling `openBackup`. The `ActivityManager.MemoryInfo` query of
+    `kdfProfileFor` is reused. This check is **complementary**: with 4 GB
+    of RAM the threshold is 2 GiB and it lets through any value below the `op-ffi` ceiling, which is
+    the real barrier. It is only useful for devices with little RAM (for example, 1 GB leaves the threshold at
+    512 MiB; with a 512 MiB ceiling, it only changes anything below 1 GB of RAM).
+  - The case is added to `OpException.toUserMessage()` (`VaultSession.kt:462`).
+- **KDBX**: a joint budget `memory × iterations ≤ 16 GiB·pass` in `argon2_kdf` (for
+  example, 64 MiB × 256 or 1 GiB × 16). It needs approval (see the final list), because it may reject
+  legitimate KeePass databases with very high parameters.
 
-### Consecuencias y coste
+### Consequences and cost
 
-- Un respaldo con un coste entre el techo móvil y el máximo del formato es válido según v1 pero no se
-  abre en Android. Se informa con un error claro, y lo podría abrir la CLI. Ningún baúl creado por la
-  app queda afectado (la app nunca supera 256 MiB / 3 / 4).
+- A backup with a cost between the mobile ceiling and the format maximum is valid according to v1 but is not
+  opened on Android. It is reported with a clear error, and the CLI could open it. No vault created by the
+  app is affected (the app never exceeds 256 MiB / 3 / 4).
 - Tests:
-  - en `kdf.rs`, `check_within` en los bordes;
-  - en `ffi/src/lib.rs`, un respaldo con `m_kib = 524_289` falla con `KdfTooExpensive` sin tardar
-    (el test debe acabar en milisegundos). La cabecera se construye a mano a partir de una copia real,
-    porque `create` no permite crear baúles así;
-  - el objetivo `backup_header` comprueba también `check_within(MOBILE_MAXIMUM)`.
-- No hace falta cambiar el formato ni migrar datos.
+  - in `kdf.rs`, `check_within` at the boundaries;
+  - in `ffi/src/lib.rs`, a backup with `m_kib = 524_289` fails with `KdfTooExpensive` without taking long
+    (the test must finish in milliseconds). The header is built by hand from a real backup,
+    because `create` does not allow vaults like that to be created;
+  - the `backup_header` target also checks `check_within(MOBILE_MAXIMUM)`.
+- There is no need to change the format or migrate data.
 
-### Migración
+### Migration
 
-1. `check_within` en el núcleo y sus tests.
-2. El techo y el error en `op-ffi`, con sus tests.
-3. `backup_kdf` y la comprobación previa en Kotlin.
-4. El presupuesto de KDBX, si se aprueba.
-5. Una nota en `docs/crypto-spec.md` §5: «las plataformas PUEDEN aplicar un techo más bajo; Android:
+1. `check_within` in the core and its tests.
+2. The ceiling and the error in `op-ffi`, with their tests.
+3. `backup_kdf` and the prior check in Kotlin.
+4. The KDBX budget, if approved.
+5. A note in `docs/crypto-spec.md` §5: «las plataformas PUEDEN aplicar un techo más bajo; Android:
    512 MiB / 6 / 8».
 
 ---
 
-## Plan de implementación (orden y verificación)
+## Implementation plan (order and verification)
 
-Cada paso se puede verificar por separado.
+Each step can be verified separately.
 
-| # | Paso | Ficheros | Depende de | Verificación |
+| # | Step | Files | Depends on | Verification |
 |---|---|---|---|---|
-| 1 | `lock`, `is_locked` y `with` resistentes al envenenamiento | `ffi/src/lib.rs` | — | `cargo test -p op-ffi` con los dos tests nuevos |
-| 2 | `panic = "unwind"` y medición de tamaño | `Cargo.toml` | 1 | `cargo build --release`; tamaño de `libop_ffi.so` por ABI anotado en el PR |
-| 3 | Capturar `InternalException` en toda llamada FFI desde corrutinas de UI y pasar la sesión a `Locked` ante un fallo interno | `session/VaultSession.kt` (`:108-112`, `:266`, `withVault`), `ui/settings/SettingsScreen.kt` (`:405-412`), `ui/settings/ExternalImport.kt` (`:138`), `ui/vault/ItemEditorScreen.kt` (`:133`), `ui/unlock/BiometricFlows.kt` (`:31`), `ui/onboarding/OnboardingScreen.kt` (`:246`), `autofill/SaveLoginActivity.kt` (`:191`), `backup/AutoBackup.kt` (`:102`) | 2 | `./gradlew :app:testDebugUnitTest`; `grep` de `catch (e: OpException)` sin captura de `InternalException`/`Exception` al lado: cero resultados |
-| 4 | Prueba aislada de `SecretString` (`custom_type!`) | `ffi/src/lib.rs` (o `ffi/src/secret.rs`) | — | Bindings regenerados sin cambios de tipo en `op_ffi.kt` |
-| 5 | Aplicar `SecretString` y `Zeroizing` en toda la API | `ffi/src/lib.rs` | 4 | `cargo test -p op-ffi`; app compilada |
-| 6 | `check_within`, `MOBILE_MAXIMUM`, `KdfTooExpensive` y `backup_kdf` | `core/src/crypto/kdf.rs`, `ffi/src/lib.rs` | 5 (misma superficie) | Tests de bordes; un test de DoS que acaba en < 100 ms |
-| 7 | Comprobación previa de RAM y mensaje de usuario | `session/VaultSession.kt` | 6 | Test unitario de la función de decisión |
-| 8 | Presupuesto de KDBX (si se aprueba) | `core/src/import/kdbx.rs` | — | Tests con parámetros en el borde |
-| 9 | Protección contra *overlays* (A7), incluidos los diálogos | `security/OverlayProtection.kt`, las 3 actividades, `ui/Components.kt` (`ProtectedAlertDialog`) y los `AlertDialog` de `SettingsScreen.kt`, `ExternalImport.kt` y `VaultListScreen.kt`, `AndroidManifest.xml`, `build.gradle.kts` (`VerifyManifest`), `android/README.md` (permisos) | — | Tests unitarios e instrumentados (actividades y diálogos); `assembleRelease` falla si se quita el permiso |
-| 10 | Detección de root (A10) | `security/RootSignals.kt`, `security/AndroidDeviceProbe.kt`, `OpenPasswordApp.kt`, `ui/unlock/UnlockScreen.kt`, `ui/settings/SettingsScreen.kt`, `AndroidManifest.xml` (`<queries>`) | — | `RootDetectorTest`; emulador `userdebug` con aviso |
-| 11 | Ganchos `cfg(fuzzing)` y 5 objetivos nuevos con *seeds* | `core/src/lib.rs`, `core/src/backup/mod.rs`, `fuzz/` | 6 | `cargo +nightly fuzz build`; 60 s sin fallos por objetivo; `cargo build --release` no expone `fuzzing` |
-| 12 | Fuzzing nocturno | `.github/workflows/fuzz-nightly.yml`, `ci.yml` | 11 | Una ejecución manual (`workflow_dispatch`) en verde |
-| 13 | Tests de invariantes de `LoginMatcher` | `app/src/test/.../LoginMatcherTest.kt` | — | `testDebugUnitTest` |
-| 14 | `cargo-deny` | `deny.toml`, `ci.yml`, borrar `.cargo/audit.toml` | — | `cargo deny --locked check` en verde |
-| 15 | Actions por SHA, Dependabot y versiones de herramientas fijadas | `ci.yml`, `.github/dependabot.yml` | 14 | CI en verde; ningún `uses:` sin SHA (`grep`) |
-| 16 | Verificación de dependencias de Gradle | `android/gradle/verification-metadata.xml`, `android/README.md` | 15 | Build en Linux (CI) y en macOS en verde; falla si se altera una suma |
-| 17 | Job `release`: SBOM y atestación | `ci.yml`, `android/app/build.gradle.kts` (plugin CycloneDX) | 15, 16 | Ejecución con una etiqueta de prueba (`v0.2.0-rc1`); `gh attestation verify` pasa |
-| 18 | Documentación: modelo de amenazas (A7, A10, residuos), especificación §5 y §10, `fuzz/README.md`, `SECURITY.md` | `docs/` | 1-17 | Revisión; ninguna defensa descrita sin código que la implemente |
-| 19 | Versión 0.2.0, rama `release/0.2`, etiqueta firmada y paquete para el auditor | `Cargo.toml`, `build.gradle.kts`, `fastlane/` | Todo | El SHA-256 del APK de la CI coincide con un build de Linux independiente |
+| 1 | `lock`, `is_locked` and `with` resistant to poisoning | `ffi/src/lib.rs` | — | `cargo test -p op-ffi` with the two new tests |
+| 2 | `panic = "unwind"` and size measurement | `Cargo.toml` | 1 | `cargo build --release`; size of `libop_ffi.so` per ABI noted in the PR |
+| 3 | Catch `InternalException` in every FFI call from UI coroutines and move the session to `Locked` on an internal failure | `session/VaultSession.kt` (`:108-112`, `:266`, `withVault`), `ui/settings/SettingsScreen.kt` (`:405-412`), `ui/settings/ExternalImport.kt` (`:138`), `ui/vault/ItemEditorScreen.kt` (`:133`), `ui/unlock/BiometricFlows.kt` (`:31`), `ui/onboarding/OnboardingScreen.kt` (`:246`), `autofill/SaveLoginActivity.kt` (`:191`), `backup/AutoBackup.kt` (`:102`) | 2 | `./gradlew :app:testDebugUnitTest`; `grep` of `catch (e: OpException)` with no `InternalException`/`Exception` catch next to it: zero results |
+| 4 | Isolated test of `SecretString` (`custom_type!`) | `ffi/src/lib.rs` (or `ffi/src/secret.rs`) | — | Regenerated bindings without type changes in `op_ffi.kt` |
+| 5 | Apply `SecretString` and `Zeroizing` across the whole API | `ffi/src/lib.rs` | 4 | `cargo test -p op-ffi`; app built |
+| 6 | `check_within`, `MOBILE_MAXIMUM`, `KdfTooExpensive` and `backup_kdf` | `core/src/crypto/kdf.rs`, `ffi/src/lib.rs` | 5 (same surface) | Boundary tests; a DoS test that finishes in < 100 ms |
+| 7 | Prior RAM check and user message | `session/VaultSession.kt` | 6 | Unit test of the decision function |
+| 8 | KDBX budget (if approved) | `core/src/import/kdbx.rs` | — | Tests with parameters at the boundary |
+| 9 | Protection against *overlays* (A7), dialogs included | `security/OverlayProtection.kt`, the 3 activities, `ui/Components.kt` (`ProtectedAlertDialog`) and the `AlertDialog`s of `SettingsScreen.kt`, `ExternalImport.kt` and `VaultListScreen.kt`, `AndroidManifest.xml`, `build.gradle.kts` (`VerifyManifest`), `android/README.md` (permissions) | — | Unit and instrumented tests (activities and dialogs); `assembleRelease` fails if the permission is removed |
+| 10 | Root detection (A10) | `security/RootSignals.kt`, `security/AndroidDeviceProbe.kt`, `OpenPasswordApp.kt`, `ui/unlock/UnlockScreen.kt`, `ui/settings/SettingsScreen.kt`, `AndroidManifest.xml` (`<queries>`) | — | `RootDetectorTest`; `userdebug` emulator with the warning |
+| 11 | `cfg(fuzzing)` hooks and 5 new targets with *seeds* | `core/src/lib.rs`, `core/src/backup/mod.rs`, `fuzz/` | 6 | `cargo +nightly fuzz build`; 60 s without failures per target; `cargo build --release` does not expose `fuzzing` |
+| 12 | Nightly fuzzing | `.github/workflows/fuzz-nightly.yml`, `ci.yml` | 11 | One manual run (`workflow_dispatch`) green |
+| 13 | Invariant tests for `LoginMatcher` | `app/src/test/.../LoginMatcherTest.kt` | — | `testDebugUnitTest` |
+| 14 | `cargo-deny` | `deny.toml`, `ci.yml`, delete `.cargo/audit.toml` | — | `cargo deny --locked check` green |
+| 15 | Actions by SHA, Dependabot and pinned tool versions | `ci.yml`, `.github/dependabot.yml` | 14 | CI green; no `uses:` without a SHA (`grep`) |
+| 16 | Gradle dependency verification | `android/gradle/verification-metadata.xml`, `android/README.md` | 15 | Build on Linux (CI) and on macOS green; it fails if a checksum is altered |
+| 17 | `release` job: SBOM and attestation | `ci.yml`, `android/app/build.gradle.kts` (CycloneDX plugin) | 15, 16 | Run with a test tag (`v0.2.0-rc1`); `gh attestation verify` passes |
+| 18 | Documentation: threat model (A7, A10, residue), specification §5 and §10, `fuzz/README.md`, `SECURITY.md` | `docs/` | 1-17 | Review; no described defense without code that implements it |
+| 19 | Version 0.2.0, `release/0.2` branch, signed tag and package for the auditor | `Cargo.toml`, `build.gradle.kts`, `fastlane/` | All | The APK SHA-256 from CI matches an independent Linux build |
 
-Los pasos 1-8, 9-10, 11-13 y 14-17 forman bloques independientes y pueden avanzar en paralelo.
+Steps 1-8, 9-10, 11-13 and 14-17 form independent blocks and can move forward in parallel.
 
-## Riesgos que quedan abiertos
+## Risks that remain open
 
-| Riesgo | Por qué queda abierto | Mitigación o siguiente paso |
+| Risk | Why it remains open | Mitigation or next step |
 |---|---|---|
-| Secretos en `String` de JVM y Compose | No se pueden borrar en la JVM | ADR-AUD-02, opción D (sesión opaca) después de la auditoría; documentado como residuo |
-| `RustBuffer` de salida y copia `String` de salida sin borrar | UniFFI no ofrece un gancho de borrado | Documentado; reconsiderar si UniFFI añade uno |
-| Fallo de memoria en Argon2 = abort | Asignación infalible en `argon2` 0.5; `panic = "unwind"` no lo evita | El techo de 512 MiB / 6 / 8 y la comprobación de RAM **reducen** la probabilidad, pero **no** lo mitigan: un dispositivo con poca memoria libre o un proceso de 32 bits fragmentado puede abortar igualmente, y la comprobación de RAM de Kotlin (`totalMem / 2`) es laxa. Queda abierto; solo lo cerraría una asignación fallible en `argon2` o una KDF en otro proceso |
-| KDF que no se puede cancelar | Llamada FFI bloqueante | Aviso «puede tardar» en la UI; fuera de alcance |
-| Root oculto (Magisk o KernelSU con ocultación) | Las heurísticas locales se pueden eludir por diseño | Solo aviso; A10 sigue fuera de alcance |
-| Tapjacking parcial en API 28-30 | `filterTouchesWhenObscured` no filtra `PARTIALLY_OBSCURED` | Aviso; API 31+ oculta los *overlays* |
-| `StructureParser` sin fuzzing | Depende de `AssistStructure` | Refactor a una abstracción de nodos más adelante, y después Jazzer |
-| Dependencias de Rust sin revisión humana | No se adopta `cargo-vet` | `cargo-deny`, pocas dependencias, versiones fijadas; reconsiderar después de la auditoría |
-| Reversión a una versión anterior (A6) | Sin sincronización no se detecta | Aceptado en v1 |
-| Disparadores de CI para etiquetas y `release/**` | `tags: ['v*']` se añade con el cierre de `v0.1.0` y aún no se ha probado con una etiqueta; `release/**` todavía no existe | ADR-AUD-01, migración 2; verificarlo con una etiqueta `-rc` |
-| Ganchos `cfg(fuzzing)` en el código del núcleo | Código que solo existe en fuzzing | Revisión del auditor; test de que el build de release no exporta el módulo |
+| Secrets in JVM and Compose `String` | They cannot be wiped on the JVM | ADR-AUD-02, option D (opaque session) after the audit; documented as residue |
+| Output `RustBuffer` and output `String` copy not wiped | UniFFI offers no wipe hook | Documented; reconsider if UniFFI adds one |
+| Out of memory in Argon2 = abort | Infallible allocation in `argon2` 0.5; `panic = "unwind"` does not avoid it | The 512 MiB / 6 / 8 ceiling and the RAM check **reduce** the probability, but **do not** mitigate it: a device with little free memory or a fragmented 32-bit process can abort anyway, and the Kotlin RAM check (`totalMem / 2`) is lax. It remains open; only a fallible allocation in `argon2` or a KDF in another process would close it |
+| KDF that cannot be cancelled | Blocking FFI call | «puede tardar» warning in the UI; out of scope |
+| Hidden root (Magisk or KernelSU with concealment) | Local heuristics can be bypassed by design | Warning only; A10 remains out of scope |
+| Partial tapjacking on API 28-30 | `filterTouchesWhenObscured` does not filter `PARTIALLY_OBSCURED` | Warning; API 31+ hides the *overlays* |
+| `StructureParser` without fuzzing | It depends on `AssistStructure` | Refactor to a node abstraction later, and then Jazzer |
+| Rust dependencies without human review | `cargo-vet` is not adopted | `cargo-deny`, few dependencies, pinned versions; reconsider after the audit |
+| Rollback to an earlier version (A6) | Without synchronization it is not detected | Accepted in v1 |
+| CI triggers for tags and `release/**` | `tags: ['v*']` is added with the closing of `v0.1.0` and has not yet been tested with a tag; `release/**` does not exist yet | ADR-AUD-01, migration 2; verify it with an `-rc` tag |
+| `cfg(fuzzing)` hooks in the core code | Code that only exists in fuzzing | Auditor review; test that the release build does not export the module |
 
-## Decisiones que requieren aprobación humana
+## Decisions that require human approval
 
-Todas se aprobaron el **30-oct-2026**, salvo la nº 1, que depende del momento de publicar.
+All were approved on **2026-10-30**, except no. 1, which depends on the moment of publication.
 
-| # | ADR | Decisión | Estado |
+| # | ADR | Decision | Status |
 |---|---|---|---|
-| 1 | ADR-AUD-01 | Qué clave firma las etiquetas, congelación blanda de `core/` y `ffi/` en `main`, y `release/0.2` en `SECURITY.md` | **Pendiente**: la rama y la etiqueta se crean al congelar la `0.2.0` |
-| 2 | ADR-AUD-03 | `panic = "unwind"` y umbral de tamaño (+15 %) | Aprobada e implementada (creció 9,3 %) |
-| 3 | ADR-AUD-07 | Techo móvil de 512 MiB / 6 / 8, aceptando que algún respaldo válido según v1 no se abra en Android | Aprobada e implementada |
-| 4 | ADR-AUD-07 | Presupuesto de KDBX | Aprobada e implementada en 512 MiB / 3 GiB·pase |
-| 5 | ADR-AUD-06 | Avisar sin bloquear ante root y publicar el `<queries>` con los paquetes de root | Aprobada e implementada |
-| 6 | ADR-AUD-06 | `HIDE_OVERLAY_WINDOWS` en el manifiesto y actualización de `android/README.md` | Aprobada e implementada; verificado en dispositivo (DT-01) |
-| 7 | ADR-AUD-04 | Lista de licencias de `deny.toml`, plugin CycloneDX y excepción NCSA de `libfuzzer-sys` | Aprobada e implementada |
-| 8 | ADR-AUD-04 | Atestaciones de Sigstore e `id-token: write` en el job de release | Aprobada e implementada; el job no se ha ejecutado |
-| 9 | ADR-AUD-05 | No adoptar Jazzer ni ClusterFuzzLite antes de la auditoría | Aprobada |
-| 10 | ADR-AUD-02 | Aplazar la sesión opaca y aceptar los residuos documentados | Aprobada |
+| 1 | ADR-AUD-01 | Which key signs the tags, soft freeze of `core/` and `ffi/` in `main`, and `release/0.2` in `SECURITY.md` | **Pending**: the branch and the tag are created when `0.2.0` is frozen |
+| 2 | ADR-AUD-03 | `panic = "unwind"` and size threshold (+15%) | Approved and implemented (it grew 9.3%) |
+| 3 | ADR-AUD-07 | Mobile ceiling of 512 MiB / 6 / 8, accepting that some backup valid according to v1 does not open on Android | Approved and implemented |
+| 4 | ADR-AUD-07 | KDBX budget | Approved and implemented at 512 MiB / 3 GiB·pass |
+| 5 | ADR-AUD-06 | Warning without blocking on root and publishing the `<queries>` with the root packages | Approved and implemented |
+| 6 | ADR-AUD-06 | `HIDE_OVERLAY_WINDOWS` in the manifest and update of `android/README.md` | Approved and implemented; verified on device (DT-01) |
+| 7 | ADR-AUD-04 | License list of `deny.toml`, CycloneDX plugin and NCSA exception for `libfuzzer-sys` | Approved and implemented |
+| 8 | ADR-AUD-04 | Sigstore attestations and `id-token: write` in the release job | Approved and implemented; the job has not been run |
+| 9 | ADR-AUD-05 | Not adopting Jazzer or ClusterFuzzLite before the audit | Approved |
+| 10 | ADR-AUD-02 | Postponing the opaque session and accepting the documented residue | Approved |
 
-Otras decisiones del responsable, fuera de los ADR:
+Other decisions of the owner, outside the ADRs:
 
-- **ID-INT-06**: un elemento ilegible se omite con aviso; no bloquea el desbloqueo ni se toca la fila.
-- **ID-INT-14**: el borrado del portapapeles en segundo plano se acepta como riesgo residual de Android.
-- **F-Droid**: publicación en pausa desde el 30-oct-2026 (ver [`docs/fdroid/README.md`](../fdroid/README.md))).
+- **ID-INT-06**: an unreadable item is skipped with a warning; it neither blocks the unlock nor touches the row.
+- **ID-INT-14**: wiping the clipboard in the background is accepted as residual risk of Android.
+- **F-Droid**: publication paused since 2026-10-30 (see [`docs/fdroid/README.md`](../fdroid/README.md))).

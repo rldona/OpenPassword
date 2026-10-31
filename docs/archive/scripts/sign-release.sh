@@ -20,7 +20,7 @@ trap 'rm -rf "$WORK"' EXIT
 
 gh run download "$RUN_ID" -R rldona/OpenPassword -n app-release-unsigned -D "$WORK"
 UNSIGNED="$WORK/app-release-unsigned.apk"
-echo "APK sin firmar de la CI: $(shasum -a 256 "$UNSIGNED" | cut -d' ' -f1)"
+echo "Unsigned APK from the CI: $(shasum -a 256 "$UNSIGNED" | cut -d' ' -f1)"
 
 # Same schemes as the Gradle release signing: no v1 (minSdk 28), v2 + v3 (key rotation).
 STORE_PASS=$(prop storePassword) KEY_PASS=$(prop keyPassword) \
@@ -32,4 +32,4 @@ STORE_PASS=$(prop storePassword) KEY_PASS=$(prop keyPassword) \
 rm -f "$OUT.idsig"
 
 "$BUILD_TOOLS/apksigner" verify --print-certs "$OUT" | grep -E "certificate SHA-256"
-echo "Firmado: $OUT"
+echo "Signed: $OUT"

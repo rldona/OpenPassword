@@ -1,77 +1,77 @@
-# Alcance de la auditoría (scope of work)
+# Audit scope (scope of work)
 
-Documento para el auditor. Describe qué se audita, con qué versión, cómo reproducir el código y la
-build, qué preguntas concretas nos importan y qué esperamos recibir.
+Document for the auditor. Describes what is audited, with which version, how to reproduce the code and the
+build, which specific questions matter to us and what we expect to receive.
 
-Estado: **pendiente** de completar los campos marcados `PENDIENTE` (SHA congelado, plazos, contactos).
-Ver [`README.md`](README.md)).
+Status: **pending** completion of the fields marked `PENDING` (frozen SHA, deadlines, contacts).
+See [`README.md`](README.md)).
 
-## 1. Resumen
+## 1. Summary
 
-OpenPassword es un gestor de contraseñas **sin conexión** (la app no declara permiso de red),
-**Android primero**, con licencia GPL-3.0-or-later. Toda la criptografía está en una biblioteca Rust
-(`op-core`) que la app Android carga a través de UniFFI (`op-ffi`). Un solo mantenedor; sin
-servidores ni cuentas.
+OpenPassword is an **offline** password manager (the app does not declare the network permission),
+**Android first**, licensed GPL-3.0-or-later. All cryptography lives in a Rust library
+(`op-core`) that the Android app loads through UniFFI (`op-ffi`). A single maintainer; no
+servers or accounts.
 
-## 2. Objetivos y activos a proteger
+## 2. Objectives and assets to protect
 
-Objetivo: que un tercero independiente evalúe si la implementación cumple lo que prometen la
-[especificación criptográfica](../../crypto-spec.md)) y el [modelo de amenazas](../../threat-model.md)), y
-encuentre fallos que permitan a un atacante dentro de ese modelo leer o alterar secretos.
+Objective: that an independent third party assesses whether the implementation delivers what the
+[cryptographic specification](../../crypto-spec.md)) and the [threat model](../../threat-model.md)) promise, and
+finds flaws that would let an attacker within that model read or alter secrets.
 
-| Activo | Ejemplos | Sensibilidad (según el modelo de amenazas) |
+| Asset | Examples | Sensitivity (per the threat model) |
 |---|---|---|
-| Secretos | contraseñas, CVV, PINs, frases semilla, claves API | Crítica |
-| Credenciales de acceso | contraseña maestra, clave secreta (SK) | Crítica |
-| Respaldos | ficheros `.opvault` | igual que los secretos |
-| Metadatos | títulos, URLs, qué servicios usa el usuario | Alta |
+| Secrets | passwords, CVV, PINs, seed phrases, API keys | Critical |
+| Access credentials | master password, secret key (SK) | Critical |
+| Backups | `.opvault` files | same as the secrets |
+| Metadata | titles, URLs, which services the user uses | High |
 
-Atacantes relevantes (A1–A16 del modelo de amenazas): ladrón con el móvil, quien obtiene un
-`.opvault` o lo manipula, proveedor de nube, app maliciosa sin privilegios, web o app de *phishing*
-contra el autorrelleno, cadena de suministro, ficheros importados o QR maliciosos. Están **fuera**
-(modelo de amenazas): root malicioso o firmware alterado, *keylogger* y coacción.
+Relevant attackers (A1–A16 of the threat model): thief with the phone, whoever obtains or manipulates a
+`.opvault`, cloud provider, malicious app without privileges, phishing web or app
+against autofill, supply chain, imported files or malicious QR codes. They are **out**
+(threat model): malicious root or tampered firmware, *keylogger* and coercion.
 
-Importante: dos defensas tienen eficacia limitada **por diseño**. La detección de root (A10) solo
-avisa y se puede eludir. El borrado de secretos en la JVM tiene residuos aceptados (ADR-AUD-02).
-Nos interesa saber si las limitaciones documentadas son las reales, no solo que existan.
+Important: two defenses have limited effectiveness **by design**. Root detection (A10) only
+warns and can be bypassed. Secret wiping in the JVM has accepted residue (ADR-AUD-02).
+We care about knowing whether the documented limitations are the real ones, not only that they exist.
 
-## 3. Versión, código y build
+## 3. Version, code and build
 
-| Dato | Valor |
+| Data point | Value |
 |---|---|
-| Repositorio | <https://github.com/rldona/OpenPassword> |
-| Versión | `v0.2.0` (rama `release/0.2`, etiqueta firmada) |
-| Commit congelado | **PENDIENTE** (SHA de 40 caracteres; es lo que se audita, no el nombre de la etiqueta) |
-| Cambios posteriores | `v0.2.N` firmadas; se entrega `git diff v0.2.(N-1)..v0.2.N` (ver [ADR-AUD-01](decisions.md#adr-aud-01--estrategia-de-congelación))) |
-| Licencia | GPL-3.0-or-later |
+| Repository | <https://github.com/rldona/OpenPassword> |
+| Version | `v0.2.0` (branch `release/0.2`, signed tag) |
+| Frozen commit | **PENDING** (40-character SHA; that is what is audited, not the tag name) |
+| Later changes | signed `v0.2.N`; `git diff v0.2.(N-1)..v0.2.N` is delivered (see [ADR-AUD-01](decisions.md#adr-aud-01--freeze-strategy))) |
+| License | GPL-3.0-or-later |
 
-### Obtener el código
+### Getting the code
 
 ```sh
 git clone https://github.com/rldona/OpenPassword.git
 cd OpenPassword
-git checkout <SHA-congelado>      # PENDIENTE
-git tag -v v0.2.0                 # cuando exista la etiqueta firmada
+git checkout <frozen-SHA>         # PENDING
+git tag -v v0.2.0                 # once the signed tag exists
 ```
 
-La pre-release de GitHub `v0.2.0` adjuntará: `git archive` con su SHA-256, el APK sin firmar de la CI
-y su SHA-256, las SBOM y la atestación de procedencia (ADR-AUD-04, **por implementar**; mientras no
-estén, no se prometen).
+The GitHub `v0.2.0` pre-release will attach: `git archive` with its SHA-256, the unsigned APK from CI
+and its SHA-256, the SBOMs and the provenance attestation (ADR-AUD-04, **to be implemented**; until they
+exist, they are not promised).
 
-### Entorno de build
+### Build environment
 
-Las versiones exactas son las de estos ficheros; no se repiten aquí para no desincronizarlas:
+The exact versions are those in these files; they are not repeated here so as not to de-synchronise them:
 
-- Rust: [`rust-toolchain.toml`](../../../rust-toolchain.toml)) (incluye los tres *targets* de Android).
-- JDK 17, Android SDK (plataforma 37), NDK `30.0.16248370`, `cargo-ndk 4.1.2`:
-  [`android/README.md`](../../../android/README.md)) y [`ci.yml`](../../../.github/workflows/ci.yml)).
-- Gradle: *wrapper* del repositorio (`android/gradlew`), con `distributionSha256Sum`.
+- Rust: [`rust-toolchain.toml`](../../../rust-toolchain.toml)) (it includes the three Android *targets*).
+- JDK 17, Android SDK (platform 37), NDK `30.0.16248370`, `cargo-ndk 4.1.2`:
+  [`android/README.md`](../../../android/README.md)) and [`ci.yml`](../../../.github/workflows/ci.yml)).
+- Gradle: repository *wrapper* (`android/gradlew`), with `distributionSha256Sum`.
 
-### Build reproducible
+### Reproducible build
 
-El APK sin firmar es reproducible **en Linux** (la CI usa `ubuntu-24.04`). En macOS no coincide byte a
-byte con el de Linux, y está documentado el motivo en [`docs/fdroid/README.md`](../fdroid/README.md)).
-Por eso:
+The unsigned APK is reproducible **on Linux** (CI uses `ubuntu-24.04`). On macOS it does not match the Linux one
+byte for byte, and the reason is documented in [`docs/fdroid/README.md`](../fdroid/README.md)).
+Therefore:
 
 ```sh
 cd android
@@ -79,164 +79,164 @@ cd android
 sha256sum app/build/outputs/apk/release/app-release-unsigned.apk
 ```
 
-Debe coincidir con el SHA-256 que imprime la CI del mismo commit. Confirmar que el APK que se
-distribuye (firmado con la clave del proyecto) es el de la CI sin la firma es parte del alcance
-(sección 4).
+It must match the SHA-256 printed by CI for the same commit. Confirming that the APK that is
+distributed (signed with the project key) is the CI one without the signature is part of the scope
+(section 4).
 
-## 4. Dentro del alcance
+## 4. In scope
 
-| Componente | Dónde | Qué se pide revisar |
+| Component | Where | What is asked to review |
 |---|---|---|
-| `op-core` | `core/` (`src/crypto`, `src/vault`, `src/backup`, `src/import`, `src/totp.rs`) | Criptografía, formato, importadores, TOTP |
-| `op-ffi` | `ffi/` | Frontera UniFFI: tipos de secretos (`SecretString`), panics, límites de la KDF, `Mutex` de la sesión |
-| App Android | `android/app/src/main` | Sesión, autorrelleno, Keystore y biometría, portapapeles, anti-tapjacking, aviso de root, almacenamiento, manifiesto |
-| Formato `.opvault` v1 | [`docs/opvault-format.md`](../../opvault-format.md)), [`docs/crypto-spec.md`](../../crypto-spec.md)) | Diseño: derivación de claves, AAD, STREAM, versionado |
-| Builds reproducibles y firma | `android/`, `.github/workflows/ci.yml`, `scripts/sign-release.sh`, `rust-toolchain.toml` | Que el APK publicado corresponde al código, y que la cadena de firma es sana |
+| `op-core` | `core/` (`src/crypto`, `src/vault`, `src/backup`, `src/import`, `src/totp.rs`) | Cryptography, format, importers, TOTP |
+| `op-ffi` | `ffi/` | UniFFI boundary: secret types (`SecretString`), panics, KDF bounds, session `Mutex` |
+| Android app | `android/app/src/main` | Session, autofill, Keystore and biometrics, clipboard, anti-tapjacking, root warning, storage, manifest |
+| `.opvault` format v1 | [`docs/opvault-format.md`](../../opvault-format.md)), [`docs/crypto-spec.md`](../../crypto-spec.md)) | Design: key derivation, AAD, STREAM, versioning |
+| Reproducible builds and signing | `android/`, `.github/workflows/ci.yml`, `scripts/sign-release.sh`, `rust-toolchain.toml` | That the published APK corresponds to the code, and that the signing chain is sound |
 
-Cualquier dependencia de terceros se evalúa **en su uso** (cómo la llama OpenPassword), no se
-audita su código; el inventario va en [`dependencies.md`](dependencies.md)) (en preparación).
+Any third-party dependency is evaluated **in its use** (how OpenPassword calls it), its code is not
+audited; the inventory is in [`dependencies.md`](dependencies.md)) (in preparation).
 
-## 5. Fuera del alcance
+## 5. Out of scope
 
-- CLI `opvault` (`cli/`). Comparte `op-core`, de modo que el código del núcleo sí se revisa.
-- Fase 4 de la propuesta (funciones futuras).
-- iOS y escritorio (no existen todavía).
-- Android o hardware comprometidos (root malicioso, firmware), *keyloggers* y coacción
-  ([modelo de amenazas](../../threat-model.md))).
-- Código de las dependencias, el sistema operativo y el Keystore (se audita su uso).
-- Infraestructura de terceros (GitHub, F-Droid).
-- Ataques de ingeniería social contra el mantenedor.
+- The `opvault` CLI (`cli/`). It shares `op-core`, so the core code is reviewed.
+- Phase 4 of the proposal (future features).
+- iOS and desktop (they do not exist yet).
+- Compromised Android or hardware (malicious root, firmware), *keyloggers* and coercion
+  ([threat model](../../threat-model.md))).
+- Dependency code, the operating system and the Keystore (their use is audited).
+- Third-party infrastructure (GitHub, F-Droid).
+- Social engineering attacks against the maintainer.
 
-## 6. Preguntas concretas para el auditor
+## 6. Specific questions for the auditor
 
-Cada una enlaza con la fuente que debe leer. Queremos una respuesta explícita («correcto», «hallazgo
-F-nn» o «no he podido evaluarlo»).
+Each one links to the source that should be read. We want an explicit answer («correct», «finding
+F-nn» or «I could not evaluate it»).
 
-### Criptografía y formato
+### Cryptography and format
 
-1. **Contexto y AAD del AEAD.** ¿Los dominios y las partes de la AAD (`op/wrap/v1`, `op/item/v1`, …;
-   [`crypto-spec.md` §6.2](../../crypto-spec.md)), `core/src/crypto/aead.rs`) impiden intercambiar,
-   reordenar o reutilizar bloques entre contextos (elementos, clave del baúl, respaldos, versiones)?
-   ¿Hay algún campo que debería estar autenticado y no lo está? ¿Es correcta la gestión de *nonces*?
-2. **STREAM.** ¿El troceado, la marca de final y la autenticación de la cabecera
-   (`core/src/crypto/stream.rs`, `core/src/backup`) detectan truncado, reordenación y extensión? ¿Hay
-   riesgos en los casos límite (cero bloques, bloque exacto)?
-3. **KDF y su acotación.** Argon2id con `KdfParams::MAXIMUM` en el formato y un techo más bajo en
-   `op-ffi` ([ADR-AUD-07](decisions.md#adr-aud-07--límites-de-la-kdf-y-denegación-de-servicio)),
-   `core/src/crypto/kdf.rs`). ¿Es correcta la composición contraseña maestra + SK + NFKD? ¿Son
-   adecuados los perfiles `MINIMUM` y `RECOMMENDED`? ¿Hay un camino a Argon2 que evite `check_bounds`?
-   ¿Queda un DoS por memoria o tiempo alcanzable con un fichero ajeno?
-4. **Importación KDBX.** `core/src/import/kdbx.rs` (KDBX 3.1 y 4.x, Argon2, AES-KDF, XML). ¿Hay
-   errores de análisis, DoS por parámetros o por XML (expansión, profundidad) o fuga de valores
-   protegidos? Aviso: la lectura de KDBX 4 aún no se ha probado con un fichero real
+1. **AEAD context and AAD.** Do the domains and the AAD parts (`op/wrap/v1`, `op/item/v1`, …;
+   [`crypto-spec.md` §6.2](../../crypto-spec.md)), `core/src/crypto/aead.rs`) prevent swapping,
+   reordering or reusing blocks between contexts (items, vault key, backups, versions)?
+   Is there any field that should be authenticated and is not? Is *nonce* handling correct?
+2. **STREAM.** Do chunking, the end marker and header authentication
+   (`core/src/crypto/stream.rs`, `core/src/backup`) detect truncation, reordering and extension? Are there
+   risks in the edge cases (zero blocks, exact block)?
+3. **KDF and its bounding.** Argon2id with `KdfParams::MAXIMUM` in the format and a lower ceiling in
+   `op-ffi` ([ADR-AUD-07](decisions.md#adr-aud-07--kdf-limits-and-denial-of-service)),
+   `core/src/crypto/kdf.rs`). Is the composition master password + SK + NFKD correct? Are the
+   `MINIMUM` and `RECOMMENDED` profiles adequate? Is there a path to Argon2 that bypasses `check_bounds`?
+   Is a memory or time DoS reachable with a foreign file left open?
+4. **KDBX import.** `core/src/import/kdbx.rs` (KDBX 3.1 and 4.x, Argon2, AES-KDF, XML). Are there
+   parsing errors, DoS through parameters or through XML (expansion, depth) or leakage of protected
+   values? Warning: KDBX 4 reading has not yet been tested with a real file
    (`android/README.md`).
 
 ### Android
 
-5. **Autorrelleno: coincidencias y sufijos públicos.** `autofill/LoginMatcher.kt`,
-   `PublicSuffix.kt`, `StructureParser.kt`, `SavePlanner.kt`. ¿Puede una web o app de *phishing*
-   conseguir credenciales de otro sitio (A12)? ¿Es correcta y suficiente la gestión de la lista de
-   sufijos públicos y de los *hosts* anómalos (IDN, puertos, esquemas, `androidapp://`)?
-6. **Keystore y biometría.** `security/DeviceKeyStore.kt`, `BiometricKeyStore.kt`, `Biometrics.kt`;
-   [`crypto-spec.md` §9](../../crypto-spec.md)). ¿Se usan bien los parámetros de las claves (AES-GCM,
-   autenticación por uso, invalidación al cambiar biometría, StrongBox)? ¿Se puede saltar la
-   autenticación o degradarla a credencial de dispositivo?
-7. **Borrado de secretos.** Al cruzar UniFFI (`ffi/src/lib.rs`, `ffi/src/secret.rs`) y en la JVM
-   (`session/VaultSession.kt`); [ADR-AUD-02](decisions.md#adr-aud-02--secretos-al-cruzar-uniffi)) y
-   [`crypto-spec.md` §10](../../crypto-spec.md)). ¿Los residuos aceptados son los únicos? ¿Hay copias en
-   Rust o Kotlin que el contrato de propiedad no cubre?
-8. **Panics y estado de la sesión.** ¿Un fichero hostil puede matar el proceso, dejar la sesión en un
-   estado incoherente o dejar la clave en memoria tras `lock()`?
-   ([ADR-AUD-03](decisions.md#adr-aud-03--panics-en-la-frontera-ffi))).
-9. **Portapapeles.** `security/SensitiveClipboard.kt`: marca de sensible, borrado a los 30 s,
-   fugas hacia servicios de historial o de sincronización.
-10. **Detección de root y anti-tapjacking.** `security/RootSignals.kt`, `AndroidDeviceProbe.kt`,
-    `OverlayProtection.kt` ([ADR-AUD-06](decisions.md#adr-aud-06--defensas-a7-y-a10))). ¿La protección
-    de ventanas y diálogos es completa? ¿La detección de root es solo informativa y no abre
-    superficie (por ejemplo, el bloque `<queries>`)?
-11. **Almacenamiento y manifiesto.** SQLite con `secure_delete`, `allowBackup=false`, permisos,
-    componentes exportados, `FLAG_SECURE`, exclusión del autorrelleno de otros servicios.
-12. **Cadena de suministro y firma.** ¿El APK distribuido equivale al de la CI? ¿Son sanos
-    `ci.yml`, `scripts/sign-release.sh` y la gestión de la clave de firma?
+5. **Autofill: matching and public suffixes.** `autofill/LoginMatcher.kt`,
+   `PublicSuffix.kt`, `StructureParser.kt`, `SavePlanner.kt`. Can a phishing web page or app
+   obtain credentials from another site (A12)? Is the handling of the public
+   suffix list and of anomalous *hosts* (IDN, ports, schemes, `androidapp://`) correct and sufficient?
+6. **Keystore and biometrics.** `security/DeviceKeyStore.kt`, `BiometricKeyStore.kt`, `Biometrics.kt`;
+   [`crypto-spec.md` §9](../../crypto-spec.md)). Are the key parameters used correctly (AES-GCM,
+   per-use authentication, invalidation when biometrics change, StrongBox)? Can authentication be bypassed
+   or downgraded to device credential?
+7. **Secret wiping.** When crossing UniFFI (`ffi/src/lib.rs`, `ffi/src/secret.rs`) and in the JVM
+   (`session/VaultSession.kt`); [ADR-AUD-02](decisions.md#adr-aud-02--secrets-crossing-uniffi)) and
+   [`crypto-spec.md` §10](../../crypto-spec.md)). Are the accepted residues the only ones? Are there copies in
+   Rust or Kotlin that the ownership contract does not cover?
+8. **Panics and session state.** Can a hostile file kill the process, leave the session in an
+   inconsistent state or leave the key in memory after `lock()`?
+   ([ADR-AUD-03](decisions.md#adr-aud-03--panics-at-the-ffi-boundary))).
+9. **Clipboard.** `security/SensitiveClipboard.kt`: sensitive flag, clearing after 30 s,
+   leaks to history or sync services.
+10. **Root detection and anti-tapjacking.** `security/RootSignals.kt`, `AndroidDeviceProbe.kt`,
+    `OverlayProtection.kt` ([ADR-AUD-06](decisions.md#adr-aud-06--a7-and-a10-defenses))). Is the protection
+    of windows and dialogs complete? Is root detection merely informative and does it not open
+    surface (for example, the `<queries>` block)?
+11. **Storage and manifest.** SQLite with `secure_delete`, `allowBackup=false`, permissions,
+    exported components, `FLAG_SECURE`, exclusion from the autofill of other services.
+12. **Supply chain and signing.** Is the distributed APK equivalent to the CI one? Are `ci.yml`,
+    `scripts/sign-release.sh` and the signing key management sound?
 
-### Preguntas abiertas
+### Open questions
 
-13. ¿Qué parte de lo que afirma el [modelo de amenazas](../../threat-model.md)) no se sostiene con el
-    código?
-14. ¿Qué haría falta antes de recomendar que usuarios reales guarden datos reales?
+13. Which part of what the [threat model](../../threat-model.md)) claims does not hold up against the
+    code?
+14. What would be needed before recommending that real users store real data?
 
-## 7. Cómo compilar y probar
+## 7. How to build and test
 
-Comandos reales del repositorio (CI: [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml))):
+Real repository commands (CI: [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml))):
 
 ```sh
-# Núcleo y FFI (Rust)
+# Core and FFI (Rust)
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 
-# Vectores dorados del formato v1 (se ejecutan también con el comando anterior)
+# Golden vectors of the v1 format (they also run with the previous command)
 cargo test -p op-core --test vectors
 
 # Android
 cd android
 ./gradlew :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --console=plain
-./gradlew :app:connectedDebugAndroidTest    # requiere móvil o emulador
+./gradlew :app:connectedDebugAndroidTest    # requires a phone or emulator
 ```
 
-**Vectores de prueba.** [`core/tests/vectors/op-v1.json`](../../../core/tests/vectors/op-v1.json)) fija
-cada byte del formato v1 (AAD, derivación, bloques sellados, respaldos). Son datos de prueba: sus
-claves no protegen nada. Cualquier otra implementación debe pasar el mismo fichero. No se
-regeneran salvo con una versión nueva del formato (`core/tests/vectors.rs`).
+**Test vectors.** [`core/tests/vectors/op-v1.json`](../../../core/tests/vectors/op-v1.json)) pins
+every byte of the v1 format (AAD, derivation, sealed blocks, backups). They are test data: their
+keys protect nothing. Any other implementation must pass the same file. They are not
+regenerated except with a new version of the format (`core/tests/vectors.rs`).
 
-**Fuzzing.** Objetivos en `fuzz/fuzz_targets/`; instrucciones y descripción en
-[`fuzz/README.md`](../../../fuzz/README.md)) (requiere nightly y `cargo-fuzz`). El módulo `cfg(fuzzing)`
-usa una clave fija **solo para pruebas** y no entra en ninguna compilación normal.
+**Fuzzing.** Targets in `fuzz/fuzz_targets/`; instructions and description in
+[`fuzz/README.md`](../../../fuzz/README.md)) (requires nightly and `cargo-fuzz`). The `cfg(fuzzing)` module
+uses a fixed key **for tests only** and does not enter any normal build.
 
-Nota de entorno: el APK de referencia se compara en Linux. En macOS se puede compilar y probar,
-pero el SHA-256 no coincidirá.
+Environment note: the reference APK is compared on Linux. On macOS it can be built and tested,
+but the SHA-256 will not match.
 
-## 8. Entregables esperados
+## 8. Expected deliverables
 
-| Entregable | Contenido |
+| Deliverable | Content |
 |---|---|
-| Informe preliminar | Hallazgos con severidad, descripción, impacto, ubicación (fichero y línea sobre el SHA congelado) y recomendación |
-| PoC | Reproducción mínima de cada hallazgo de severidad Media o superior (fichero `.opvault`, test, APK o guion) |
-| Re-test | Verificación por el auditor de cada corrección, sobre una etiqueta `v0.2.N`, con estado por hallazgo (corregido, parcial, no corregido, aceptado) |
-| Informe final publicable | Versión pública del informe tras el re-test, incluyendo alcance, metodología, hallazgos y su estado final |
-| Resumen para usuarios | Una página sin tecnicismos (opcional) |
+| Preliminary report | Findings with severity, description, impact, location (file and line on the frozen SHA) and recommendation |
+| PoC | Minimal reproduction of each finding of Medium severity or above (`.opvault` file, test, APK or script) |
+| Re-test | Verification by the auditor of each fix, on a `v0.2.N` tag, with a per-finding status (fixed, partial, not fixed, accepted) |
+| Publishable final report | Public version of the report after the re-test, including scope, methodology, findings and their final status |
+| Summary for users | One page without technical jargon (optional) |
 
-Formato de los hallazgos y escala de severidad: [`findings-process.md`](findings-process.md)). Se
-prefiere un identificador estable por hallazgo (`<PROVEEDOR>-01`, …).
+Format of the findings and severity scale: [`findings-process.md`](findings-process.md)). A
+stable identifier per finding is preferred (`<VENDOR>-01`, …).
 
-## 9. Confidencialidad, comunicación y plazos
+## 9. Confidentiality, communication and deadlines
 
-- **Código:** público; no hay secreto que proteger en el código.
-- **Hallazgos:** confidenciales hasta que haya corrección publicada o hasta la fecha de publicación
-  pactada. Canal: avisos privados de GitHub Security Advisories del repositorio
-  (`https://github.com/rldona/OpenPassword/security/advisories`, el mismo canal de
-  [`SECURITY.md`](../../../SECURITY.md))). Hallazgos críticos: aviso inmediato al contacto técnico, sin
-  esperar al informe.
-- **Publicación:** el proyecto quiere publicar el informe final. El contrato debe reconocer ese
-  permiso por escrito (ver [`vendors.md`](vendors.md))).
-- **Acuerdo de confidencialidad (NDA):** solo si el proveedor lo exige y solo para la información no
-  pública (clave de firma de release, accesos). **PENDIENTE** de decidir.
+- **Code:** public; there is no secret to protect in the code.
+- **Findings:** confidential until a fix is published or until the agreed
+  publication date. Channel: private GitHub Security Advisories of the repository
+  (`https://github.com/rldona/OpenPassword/security/advisories`, the same channel as
+  [`SECURITY.md`](../../../SECURITY.md))). Critical findings: immediate notice to the technical contact, without
+  waiting for the report.
+- **Publication:** the project wants to publish the final report. The contract must acknowledge that
+  permission in writing (see [`vendors.md`](vendors.md))).
+- **Non-disclosure agreement (NDA):** only if the vendor requires it and only for non-public
+  information (release signing key, accesses). **PENDING** decision.
 
-| Hito | Fecha |
+| Milestone | Date |
 |---|---|
-| Congelación (`v0.2.0` firmada) | **PENDIENTE** |
-| Arranque | **PENDIENTE** |
-| Informe preliminar | **PENDIENTE** |
-| Re-test | **PENDIENTE** |
-| Informe final | **PENDIENTE** |
+| Freeze (`v0.2.0` signed) | **PENDING** |
+| Start | **PENDING** |
+| Preliminary report | **PENDING** |
+| Re-test | **PENDING** |
+| Final report | **PENDING** |
 
-Calendario completo y condiciones de salida: [`budget-timeline.md`](budget-timeline.md)).
+Full calendar and exit conditions: [`budget-timeline.md`](budget-timeline.md)).
 
-### Contactos
+### Contacts
 
-| Rol | Contacto |
+| Role | Contact |
 |---|---|
-| Mantenedor y contacto técnico | `@rldona` en GitHub; correo **PENDIENTE** |
-| Contacto de seguridad / hallazgos | Avisos privados de GitHub del repositorio (ver arriba) |
-| Contacto contractual | **PENDIENTE** (persona o entidad que firma) |
-| Clave PGP para correo cifrado | **PENDIENTE** (no existe ninguna publicada en el repositorio) |
+| Maintainer and technical contact | `@rldona` on GitHub; email **PENDING** |
+| Security / findings contact | Private GitHub advisories of the repository (see above) |
+| Contractual contact | **PENDING** (person or entity that signs) |
+| PGP key for encrypted email | **PENDING** (none is published in the repository) |

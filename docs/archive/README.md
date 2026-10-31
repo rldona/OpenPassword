@@ -1,32 +1,31 @@
-# Archivo
+# Archive
 
-Material de una etapa anterior, cuando OpenPassword se planteaba como **producto público**: propuesta
-funcional, publicación en F-Droid, auditoría externa y cadena de suministro para distribuir binarios.
+Material from an earlier stage, when OpenPassword was planned as a **public product**: functional
+proposal, F-Droid publication, external audit and supply chain for distributing binaries.
 
-El proyecto es de **uso personal**. Nada de esto se mantiene, se actualiza ni se ejecuta. Se conserva
-porque contiene trabajo útil —la revisión interna, el modelo de amenazas ampliado, el análisis de la
-superficie de ataque y los resultados de las pruebas en dispositivo— y porque explica por qué el
-código tiene las defensas que tiene.
+The project is for **personal use**. None of this is maintained, updated or run. It is kept because it
+contains useful work —the internal review, the expanded threat model, the attack surface analysis and
+the device test results— and because it explains why the code has the defenses it has.
 
-| Ruta | Contenido | Estado |
+| Path | Content | Status |
 |---|---|---|
-| [`proposal.html`](proposal.html) | Propuesta funcional y técnica con prototipos y hoja de ruta | Histórico |
-| [`audit/`](audit) | Paquete de auditoría: alcance, proveedores, presupuesto, revisión interna, superficie de ataque, dependencias, fuzzing y pruebas en dispositivo | Congelado el 30-oct-2026 |
-| [`fdroid/`](fdroid) | Receta y pasos para publicar en F-Droid | Pausado |
-| [`releases/`](releases) | Notas de la fallida `v0.1.0` | Histórico |
-| [`fastlane/`](fastlane) | Metadatos de tienda | Histórico |
-| [`scripts/sign-release.sh`](scripts/sign-release.sh) | Firma del APK compilado por la CI | Histórico |
+| [`proposal.html`](proposal.html) | Functional and technical proposal with prototypes and roadmap | Historical |
+| [`audit/`](audit) | Audit package: scope, vendors, budget, internal review, attack surface, dependencies, fuzzing and device tests | Frozen on 2026-10-30 |
+| [`fdroid/`](fdroid) | Recipe and steps to publish on F-Droid | Paused |
+| [`releases/`](releases) | Notes from the failed `v0.1.0` | Historical |
+| [`fastlane/`](fastlane) | Store metadata | Historical |
+| [`scripts/sign-release.sh`](scripts/sign-release.sh) | Signing of the APK built by CI | Historical |
 
-## Qué sigue siendo útil para uso personal
+## What is still useful for personal use
 
-- [`audit/internal-review.md`](audit/internal-review.md): los 26 hallazgos y su estado, incluidos los
-  aceptados como riesgo residual.
-- [`audit/attack-surface.md`](audit/attack-surface.md): por dónde entra cada dato no confiable.
-- [`audit/dependencies.md`](audit/dependencies.md): `cargo-deny`, licencias y verificación de Gradle.
-- [`audit/device-tests.md`](audit/device-tests.md): el plan de pruebas en teléfono y lo que falta.
-- [`audit/decisions.md`](audit/decisions.md): por qué el núcleo se comporta como se comporta.
+- [`audit/internal-review.md`](audit/internal-review.md): the 26 findings and their status, including
+  those accepted as residual risk.
+- [`audit/attack-surface.md`](audit/attack-surface.md): where each untrusted input enters.
+- [`audit/dependencies.md`](audit/dependencies.md): `cargo-deny`, licenses and Gradle verification.
+- [`audit/device-tests.md`](audit/device-tests.md): the phone test plan and what is missing.
+- [`audit/decisions.md`](audit/decisions.md): why the core behaves the way it does.
 
-## Qué no hay que retomar salvo que el proyecto vuelva a ser público
+## What not to resume unless the project becomes public again
 
-Proveedores, presupuesto, NDA, OSTIF, NLnet, atestaciones Sigstore, SBOM, receta de F-Droid y notas de
-release. Para instalar la app en un teléfono propio no aportan nada.
+Vendors, budget, NDA, OSTIF, NLnet, Sigstore attestations, SBOM, F-Droid recipe and release notes.
+They add nothing for installing the app on your own phone.

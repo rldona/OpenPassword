@@ -1,102 +1,102 @@
-# Dependencias
+# Dependencies
 
-Inventario de lo que entra en el producto y en su cadena de compilación, con los números reales del
-árbol, qué se enlaza en `libop_ffi.so`, duplicados, avisos, licencias frente a GPL-3.0, pines y
-propuestas. Complementa ADR-AUD-04 en [`decisions.md`](decisions.md)).
+Inventory of what goes into the product and into its build chain, with the real numbers from the
+tree, what is linked into `libop_ffi.so`, duplicates, advisories, licenses versus GPL-3.0, pins and
+proposals. Complements ADR-AUD-04 in [`decisions.md`](decisions.md)).
 
-Estado verificado el 2026-10-30 sobre `HEAD` `2bd56ce`. `deny.toml`, `.github/dependabot.yml`,
-`android/gradle/verification-metadata.xml`, las Actions fijadas por SHA y el job `release` están
-confirmados en ese commit ([`hardening.md`](hardening.md))); **ninguno se ha ejecutado todavía en
-GitHub** (el job `release`) **ni con la verificación de Gradle activa**.
-Cada cifra lleva el comando que la produce (sección 8).
+Status verified on 2026-10-30 over `HEAD` `a3daf4e`. `deny.toml`, `.github/dependabot.yml`,
+`android/gradle/verification-metadata.xml`, the Actions pinned by SHA and the `release` job are
+confirmed in that commit ([`hardening.md`](hardening.md))); **none of them has been run yet on
+GitHub** (the `release` job) **nor with Gradle verification active**.
+Every figure carries the command that produces it (section 8).
 
-## 1. Cifras
+## 1. Figures
 
-| Medida | Valor | Cómo se obtiene |
+| Measure | Value | How it is obtained |
 |---|---|---|
-| Paquetes en `Cargo.lock` (raíz) | **139** (136 de crates.io + 3 propios: `op-core`, `op-ffi`, `opvault-cli`) | `grep -c '^\[\[package\]\]' Cargo.lock`; `cargo metadata` |
-| Paquetes en `fuzz/Cargo.lock` | 132 | Idem. Espacio de trabajo aparte (`fuzz/Cargo.toml`) |
-| Orígenes distintos de crates.io | **0** | `cargo metadata`: ningún paquete con `source` ajeno; `deny.toml` `[sources]` deniega registros y `git` desconocidos |
-| Unidades de biblioteca compiladas para `aarch64-linux-android` (`op-ffi`, release) | **73** (71 de terceros + `op-core` + `op-ffi`) | `cargo +nightly build -p op-ffi --lib --release --target aarch64-linux-android --locked -Z unstable-options --unit-graph`, unidades con plataforma y modo `build`, sin `proc-macro` ni `custom-build` |
-| *Crates* con ruta visible en `libop_ffi.so` (arm64) | **23** | `strings -a …/libop_ffi.so \| grep -oE 'registry/src/[^/]+/[A-Za-z0-9_.+-]+'` (ver 2.3) |
-| Componentes en la SBOM de Gradle (`releaseRuntimeClasspath`) | **144** | `android/app/build/reports/cyclonedx-direct/bom.json` (CycloneDX 3.5.1, 2026-10-30T09:34:26Z) |
-| Componentes con suma SHA-256 en `verification-metadata.xml` | **478** componentes, **918** sumas | `grep -c "<component " …`, `grep -c "<sha256" …` |
-| Versiones duplicadas (Rust) | **2** pares | `cargo metadata`: `getrandom` 0.2.17 y 0.3.4; `syn` 2.0.119 y 3.0.9 |
-| Vulnerabilidades conocidas (Rust) | **0** | `cargo audit --deny warnings`: 1386 avisos cargados, 139 paquetes, salida 0 |
-| `cargo deny --locked check` | `advisories ok, bans ok, licenses ok, sources ok` | `cargo deny --locked check` (0.20.2, en local) |
-| Pruebas de Rust | **102 pasan, 1 ignorada** | `cargo test --workspace --locked` (50 unitarios de `op-core`, 9 + 3 + 19 + 5 de integración, 16 de `op-ffi`) |
+| Packages in `Cargo.lock` (root) | **139** (136 from crates.io + 3 of our own: `op-core`, `op-ffi`, `opvault-cli`) | `grep -c '^\[\[package\]\]' Cargo.lock`; `cargo metadata` |
+| Packages in `fuzz/Cargo.lock` | 132 | Same. Separate workspace (`fuzz/Cargo.toml`) |
+| Origins other than crates.io | **0** | `cargo metadata`: no package with a foreign `source`; `deny.toml` `[sources]` denies unknown registries and `git` |
+| Library units compiled for `aarch64-linux-android` (`op-ffi`, release) | **73** (71 third-party + `op-core` + `op-ffi`) | `cargo +nightly build -p op-ffi --lib --release --target aarch64-linux-android --locked -Z unstable-options --unit-graph`, units with platform and `build` mode, without `proc-macro` or `custom-build` |
+| *Crates* with a visible path in `libop_ffi.so` (arm64) | **23** | `strings -a …/libop_ffi.so \| grep -oE 'registry/src/[^/]+/[A-Za-z0-9_.+-]+'` (see 2.3) |
+| Components in the Gradle SBOM (`releaseRuntimeClasspath`) | **144** | `android/app/build/reports/cyclonedx-direct/bom.json` (CycloneDX 3.5.1, 2026-10-30T09:34:26Z) |
+| Components with a SHA-256 sum in `verification-metadata.xml` | **478** components, **918** sums | `grep -c "<component " …`, `grep -c "<sha256" …` |
+| Duplicate versions (Rust) | **2** pairs | `cargo metadata`: `getrandom` 0.2.17 and 0.3.4; `syn` 2.0.119 and 3.0.9 |
+| Known vulnerabilities (Rust) | **0** | `cargo audit --deny warnings`: 1386 advisories loaded, 139 packages, exit 0 |
+| `cargo deny --locked check` | `advisories ok, bans ok, licenses ok, sources ok` | `cargo deny --locked check` (0.20.2, locally) |
+| Rust tests | **102 pass, 1 ignored** | `cargo test --workspace --locked` (50 unit tests from `op-core`, 9 + 3 + 19 + 5 integration, 16 from `op-ffi`) |
 
 ## 2. Rust
 
-### 2.1 Dependencias directas
+### 2.1 Direct dependencies
 
-| Crate | Versión pedida | Resuelta | Para qué | Crate |
+| Crate | Requested version | Resolved | For what | Crate |
 |---|---|---|---|---|
-| `argon2` | `0.5` (sin características por defecto: `alloc`, `zeroize`) | 0.5.3 | Argon2id (KEK) y KeePass | `op-core` |
-| `chacha20poly1305` | `0.10` (`stream`) | 0.10.1 | AEAD XChaCha20-Poly1305 y STREAM | `op-core` |
+| `argon2` | `0.5` (no default features: `alloc`, `zeroize`) | 0.5.3 | Argon2id (KEK) and KeePass | `op-core` |
+| `chacha20poly1305` | `0.10` (`stream`) | 0.10.1 | XChaCha20-Poly1305 AEAD and STREAM | `op-core` |
 | `hkdf`, `hmac`, `sha2`, `sha1` | `0.12`, `0.12`, `0.10`, `0.10` | 0.12.4, 0.12.1, 0.10.9, 0.10.7 | HKDF, HMAC, SHA-2, TOTP SHA-1 | `op-core` |
-| `aes`, `cbc`, `chacha20`, `salsa20` | `0.8`, `0.1`, `0.9`, `0.10` | 0.8.4, 0.1.2, 0.9.1, 0.10.2 | Cifrados de KeePass (KDBX) | `op-core` |
-| `flate2` | `1` (`zlib-rs`) | 1.1.10 | gunzip de KDBX | `op-core` |
-| `zip` | `=9.0.3` (sin características por defecto, `deflate-flate2-zlib-rs`) | 9.0.3 | `.1pux` | `op-core` |
-| `quick-xml` | `0.42` | 0.42.0 | XML de KDBX y archivos de clave | `op-core` |
-| `serde`, `serde_json` | `1` | 1.0.229, 1.0.154 | Formato `.opvault`, importadores | `op-core`, `op-ffi` |
-| `base64`, `hex`, `unicode-normalization` | `0.22`, `0.4`, `0.1` | 0.22.1, 0.4.3, 0.1.26 | Codificaciones y NFKD | `op-core` (`hex` también `op-ffi`) |
-| `getrandom` | `0.3` | 0.3.4 | CSPRNG del sistema | `op-core` |
-| `zeroize` | `1` (`derive`) | 1.9.1 | Borrado de claves | `op-core`, `op-ffi` |
-| `thiserror` | `2` | 2.0.21 | Errores | `op-core`, `op-ffi` |
-| `uniffi` | `0.32` (características por defecto: `cargo-metadata`, …) | 0.32.2 | Bindings de Kotlin | `op-ffi` |
-| `anyhow`, `clap`, `rpassword` | `1`, `4`, `7` | 1.0.104, 4.6.7, 7.5.4 | CLI (**fuera de alcance**) | `opvault-cli` |
+| `aes`, `cbc`, `chacha20`, `salsa20` | `0.8`, `0.1`, `0.9`, `0.10` | 0.8.4, 0.1.2, 0.9.1, 0.10.2 | KeePass ciphers (KDBX) | `op-core` |
+| `flate2` | `1` (`zlib-rs`) | 1.1.10 | KDBX gunzip | `op-core` |
+| `zip` | `=9.0.3` (no default features, `deflate-flate2-zlib-rs`) | 9.0.3 | `.1pux` | `op-core` |
+| `quick-xml` | `0.42` | 0.42.0 | KDBX XML and key files | `op-core` |
+| `serde`, `serde_json` | `1` | 1.0.229, 1.0.154 | `.opvault` format, importers | `op-core`, `op-ffi` |
+| `base64`, `hex`, `unicode-normalization` | `0.22`, `0.4`, `0.1` | 0.22.1, 0.4.3, 0.1.26 | Encodings and NFKD | `op-core` (`hex` also `op-ffi`) |
+| `getrandom` | `0.3` | 0.3.4 | System CSPRNG | `op-core` |
+| `zeroize` | `1` (`derive`) | 1.9.1 | Key wiping | `op-core`, `op-ffi` |
+| `thiserror` | `2` | 2.0.21 | Errors | `op-core`, `op-ffi` |
+| `uniffi` | `0.32` (default features: `cargo-metadata`, …) | 0.32.2 | Kotlin bindings | `op-ffi` |
+| `anyhow`, `clap`, `rpassword` | `1`, `4`, `7` | 1.0.104, 4.6.7, 7.5.4 | CLI (**out of scope**) | `opvault-cli` |
 
-`Cargo.toml` del núcleo: 21 dependencias; `op-ffi`: 5 más `op-core`; la CLI: 8. Las dependencias de
-desarrollo de `op-core` son solo `op-core` con `insecure-test-params` (`core/Cargo.toml`).
+Core `Cargo.toml`: 21 dependencies; `op-ffi`: 5 plus `op-core`; the CLI: 8. The development
+dependencies of `op-core` are only `op-core` with `insecure-test-params` (`core/Cargo.toml`).
 
-### 2.2 Qué se enlaza en `libop_ffi.so`
+### 2.2 What is linked into `libop_ffi.so`
 
-- Es un `cdylib` (`ffi/Cargo.toml`, `crate-type = ["cdylib", "lib"]`) compilado con `--release --locked
-  -p op-ffi` y RUSTFLAGS codificados (`--remap-path-prefix`, `--cfg aes_armv8`,
-  `android/app/build.gradle.kts:128-131`), LTO y `panic = "unwind"` (`Cargo.toml:21-25`).
-- El `cdylib` **no incluye** `libop_core.rlib` como biblioteca aparte: `op-core` está dentro.
-- **Compiladas para el objetivo: 73 unidades.** Incluyen crates que solo existen por la característica
-  `cargo-metadata` de `uniffi` (`cargo_metadata`, `camino`, `cargo-platform`, `semver`, `tempfile`,
+- It is a `cdylib` (`ffi/Cargo.toml`, `crate-type = ["cdylib", "lib"]`) compiled with `--release --locked
+  -p op-ffi` and hardcoded RUSTFLAGS (`--remap-path-prefix`, `--cfg aes_armv8`,
+  `android/app/build.gradle.kts:128-131`), LTO and `panic = "unwind"` (`Cargo.toml:21-25`).
+- The `cdylib` **does not include** `libop_core.rlib` as a separate library: `op-core` is inside.
+- **Compiled for the target: 73 units.** They include crates that only exist because of the
+  `cargo-metadata` feature of `uniffi` (`cargo_metadata`, `camino`, `cargo-platform`, `semver`, `tempfile`,
   `fastrand`, `rustix`, `errno`, `linux-raw-sys`, `typed-path`): `cargo tree -i tempfile --target
-  aarch64-linux-android` los muestra colgando de `uniffi` (`uniffi_pipeline` → `uniffi_meta` →
-  `uniffi_macros`). **Ninguno deja huella en el binario**: `strings -a libop_ffi.so | grep -c
-  'cargo_metadata\|camino\|tempfile'` da **0**. Se eliminan por LTO; la evidencia es la ausencia de
-  cadenas, no un análisis de símbolos.
-- **Visibles en el binario (arm64): 23 crates**: `aes`, `anyhow`, `argon2`, `base64`, `blake2`, `bytes`,
+  aarch64-linux-android` shows them hanging off `uniffi` (`uniffi_pipeline` → `uniffi_meta` →
+  `uniffi_macros`). **None of them leaves a trace in the binary**: `strings -a libop_ffi.so | grep -c
+  'cargo_metadata\|camino\|tempfile'` gives **0**. They are removed by LTO; the evidence is the absence of
+  strings, not a symbol analysis.
+- **Visible in the binary (arm64): 23 crates**: `aes`, `anyhow`, `argon2`, `base64`, `blake2`, `bytes`,
   `cipher`, `crc32fast`, `flate2`, `hashbrown`, `hex`, `hkdf`, `indexmap`, `itoa`, `memchr`,
   `quick-xml`, `serde_core`, `serde_json`, `tinyvec`, `unicode-normalization`, `uniffi_core`, `zip`,
-  `zlib-rs`. Es un **mínimo**: una dependencia sin rutas de *panic* (por ejemplo `sha2`,
-  `chacha20poly1305`) no aparece aunque esté enlazada.
-- **No se enlazan** (solo compilador o herramienta de la máquina de compilación): `uniffi_bindgen`,
-  `askama`, `basic-toml`, `clap` (de `uniffi` con `cli`), `syn`, `proc-macro2`, `quote`. El bindgen se
-  ejecuta con `cargo run --features bindgen` (`build.gradle.kts:155`).
-- **Tamaño** (`unzip -l android/app/build/outputs/apk/release/app-release.apk`): `libop_ffi.so`
-  1 153 984 B (arm64-v8a), 882 924 B (armeabi-v7a) y 1 313 032 B (x86_64). Sin recortar, en
-  `build/rust/jniLibs`: 1 565 832, 1 197 124 y 1 610 976 B. El mensaje del commit `3725741` da +9,3 %
-  en aarch64 por `unwind`; no se ha vuelto a medir.
+  `zlib-rs`. It is a **minimum**: a dependency without *panic* paths (for example `sha2`,
+  `chacha20poly1305`) does not appear even if it is linked.
+- **Not linked** (compiler only or build-machine tool): `uniffi_bindgen`,
+  `askama`, `basic-toml`, `clap` (from `uniffi` with `cli`), `syn`, `proc-macro2`, `quote`. The bindgen
+  runs with `cargo run --features bindgen` (`build.gradle.kts:155`).
+- **Size** (`unzip -l android/app/build/outputs/apk/release/app-release.apk`): `libop_ffi.so`
+  1 153 984 B (arm64-v8a), 882 924 B (armeabi-v7a) and 1 313 032 B (x86_64). Unstripped, in
+  `build/rust/jniLibs`: 1 565 832, 1 197 124 and 1 610 976 B. The commit message `700f1a7` gives 9.3%
+  on aarch64 due to `unwind`; it has not been measured again.
 
-### 2.3 Duplicados y avisos
+### 2.3 Duplicates and advisories
 
-| Paquete | Versiones | Camino | Efecto |
+| Package | Versions | Path | Effect |
 |---|---|---|---|
-| `getrandom` | 0.2.17 y 0.3.4 | 0.3.4: directo de `op-core`. 0.2.17: por `rand_core` 0.6 → `crypto-common` 0.1.7 → toda la familia RustCrypto 0.1x (`aead`, `cipher`, `digest`, `universal-hash`) | Dos copias del acceso al CSPRNG en el binario (la 0.2 solo con la característica `getrandom` de `rand_core`, sin verificar si se enlaza) |
-| `syn` | 2.0.119 y 3.0.9 | Ambas solo en herramientas de compilación (`proc-macro`) | Ninguno en el binario |
+| `getrandom` | 0.2.17 and 0.3.4 | 0.3.4: direct from `op-core`. 0.2.17: via `rand_core` 0.6 → `crypto-common` 0.1.7 → the whole RustCrypto 0.1x family (`aead`, `cipher`, `digest`, `universal-hash`) | Two copies of the CSPRNG access in the binary (the 0.2 one only with the `getrandom` feature of `rand_core`, without verifying whether it is linked) |
+| `syn` | 2.0.119 and 3.0.9 | Both only in build tools (`proc-macro`) | None in the binary |
 
-`cargo deny` los marca como `warn` (`deny.toml`: `multiple-versions = "warn"`). `wildcards = "warn"` y no
-`deny` porque `op-ffi` y la CLI declaran `op-core = { path = … }` sin `publish = false` (comentario en
+`cargo deny` flags them as `warn` (`deny.toml`: `multiple-versions = "warn"`). `wildcards = "warn"` and not
+`deny` because `op-ffi` and the CLI declare `op-core = { path = … }` without `publish = false` (comment in
 `deny.toml`).
 
-**Aviso ignorado**: `RUSTSEC-2026-0374` (`basic-toml` 0.1.10, sin mantenimiento) en
-`deny.toml`. Solo lo arrastra `uniffi_bindgen` → `askama`, que no está en el grafo del objetivo Android
-(`cargo tree -p op-ffi --target aarch64-linux-android` no lo contiene; sí está en `Cargo.lock:167`).
-`cargo audit` (sin `.cargo/audit.toml`, borrado en `2bd56ce`) devuelve 0 vulnerabilidades.
+**Ignored advisory**: `RUSTSEC-2026-0374` (`basic-toml` 0.1.10, unmaintained) in
+`deny.toml`. Only `uniffi_bindgen` → `askama` pulls it in, which is not in the Android target graph
+(`cargo tree -p op-ffi --target aarch64-linux-android` does not contain it; it is in `Cargo.lock:167`).
+`cargo audit` (without `.cargo/audit.toml`, deleted in `a3daf4e`) returns 0 vulnerabilities.
 
-### 2.4 Licencias frente a GPL-3.0-or-later
+### 2.4 Licenses versus GPL-3.0-or-later
 
-De `cargo metadata` sobre los 136 paquetes de crates.io:
+From `cargo metadata` over the 136 crates.io packages:
 
-| Licencia (SPDX) | Paquetes |
+| License (SPDX) | Packages |
 |---|---|
 | `MIT OR Apache-2.0` | 82 |
 | `MIT` | 17 |
@@ -107,168 +107,168 @@ De `cargo metadata` sobre los 136 paquetes de crates.io:
 | `Apache-2.0` | 2 |
 | `(MIT OR Apache-2.0) AND Unicode-3.0` | 2 (`unicode-ident`, `unicode-normalization`) |
 | `Unlicense OR MIT` | 1 (`memchr`) |
-| `MIT OR Apache-2.0 OR LGPL-2.1-or-later` | 1 (`r-efi`, solo UEFI) |
+| `MIT OR Apache-2.0 OR LGPL-2.1-or-later` | 1 (`r-efi`, UEFI only) |
 | `BSD-3-Clause` | 1 (`subtle`) |
 | `Zlib OR Apache-2.0 OR MIT` | 1 (`tinyvec`) |
 | `Zlib` | 1 (`zlib-rs`) |
 
-- **Compatibilidad**: MIT, BSD-3-Clause, Zlib, Unicode-3.0 y Apache-2.0 son compatibles con GPL-3.0; MPL-2.0
-  permite la distribución bajo GPL (su cláusula de «licencia secundaria»). `cargo deny list` agrupa
-  6 paquetes MPL-2.0 (sin `uniffi_bindgen` ni `uniffi_udl`, que solo están en herramientas). **No es
-  asesoría jurídica**: es lectura de los metadatos SPDX.
-- **Ninguna licencia incompatible** en `cargo deny` (`licenses ok`) con las 10 licencias permitidas de
+- **Compatibility**: MIT, BSD-3-Clause, Zlib, Unicode-3.0 and Apache-2.0 are compatible with GPL-3.0; MPL-2.0
+  allows distribution under GPL (its "secondary license" clause). `cargo deny list` groups
+  6 MPL-2.0 packages (without `uniffi_bindgen` or `uniffi_udl`, which are only in tools). **This is not
+  legal advice**: it is a reading of the SPDX metadata.
+- **No incompatible license** in `cargo deny` (`licenses ok`) with the 10 allowed licenses of
   `deny.toml`.
-- **La lista de licencias permitidas es más ancha de lo necesario**: quitando `Unlicense`,
-  `Apache-2.0 WITH LLVM-exception` y `LGPL-2.1-or-later` el resultado sigue siendo `licenses ok`
-  (probado con una copia de `deny.toml` en una ruta temporal, `cargo deny --locked --config … check
-  licenses`). Los tres solo aparecen como alternativa en una disyunción `OR` que ya se cumple con MIT o Apache. Esto
-  importa por `LGPL-2.1-or-later`: abre una puerta que `deny` no necesita. Es una **decisión de
-  la lista final** (nº 7, [`decisions.md`](decisions.md))).
+- **The allowed-license list is wider than needed**: removing `Unlicense`,
+  `Apache-2.0 WITH LLVM-exception` and `LGPL-2.1-or-later` the result is still `licenses ok`
+  (tested with a copy of `deny.toml` in a temporary path, `cargo deny --locked --config … check
+  licenses`). The three only appear as an alternative in an `OR` disjunction that is already satisfied with MIT or Apache. This
+  matters because of `LGPL-2.1-or-later`: it opens a door that `deny` does not need. It is a **decision on
+  the final list** (no. 7, [`decisions.md`](decisions.md))).
 
-### 2.5 Pines y herramientas de Rust
+### 2.5 Rust pins and tools
 
-| Elemento | Pin | Dónde |
+| Item | Pin | Where |
 |---|---|---|
-| Compilador | `1.99.1` exacto, con `rustfmt`, `clippy` y los tres objetivos Android | `rust-toolchain.toml` |
-| `zip` | `=9.0.3` (comentario: «newer 9.1.x releases are under two weeks old») | `core/Cargo.toml` |
-| Resolución | `Cargo.lock` versionado; `--locked` en `cargo test`, `clippy`, `build`, `deny` y en la tarea de Gradle (`build.gradle.kts:135`) | `ci.yml` |
+| Compiler | `1.99.1` exact, with `rustfmt`, `clippy` and the three Android targets | `rust-toolchain.toml` |
+| `zip` | `=9.0.3` (comment: «newer 9.1.x releases are under two weeks old») | `core/Cargo.toml` |
+| Resolution | versioned `Cargo.lock`; `--locked` in `cargo test`, `clippy`, `build`, `deny` and in the Gradle task (`build.gradle.kts:135`) | `ci.yml` |
 | `cargo-ndk` | `--locked --version 4.1.2` | `ci.yml` |
-| `cargo-cyclonedx` | `--locked --version 0.5.9` | `ci.yml`, job `release` |
-| `cargo-deny`, `cargo-fuzz` | `0.20.2`, `0.13.2` vía `taiki-e/install-action` | `ci.yml`, `fuzz-nightly.yml` |
+| `cargo-cyclonedx` | `--locked --version 0.5.9` | `ci.yml`, `release` job |
+| `cargo-deny`, `cargo-fuzz` | `0.20.2`, `0.13.2` via `taiki-e/install-action` | `ci.yml`, `fuzz-nightly.yml` |
 | NDK | `30.0.16248370` | `build.gradle.kts:23`, `ci.yml` |
-| Actions | SHA de 40 caracteres con la versión en un comentario (7 acciones distintas) | `ci.yml`, `fuzz-nightly.yml` |
+| Actions | 40-character SHA with the version in a comment (7 distinct actions) | `ci.yml`, `fuzz-nightly.yml` |
 
-El resto de dependencias son rangos de *caret*: el `Cargo.lock` es lo que las fija.
-**Límite**: `cargo install` compila desde crates.io sin suma de comprobación propia, y
-`taiki-e/install-action` descarga binarios; no hay comprobación independiente de lo descargado
-(ver 7).
+The rest of the dependencies are *caret* ranges: the `Cargo.lock` is what pins them.
+**Limitation**: `cargo install` compiles from crates.io without its own checksum, and
+`taiki-e/install-action` downloads binaries; there is no independent verification of what is downloaded
+(see 7).
 
 ## 3. Gradle
 
-### 3.1 Dependencias directas (`android/app/build.gradle.kts:75-97`, `libs.versions.toml`)
+### 3.1 Direct dependencies (`android/app/build.gradle.kts:75-97`, `libs.versions.toml`)
 
-| Dependencia | Versión | Alcance |
+| Dependency | Version | Scope |
 |---|---|---|
-| Compose BOM + `activity-compose`, `material3`, `material-icons-core`, `ui`, `ui-tooling-preview` | `2026.09.00`; 1.13.0; 1.4.0 (resuelta); 1.7.8; 1.12.1 | Release |
+| Compose BOM + `activity-compose`, `material3`, `material-icons-core`, `ui`, `ui-tooling-preview` | `2026.09.00`; 1.13.0; 1.4.0 (resolved); 1.7.8; 1.12.1 | Release |
 | `lifecycle-process`, `lifecycle-runtime-compose` | 2.11.0 | Release |
 | `kotlinx-coroutines-android` | 1.11.0 | Release |
-| **`jna` `@aar`** | 5.17.0 | Release (UniFFI en Kotlin la usa para cargar la biblioteca nativa) |
-| `camera-camera2`, `camera-lifecycle`, `camera-view` | 1.6.2 | Release (escáner de QR) |
-| `zxing-core` | 3.5.4 | Release (descodifica QR; sin UI ni servicios de Google) |
-| `ui-tooling` | (BOM) | Solo `debug` |
-| `junit`, `androidx.test:runner`, `androidx.test.ext:junit` | 4.13.2, 1.7.0, 1.3.0 | Pruebas |
+| **`jna` `@aar`** | 5.17.0 | Release (Kotlin UniFFI uses it to load the native library) |
+| `camera-camera2`, `camera-lifecycle`, `camera-view` | 1.6.2 | Release (QR scanner) |
+| `zxing-core` | 3.5.4 | Release (decodes QR; no UI or Google services) |
+| `ui-tooling` | (BOM) | `debug` only |
+| `junit`, `androidx.test:runner`, `androidx.test.ext:junit` | 4.13.2, 1.7.0, 1.3.0 | Tests |
 
-Plugins de build: AGP `9.4.1`, Kotlin Compose `2.4.21`, `org.cyclonedx.bom` `3.5.1`. Gradle `9.8.2` con
+Build plugins: AGP `9.4.1`, Kotlin Compose `2.4.21`, `org.cyclonedx.bom` `3.5.1`. Gradle `9.8.2` with
 `distributionSha256Sum` (`gradle-wrapper.properties`).
 
-### 3.2 Lo que acaba en el APK (SBOM de `releaseRuntimeClasspath`, 144 componentes)
+### 3.2 What ends up in the APK (SBOM of `releaseRuntimeClasspath`, 144 components)
 
-| Grupo | Componentes |
+| Group | Components |
 |---|---|
-| `androidx.*` | 117 (de ellos `androidx.compose.*` 37, `androidx.lifecycle` 18, `androidx.camera` 8) |
+| `androidx.*` | 117 (of which `androidx.compose.*` 37, `androidx.lifecycle` 18, `androidx.camera` 8) |
 | `org.*` (Kotlin, `kotlinx`, `checker-qual`, `jspecify`, `annotations`) | 15 |
 | `com.*` (`google.guava` 3, `google.zxing`, `google.dagger`, `google.errorprone`, `google.j2objc`, …) | 9 |
 | `net.java.dev.jna`, `jakarta.inject`, `javax.inject` | 3 |
 
-- **Código nativo en el APK**: `libop_ffi.so` y **`libjnidispatch.so` de JNA** (165 992 B arm64, 116 344 B
-  armv7, 116 904 B x86_64), tres ABI (`unzip -l app-release.apk`). `abiFilters` descarta las demás.
-- **Datos incluidos** (APK de release): `public_suffix_list.dat` (338 012 B, MPL-2.0, `README.md:58`) y
-  `assets/eff_large_wordlist.txt` (62 144 B, EFF Large Wordlist, **CC BY 3.0 US** según `README.md:57`).
-- **Superficie no usada**: `androidx.media3:media3-common`, `-container` y `-muxer` y
-  `androidx.camera:camera-video` llegan por CameraX para vídeo, que la app no usa (el manifiesto elimina
-  `ACCESS_NETWORK_STATE`, que arrastra media3). **Sin verificar** si se pueden excluir sin romper el
-  escáner.
-- **Gradle sin análisis de vulnerabilidades**: ni en la CI ni en local. `cargo audit` y `cargo deny`
-  cubren solo Rust. `guava 33.3.1-android`, `dagger 2.59` y `jna 5.17.0` no se han comparado con ninguna base de
-  avisos en esta revisión.
+- **Native code in the APK**: `libop_ffi.so` and **`libjnidispatch.so` from JNA** (165 992 B arm64, 116 344 B
+  armv7, 116 904 B x86_64), three ABIs (`unzip -l app-release.apk`). `abiFilters` drops the others.
+- **Bundled data** (release APK): `public_suffix_list.dat` (338 012 B, MPL-2.0, `README.md:58`) and
+  `assets/eff_large_wordlist.txt` (62 144 B, EFF Large Wordlist, **CC BY 3.0 US** per `README.md:57`).
+- **Unused surface**: `androidx.media3:media3-common`, `-container` and `-muxer` and
+  `androidx.camera:camera-video` arrive through CameraX for video, which the app does not use (the manifest removes
+  `ACCESS_NETWORK_STATE`, which media3 pulls in). **Unverified** whether they can be excluded without breaking the
+  scanner.
+- **Gradle with no vulnerability analysis**: neither in CI nor locally. `cargo audit` and `cargo deny`
+  cover Rust only. `guava 33.3.1-android`, `dagger 2.59` and `jna 5.17.0` have not been compared with any advisory
+  database in this review.
 
-### 3.3 Verificación de dependencias
+### 3.3 Dependency verification
 
-`android/gradle/verification-metadata.xml` (`2bd56ce`): `verify-metadata` activo, **sin firmas**
-(`verify-signatures` en `false`), **478** componentes y **918** sumas SHA-256, **133** grupos, y
-`aapt2` de **Linux y macOS** (`com.android.tools.build:aapt2:9.4.1-15978811`, jars `linux` y `osx`).
-Cubre los plugins de build además de las bibliotecas. **No se ha ejecutado una compilación con la
-verificación activa en esta revisión** (no hay JDK en el `PATH`): sin verificar que el fichero
-sea completo. La CI lo comprobará al compilar en Linux.
+`android/gradle/verification-metadata.xml` (`a3daf4e`): `verify-metadata` active, **without signatures**
+(`verify-signatures` set to `false`), **478** components and **918** SHA-256 sums, **133** groups, and
+`aapt2` for **Linux and macOS** (`com.android.tools.build:aapt2:9.4.1-15978811`, `linux` and `osx` jars).
+It covers the build plugins in addition to the libraries. **No build has been run with
+verification active in this review** (there is no JDK in the `PATH`): whether the file
+is complete is unverified. CI will check it when building on Linux.
 
-### 3.4 Licencias de Gradle (de la SBOM)
+### 3.4 Gradle licenses (from the SBOM)
 
-Todos los componentes son `Apache-2.0`, salvo: `androidx.camera:camera-core` (`Apache-2.0`,
-`BSD-3-Clause`), `org.checkerframework:checker-qual` (`MIT`) y **`net.java.dev.jna:jna`
-(`LGPL-2.1-or-later` y `Apache-2.0`, doble licencia)**. Se puede elegir Apache-2.0, compatible con
-GPL-3.0; si se elige LGPL, también lo es. El `README.md` (sección «Componentes de terceros», líneas 57-58) **no menciona JNA**: solo la lista
-EFF y la de sufijos. Hay que decir cuál se aplica. Además, **sin verificar** si CC BY 3.0 US (lista EFF)
-es compatible con GPL-3.0: la FSF solo reconoce CC BY 4.0 como compatible, según mi conocimiento. Es
-un dato, no código, pero conviene decidirlo con la licencia delante.
+All components are `Apache-2.0`, except: `androidx.camera:camera-core` (`Apache-2.0`,
+`BSD-3-Clause`), `org.checkerframework:checker-qual` (`MIT`) and **`net.java.dev.jna:jna`
+(`LGPL-2.1-or-later` and `Apache-2.0`, dual license)**. Apache-2.0 can be chosen, compatible with
+GPL-3.0; if LGPL is chosen, it is also compatible. The `README.md` («Third-party components» section, lines 57-58) **does not mention JNA**: only the EFF
+list and the suffix list. It must say which one applies. Also, **unverified** whether CC BY 3.0 US (EFF list)
+is compatible with GPL-3.0: the FSF only recognises CC BY 4.0 as compatible, to my knowledge. It is
+a data point, not code, but it is worth deciding with the license in front of you.
 
-## 4. Cadena de compilación
+## 4. Build chain
 
-| Eslabón | Fijación | Debilidad |
+| Link | Pinning | Weakness |
 |---|---|---|
-| Código fuente | Commit y, tras ADR-AUD-01, etiqueta firmada | — |
-| `Cargo.lock` | Versionado, `--locked` | Resuelve contra crates.io; sin copia local (`cargo vendor` es opcional) |
-| Gradle | `libs.versions.toml` exactas + `verification-metadata.xml` + wrapper con suma | Sin firmas PGP; JNA y CameraX traen binarios |
-| Compilador y NDK | `rust-toolchain.toml` y `ndkVersion` | La descarga del NDK en la CI no se comprueba con suma (`sdkmanager`) |
-| Acciones de CI | SHA de commit | `dtolnay/rust-toolchain`: SHA de la rama `stable`, no de una versión |
-| Binarios de herramientas | Versión | `taiki-e/install-action` descarga; `cargo install` compila de crates.io sin suma |
-| APK de la release | Atestación de procedencia (Sigstore) del APK **sin firmar** y de las SBOM | La firma se añade en el ordenador del mantenedor después; **el APK firmado no está atestado** (ver 6) |
+| Source code | Commit and, after ADR-AUD-01, signed tag | — |
+| `Cargo.lock` | Versioned, `--locked` | Resolves against crates.io; no local copy (`cargo vendor` is optional) |
+| Gradle | exact `libs.versions.toml` + `verification-metadata.xml` + wrapper with checksum | No PGP signatures; JNA and CameraX ship binaries |
+| Compiler and NDK | `rust-toolchain.toml` and `ndkVersion` | The NDK download in CI is not checked with a checksum (`sdkmanager`) |
+| CI actions | Commit SHA | `dtolnay/rust-toolchain`: SHA of the `stable` branch, not of a version |
+| Tool binaries | Version | `taiki-e/install-action` downloads; `cargo install` compiles from crates.io without a checksum |
+| Release APK | Provenance attestation (Sigstore) of the **unsigned** APK and of the SBOMs | The signature is added on the maintainer's computer afterwards; **the signed APK is not attested** (see 6) |
 
-## 5. SBOM y atestaciones: estado
+## 5. SBOM and attestations: status
 
-- **Job `release`** (`ci.yml`, solo con etiquetas `v*`; confirmado en `2bd56ce`, **no
-  ejecutado nunca**): compila el APK, genera `op-ffi.cdx.json` (`cargo cyclonedx --manifest-path
-  ffi/Cargo.toml --format json --spec-version 1.5`) y la SBOM de Gradle (`cyclonedxDirectBom`,
-  `includeConfigs = releaseRuntimeClasspath`), calcula `SHA256SUMS` y atesta el APK sin firmar y las
-  dos SBOM con `actions/attest-build-provenance`. Permisos `id-token: write` y `attestations: write`
-  solo en ese job. Sube el artefacto con 90 días de retención (`retention-days: 90`, `ci.yml:143`). **No crea la *release*** de GitHub: adjuntar
-  los ficheros es un paso manual.
-- **Qué contiene la SBOM de Rust**: la salida de `cargo cyclonedx` sobre `ffi/Cargo.toml`, que
-  incluye el grafo completo de `op-ffi` y no solo lo enlazado. Los ficheros
-  `core/op-core.cdx.json` y `cli/opvault-cli.cdx.json` de pruebas anteriores ya no están en el árbol y
-  `*.cdx.json` está en `.gitignore` (ID-INT-23).
-- **Qué no contiene**: el `libjnidispatch.so` como componente nativo propio, las listas de datos (sufijos
-  públicos y EFF) ni las herramientas de compilación.
+- **`release` job** (`ci.yml`, only with `v*` tags; confirmed in `a3daf4e`, **never
+  run**): builds the APK, generates `op-ffi.cdx.json` (`cargo cyclonedx --manifest-path
+  ffi/Cargo.toml --format json --spec-version 1.5`) and the Gradle SBOM (`cyclonedxDirectBom`,
+  `includeConfigs = releaseRuntimeClasspath`), computes `SHA256SUMS` and attests the unsigned APK and the
+  two SBOMs with `actions/attest-build-provenance`. Permissions `id-token: write` and `attestations: write`
+  only in that job. It uploads the artifact with 90 days retention (`retention-days: 90`, `ci.yml:143`). **It does not create the GitHub
+  *release***: attaching the files is a manual step.
+- **What the Rust SBOM contains**: the output of `cargo cyclonedx` over `ffi/Cargo.toml`, which
+  includes the full `op-ffi` graph and not only what is linked. The files
+  `core/op-core.cdx.json` and `cli/opvault-cli.cdx.json` from earlier tests are no longer in the tree and
+  `*.cdx.json` is in `.gitignore` (ID-INT-23).
+- **What it does not contain**: `libjnidispatch.so` as its own native component, the data lists (public
+  suffixes and EFF) or the build tools.
 
-## 6. Propuestas
+## 6. Proposals
 
-Prioridad: **P1** antes de congelar `v0.2.0`; **P2** durante la auditoría; **P3** después.
+Priority: **P1** before freezing `v0.2.0`; **P2** during the audit; **P3** after.
 
-| Prio. | Propuesta | Por qué | Estado |
+| Prio. | Proposal | Why | Status |
 |---|---|---|---|
-| P1 | **Confirmar y ejecutar una vez** el job `release` con una etiqueta de prueba (`v0.2.0-rc1`) y `gh attestation verify` | Es el único modo de saber que la atestación y las SBOM funcionan; la propia decisión lo exige (paso 17) | Pendiente |
-| P1 | Quitar `Unlicense`, `Apache-2.0 WITH LLVM-exception` y `LGPL-2.1-or-later` de `deny.toml` | Reducir la lista a lo necesario (sección 2.4, probado) | Pendiente (decisión nº 7) |
-| P1 | **Decisión humana**: confirmar la licencia aplicada a JNA y la compatibilidad de CC BY 3.0 US (lista EFF) con GPL-3.0, y reflejarlo en el `README.md` | Evitar un incumplimiento de licencia | Pendiente |
-| P1 | Borrar o ignorar los `*.cdx.json` de `core/` y `cli/` | Evitar confirmar SBOM que no se publican | **Hecho** en `2bd56ce` (`.gitignore:5`) |
-| P1 | Comprobar la compilación con `verification-metadata.xml` en Linux y macOS y ver que falla si se altera una suma | Es la prueba del paso 16 | Pendiente (sin JDK en esta máquina) |
-| P2 | Atestar también el **APK firmado**, o publicar el `SHA256SUMS` del sin firmar y la regla de comparación | Hoy la firma rompe la cadena de procedencia | Propuesta |
-| P2 | Análisis de avisos de Gradle (por ejemplo `osv-scanner` sobre `verification-metadata.xml` o sobre la SBOM) en la CI | Hoy no hay ninguno | Propuesta |
-| P2 | Valorar `uniffi = { default-features = false }` con la característica mínima y excluir `media3` de CameraX | Reducir lo que se compila y se distribuye (73 unidades de biblioteca; 3 artefactos `media3`) | **Sin verificar** que compile y funcione |
-| P2 | Añadir al SBOM `libjnidispatch.so`, la lista de sufijos públicos, la lista EFF y el NDK | SBOM completa de lo que se envía | Propuesta |
-| P2 | `cargo vendor` del espacio de trabajo en la versión congelada, adjunto al paquete del auditor | Revisión sin conexión del código exacto de las dependencias | Opcional en ADR-AUD-01 |
-| P2 | `publish = false` en `ffi/Cargo.toml` y `cli/Cargo.toml` y `allow-wildcard-paths = true`; después `wildcards = "deny"` | Cerrar el pendiente de `deny.toml` | Comentario en `deny.toml` |
-| P2 | Que Dependabot no abra PR contra `release/0.2` (solo vigila la rama por defecto: `.github/dependabot.yml` no define `target-branch`) | La política de ADR-AUD-01 prohíbe subidas de rutina en la rama congelada | Cierto por defecto; documentarlo |
-| P3 | `cargo vet` para las dependencias de criptografía | Revisión humana por versión; descartado antes de la auditoría | Descartado en ADR-AUD-04 |
-| P3 | PGP en `verification-metadata.xml` | Mantener un llavero; coste alto | Descartado |
+| P1 | **Confirm and run once** the `release` job with a test tag (`v0.2.0-rc1`) and `gh attestation verify` | It is the only way to know that the attestation and the SBOMs work; the decision itself requires it (step 17) | pending |
+| P1 | Remove `Unlicense`, `Apache-2.0 WITH LLVM-exception` and `LGPL-2.1-or-later` from `deny.toml` | Reduce the list to what is needed (section 2.4, tested) | pending (decision no. 7) |
+| P1 | **Human decision**: confirm the license applied to JNA and the compatibility of CC BY 3.0 US (EFF list) with GPL-3.0, and reflect it in the `README.md` | Avoid a license breach | pending |
+| P1 | Delete or ignore the `*.cdx.json` of `core/` and `cli/` | Avoid committing SBOMs that are not published | **done** in `a3daf4e` (`.gitignore:5`) |
+| P1 | Check the build with `verification-metadata.xml` on Linux and macOS and see that it fails if a sum is altered | It is the proof of step 16 | pending (no JDK on this machine) |
+| P2 | Also attest the **signed APK**, or publish the `SHA256SUMS` of the unsigned one and the comparison rule | Today the signature breaks the provenance chain | proposed |
+| P2 | Gradle advisory analysis (for example `osv-scanner` over `verification-metadata.xml` or over the SBOM) in CI | Today there is none | proposed |
+| P2 | Consider `uniffi = { default-features = false }` with the minimal feature and exclude `media3` from CameraX | Reduce what is compiled and distributed (73 library units; 3 `media3` artifacts) | **unverified** that it compiles and works |
+| P2 | Add to the SBOM `libjnidispatch.so`, the public suffix list, the EFF list and the NDK | Complete SBOM of what is shipped | proposed |
+| P2 | `cargo vendor` of the workspace at the frozen version, attached to the auditor's package | Offline review of the exact dependency code | Optional in ADR-AUD-01 |
+| P2 | `publish = false` in `ffi/Cargo.toml` and `cli/Cargo.toml` and `allow-wildcard-paths = true`; then `wildcards = "deny"` | Close the pending item of `deny.toml` | Comment in `deny.toml` |
+| P2 | That Dependabot does not open PRs against `release/0.2` (it only watches the default branch: `.github/dependabot.yml` does not define `target-branch`) | The ADR-AUD-01 policy forbids routine upgrades in the frozen branch | True by default; document it |
+| P3 | `cargo vet` for the cryptography dependencies | Human review per version; discarded before the audit | Discarded in ADR-AUD-04 |
+| P3 | PGP in `verification-metadata.xml` | Maintaining a keyring; high cost | Discarded |
 
-## 7. Qué no se ha podido verificar
+## 7. What could not be verified
 
-- Que la verificación de Gradle esté completa y que falle con una suma alterada.
-- Que la SBOM de Gradle cubra todo lo que entra en el APK (es la del classpath de runtime, no un
-  análisis del APK final).
-- Si `getrandom` 0.2.17 queda enlazado.
-- Que `taiki-e/install-action` compruebe las sumas de lo que descarga.
-- Que no existan avisos de Gradle (no se ha escaneado).
-- La licencia que se aplica de JNA y la compatibilidad de CC BY 3.0 US con GPL-3.0.
+- That Gradle verification is complete and that it fails with an altered sum.
+- That the Gradle SBOM covers everything that enters the APK (it is the runtime classpath one, not an
+  analysis of the final APK).
+- Whether `getrandom` 0.2.17 ends up linked.
+- That `taiki-e/install-action` checks the sums of what it downloads.
+- That there are no Gradle advisories (it has not been scanned).
+- The license that applies to JNA and the compatibility of CC BY 3.0 US with GPL-3.0.
 
-## 8. Comandos para reproducirlo
+## 8. Commands to reproduce it
 
 ```sh
-grep -c '^\[\[package\]\]' Cargo.lock fuzz/Cargo.lock           # 139 y 132
-cargo metadata --locked --format-version 1 > meta.json          # licencias, duplicados, orígenes
-cargo audit --deny warnings                                     # 0 vulnerabilidades
+grep -c '^\[\[package\]\]' Cargo.lock fuzz/Cargo.lock           # 139 and 132
+cargo metadata --locked --format-version 1 > meta.json          # licenses, duplicates, origins
+cargo audit --deny warnings                                     # 0 vulnerabilities
 cargo deny --locked check                                       # advisories, bans, licenses, sources
-cargo deny --locked list                                        # licencias por paquete
-cargo tree -p op-ffi --locked --target aarch64-linux-android -d # duplicados del objetivo
+cargo deny --locked list                                        # licenses per package
+cargo tree -p op-ffi --locked --target aarch64-linux-android -d # target duplicates
 unzip -l android/app/build/outputs/apk/release/app-release.apk | grep -E 'lib/|public_suffix'
 strings -a android/app/build/rust/jniLibs/arm64-v8a/libop_ffi.so | grep -oE 'registry/src/[^/]+/[A-Za-z0-9_.+-]+'
 python3 -c "import json;print(len(json.load(open('android/app/build/reports/cyclonedx-direct/bom.json'))['components']))"

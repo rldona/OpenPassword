@@ -1,109 +1,109 @@
-# Presupuesto y calendario
+# Budget and timeline
 
-Plantilla para comparar ofertas y planificar la auditoría de `v0.2.0`
+Template for comparing quotes and planning the `v0.2.0` audit
 ([`scope.md`](scope.md))).
 
-**Todos los importes y fechas son huecos (`___`) a propósito.** No hay presupuesto asignado, no se
-ha pedido ninguna oferta y ningún proveedor publica tarifas (ver [`vendors.md`](vendors.md))). Se
-rellena cuando lleguen las ofertas, y cada cifra debe llevar su fuente (oferta con fecha y referencia).
+**All amounts and dates are gaps (`___`) on purpose.** There is no budget assigned, no quote has
+been requested and no vendor publishes rates (see [`vendors.md`](vendors.md))). It is
+filled in when the quotes arrive, and every figure must carry its source (quote with date and reference).
 
-## 1. Plantilla por proveedor
+## 1. Template per vendor
 
-Copiar un bloque por proveedor (`### <Proveedor>`) y rellenar. Los componentes son los de
-[`scope.md`](scope.md#4-dentro-del-alcance)).
+Copy one block per vendor (`### <Vendor>`) and fill it in. The components are those of
+[`scope.md`](scope.md#4-in-scope)).
 
-### `<Proveedor>`
+### `<Vendor>`
 
-| Dato | Valor |
+| Data point | Value |
 |---|---|
-| Fuente de la oferta (fecha, referencia) | `___` |
-| Moneda e impuestos (IVA incluido sí/no) | `___` |
-| Validez de la oferta | `___` |
-| Tarifa por día-persona | `___` |
-| Perfil del equipo (personas, experiencia en Rust/Android/criptografía) | `___` |
+| Source of the quote (date, reference) | `___` |
+| Currency and taxes (VAT included yes/no) | `___` |
+| Validity of the quote | `___` |
+| Rate per person-day | `___` |
+| Team profile (people, experience in Rust/Android/cryptography) | `___` |
 
-**Esfuerzo por componente** (días-persona):
+**Effort per component** (person-days):
 
-| Componente | Días-persona | Notas |
+| Component | Person-days | Notes |
 |---|---|---|
-| `op-core`: criptografía, formato, STREAM, KDF | `___` | |
-| `op-core`: importadores (KDBX, 1Password, Bitwarden, CSV) y TOTP | `___` | |
-| `op-ffi`: UniFFI, secretos, panics, límites de la KDF | `___` | |
-| App Android: sesión, Keystore y biometría | `___` | |
-| App Android: autorrelleno (coincidencias, sufijos públicos, guardado) | `___` | |
-| App Android: portapapeles, anti-tapjacking, aviso de root, almacenamiento | `___` | |
-| Formato `.opvault` (revisión de diseño) | `___` | |
-| Builds reproducibles y firma | `___` | |
-| Gestión del proyecto y reuniones | `___` | |
-| **Subtotal auditoría** (días × tarifa) | `___` | |
+| `op-core`: cryptography, format, STREAM, KDF | `___` | |
+| `op-core`: importers (KDBX, 1Password, Bitwarden, CSV) and TOTP | `___` | |
+| `op-ffi`: UniFFI, secrets, panics, KDF bounds | `___` | |
+| Android app: session, Keystore and biometrics | `___` | |
+| Android app: autofill (matching, public suffixes, saving) | `___` | |
+| Android app: clipboard, anti-tapjacking, root warning, storage | `___` | |
+| `.opvault` format (design review) | `___` | |
+| Reproducible builds and signing | `___` | |
+| Project management and meetings | `___` | |
+| **Audit subtotal** (days × rate) | `___` | |
 
-**Costes adicionales:**
+**Additional costs:**
 
-| Concepto | Importe | Notas |
+| Item | Amount | Notes |
 |---|---|---|
-| Informe preliminar | `___` | ¿incluido en el subtotal? |
-| Re-test (rondas incluidas: `___`) | `___` | Cada ronda adicional: `___` |
-| Informe final publicable | `___` | ¿Revisión por el proveedor incluida? |
-| Resumen para usuarios (opcional) | `___` | |
-| Gastos (viajes, licencias, dispositivos de prueba) | `___` | |
-| Impuestos | `___` | |
+| Preliminary report | `___` | included in the subtotal? |
+| Re-test (rounds included: `___`) | `___` | Each additional round: `___` |
+| Publishable final report | `___` | Vendor review included? |
+| Summary for users (optional) | `___` | |
+| Expenses (travel, licenses, test devices) | `___` | |
+| Taxes | `___` | |
 | **Total** | `___` | |
 
-**Condiciones** (obligatorias salvo que se indique):
+**Conditions** (mandatory unless stated otherwise):
 
-| Condición | ¿La cumple? | Notas |
+| Condition | Met? | Notes |
 |---|---|---|
-| Permiso por escrito para publicar el informe completo | `___` | **Obligatoria** |
-| Re-test incluido | `___` | **Obligatoria** (al menos una ronda) |
-| Hallazgos críticos notificados de inmediato | `___` | |
-| Entrega de PoC | `___` | |
-| Idioma del informe | `___` | |
-| Plazo desde la firma hasta el arranque | `___` | |
-| Duración de la auditoría (semanas) | `___` | |
-| Forma de pago y calendario de pagos | `___` | |
+| Written permission to publish the full report | `___` | **Mandatory** |
+| Re-test included | `___` | **Mandatory** (at least one round) |
+| Critical findings reported immediately | `___` | |
+| PoC delivery | `___` | |
+| Language of the report | `___` | |
+| Deadline from signature to start | `___` | |
+| Duration of the audit (weeks) | `___` | |
+| Payment method and payment schedule | `___` | |
 
-**Financiación** (ver [`vendors.md` §3](vendors.md#3-vías-de-financiación))):
+**Funding** (see [`vendors.md` §3](vendors.md#3-funding-routes))):
 
-| Vía | Importe solicitado | Importe concedido | Estado y fecha | Condiciona al proveedor |
+| Route | Amount requested | Amount granted | Status and date | Conditions the vendor |
 |---|---|---|---|---|
 | OSTIF | `___` | `___` | `___` | `___` |
 | OTF Security Lab | `___` | `___` | `___` | `___` |
 | NLnet Restack | `___` | `___` | `___` | `___` |
-| Fondos propios | `___` | `___` | `___` | no |
-| **Total cubierto** | `___` | | | |
-| **Diferencia por cubrir** | `___` | | | |
+| Own funds | `___` | `___` | `___` | no |
+| **Total covered** | `___` | | | |
+| **Gap to cover** | `___` | | | |
 
-### Comparativa
+### Comparison
 
-| Proveedor | Total | Cubierto | Por cubrir | Re-test | Publicación | Arranque | Duración |
+| Vendor | Total | Covered | To cover | Re-test | Publication | Start | Duration |
 |---|---|---|---|---|---|---|---|
 | `___` | `___` | `___` | `___` | `___` | `___` | `___` | `___` |
 
-## 2. Calendario
+## 2. Timeline
 
-Las duraciones son huecos. Cada hito tiene una **condición de salida**: no se pasa al siguiente sin
-cumplirla. Las políticas de rama y de cambios durante la auditoría están en
-[ADR-AUD-01](decisions.md#adr-aud-01--estrategia-de-congelación)).
+The durations are gaps. Each milestone has an **exit condition**: the next one is not started without
+meeting it. The branch and change policies during the audit are in
+[ADR-AUD-01](decisions.md#adr-aud-01--freeze-strategy)).
 
-| # | Hito | Fecha objetivo | Duración | Condición de salida |
+| # | Milestone | Target date | Duration | Exit condition |
 |---|---|---|---|---|
-| 1 | Financiación y proveedor decididos | `___` | `___` | Oferta aceptada; contrato con permiso de publicación y re-test; importe cubierto |
-| 2 | **Congelación**: `release/0.2` y etiqueta firmada `v0.2.0` | `___` | `___` | Pasos 1–18 del plan de [`decisions.md`](decisions.md)) hechos y en verde; CI de la etiqueta en verde; SHA-256 del APK coincide con una build independiente en Linux; SHA anotado en [`README.md`](README.md)) y [`scope.md`](scope.md)); paquete adjunto a la pre-release |
-| 3 | **Arranque** | `___` | `___` | Reunión inicial hecha; acceso al repositorio y a los avisos privados; contactos confirmados |
-| 4 | Auditoría activa | `___` | `___` | Hallazgos críticos notificados al momento; el proyecto responde a las preguntas en `___` días |
-| 5 | **Informe preliminar** | `___` | `___` | Informe recibido; cada hallazgo registrado en un aviso privado |
-| 6 | **Correcciones** | `___` | `___` | Cada hallazgo aceptado tiene corrección con test de regresión en `main` y, tras `cherry-pick -x`, en `release/0.2`; etiqueta firmada `v0.2.N`; diff entregado |
-| 7 | **Re-test** | `___` | `___` | El auditor marca cada hallazgo como corregido, parcial, no corregido o aceptado |
-| 8 | **Informe final** | `___` | `___` | Informe final recibido; texto público revisado; fecha de publicación pactada |
-| 9 | Publicación | `___` | `___` | Informe y avisos publicados ([`findings-process.md`](findings-process.md))) |
-| 10 | **`1.0.0`** | `___` | `___` | Criterios de [`findings-process.md`](findings-process.md#7-criterios-para-la-100)) cumplidos |
+| 1 | Funding and vendor decided | `___` | `___` | Quote accepted; contract with publication permission and re-test; amount covered |
+| 2 | **Freeze**: `release/0.2` and signed tag `v0.2.0` | `___` | `___` | Steps 1–18 of the [`decisions.md`](decisions.md)) plan done and green; CI of the tag green; APK SHA-256 matches an independent build on Linux; SHA noted in [`README.md`](README.md)) and [`scope.md`](scope.md)); package attached to the pre-release |
+| 3 | **Start** | `___` | `___` | Kick-off meeting done; access to the repository and to the private advisories; contacts confirmed |
+| 4 | Active audit | `___` | `___` | Critical findings reported immediately; the project answers questions within `___` days |
+| 5 | **Preliminary report** | `___` | `___` | Report received; each finding recorded in a private advisory |
+| 6 | **Fixes** | `___` | `___` | Each accepted finding has a fix with a regression test in `main` and, after `cherry-pick -x`, in `release/0.2`; signed tag `v0.2.N`; diff delivered |
+| 7 | **Re-test** | `___` | `___` | The auditor marks each finding as fixed, partial, not fixed or accepted |
+| 8 | **Final report** | `___` | `___` | Final report received; public text reviewed; publication date agreed |
+| 9 | Publication | `___` | `___` | Report and advisories published ([`findings-process.md`](findings-process.md))) |
+| 10 | **`1.0.0`** | `___` | `___` | Criteria of [`findings-process.md`](findings-process.md#7-criteria-for-100)) met |
 
-Dependencias a vigilar:
+Dependencies to watch:
 
-- El hito 2 depende de decisiones pendientes de aprobación humana (lista final de
-  [`decisions.md`](decisions.md#decisiones-que-requieren-aprobación-humana))).
-- Si hay varios proveedores o financiación, el hito 1 puede retrasarse; las convocatorias de NLnet
-  son cada ~2 meses (ver [`vendors.md`](vendors.md))).
-- El hito 6 puede repetirse (`v0.2.N`) antes del re-test; el auditor decide cuántas rondas caben.
-- Los márgenes de seguridad (vacaciones, disponibilidad del mantenedor, un solo mantenedor) se
-  anotan en `___`.
+- Milestone 2 depends on decisions pending human approval (final list of
+  [`decisions.md`](decisions.md#decisions-that-require-human-approval))).
+- If there are several vendors or funders, milestone 1 may be delayed; NLnet calls
+  are every ~2 months (see [`vendors.md`](vendors.md))).
+- Milestone 6 may repeat (`v0.2.N`) before the re-test; the auditor decides how many rounds fit.
+- Safety margins (holidays, maintainer availability, a single maintainer) are
+  noted in `___`.

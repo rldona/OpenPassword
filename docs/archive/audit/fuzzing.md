@@ -1,124 +1,124 @@
 # Fuzzing
 
-Qué se fuzzea, cómo, con qué ganchos, qué falta y por qué se pospone. La guía de uso está en
-[`fuzz/README.md`](../../../fuzz/README.md)); la decisión, en [`decisions.md`](decisions.md)) (ADR-AUD-05).
+What is fuzzed, how, with which hooks, what is missing and why it is postponed. The usage guide is in
+[`fuzz/README.md`](../../../fuzz/README.md)); the decision, in [`decisions.md`](decisions.md)) (ADR-AUD-05).
 
-Estado verificado el 2026-10-30 sobre `HEAD` `2bd56ce`. Los seis objetivos nuevos (`vault_json`,
-`item_open`, `item_plaintext`, `backup_body`, `ffi_records` y `kdbx_container`), los ganchos `cfg(fuzzing)`,
-el workflow nocturno y la bajada de la CI a 30 s están confirmados en ese commit; los cinco primeros
-objetivos están en `8063fd1`. Las cifras de corpus local son de la máquina de desarrollo.
+Status verified on 2026-10-30 over `HEAD` `a3daf4e`. The six new targets (`vault_json`,
+`item_open`, `item_plaintext`, `backup_body`, `ffi_records` and `kdbx_container`), the `cfg(fuzzing)` hooks,
+the nightly workflow and the CI reduction to 30 s are confirmed in that commit; the first five
+targets are in `4e7fef0`. The local corpus figures are from the development machine.
 
-## 1. Cobertura actual: once objetivos
+## 1. Current coverage: eleven targets
 
-Todos son `cargo-fuzz` (libFuzzer con AddressSanitizer por defecto), registrados en `fuzz/Cargo.toml`
-(espacio de trabajo aparte, necesita nightly). Parámetros comunes de la CI:
+All of them are `cargo-fuzz` (libFuzzer with AddressSanitizer by default), registered in `fuzz/Cargo.toml`
+(separate workspace, requires nightly). Common CI parameters:
 `-O --target x86_64-unknown-linux-gnu … -max_len=65536 -rss_limit_mb=2048 -timeout=10`.
 
-| Objetivo | Origen | Qué recibe | Qué recorre | Semillas (`fuzz/seeds/<objetivo>/`) | Corpus local (ficheros, no versionado) |
+| Target | Origin | What it receives | What it traverses | Seeds (`fuzz/seeds/<target>/`) | Local corpus (files, not versioned) |
 |---|---|---|---|---|---|
-| `import` | `8063fd1` | Fichero | `import::needs_password` y `import::parse(data, now)`: CSV, Bitwarden JSON y `.1pux`; y, desde `2bd56ce`, `kdbx_fuzzing::file`: cabecera de KDBX y comprobaciones previas a la KDF con una clave fija ([ID-INT-25](internal-review.md#id-int-25)), corregido) | 6 (9 521 B) | 27 888 |
-| `kdbx_xml` | `8063fd1` | XML UTF-8 | `kdbx_fuzzing::xml`: `read_entries` (grupos, papelera, historial, valores protegidos con flujo ChaCha20 fijo, límites de profundidad y de entradas) y `entry_to_item` | 3 (64 944 B; las dos nuevas son de anidamiento profundo y del límite) | 5 334 |
-| `key_file` | `8063fd1` | Bytes | `kdbx_fuzzing::key_file` (`key_file_key`) | 2 (342 B) | 4 918 |
-| `backup_header` | `8063fd1` | Bytes | `backup::read_header` y `kdf.check_bounds()`. **No** llama a `check_within(MOBILE_MAXIMUM)` (ADR-AUD-07 lo pedía; `fuzz/fuzz_targets/backup_header.rs:7-9`) | 1 (3 953 B) | 2 861 |
-| `totp` | `8063fd1` | UTF-8 | `Totp::parse`, `code_at(u64::MAX)`, `seconds_remaining` | 2 (157 B) | 1 868 |
-| `vault_json` | nuevo | Bytes | `serde_json` de `VaultHeader` y de `EncryptedItem` (`hex_bytes`), con ida y vuelta | 2 (1 142 B) | 4 513 |
-| `item_open` | nuevo | `EncryptedItem` en JSON | `vault.decrypt_overview`, `decrypt_details`, `decrypt_item` con la bóveda de prueba | 1 (919 B) | 3 276 |
-| `item_plaintext` | nuevo | Bytes | `seal_item_part` (relleno + sellado con clave fija) → `decrypt_details` y `decrypt_overview`: `padding::unpad` y el JSON de los elementos | 3 (178 B) | 2 228 |
-| `backup_body` | nuevo | Bytes | `seal_backup` (STREAM con clave fija) → `open_with_vault`: troceado y `Body` JSON, **sin KDF**; también los bytes crudos | 3 (2 391 B) | 936 |
-| `kdbx_container` | `2bd56ce` | Bytes (el primero elige la forma) | `kdbx_fuzzing::container`: KDBX 3.1/4 sellado con una clave transformada fija; `read_header`, `open_payload`: bloques con HMAC o hash, cifrado externo (AES o ChaCha20), gunzip, cabecera interna y XML | 5 (9 415 B) | 0 (sin corpus local) |
-| `ffi_records` | nuevo | Bytes (`Unstructured`) | `op_ffi::Vault::unlock_with_vault_key` con cabecera arbitraria y fija, y `decrypt_overview`/`decrypt_details` con `EncryptedItemRecord` arbitrario o sellado | 1 (98 B) | 1 755 |
+| `import` | `4e7fef0` | File | `import::needs_password` and `import::parse(data, now)`: CSV, Bitwarden JSON and `.1pux`; and, since `a3daf4e`, `kdbx_fuzzing::file`: KDBX header and the checks before the KDF with a fixed key ([ID-INT-25](internal-review.md#id-int-25)), fixed) | 6 (9 521 B) | 27 888 |
+| `kdbx_xml` | `4e7fef0` | UTF-8 XML | `kdbx_fuzzing::xml`: `read_entries` (groups, recycle bin, history, protected values with a fixed ChaCha20 stream, depth and entry limits) and `entry_to_item` | 3 (64 944 B; the two new ones are for deep nesting and the limit) | 5 334 |
+| `key_file` | `4e7fef0` | Bytes | `kdbx_fuzzing::key_file` (`key_file_key`) | 2 (342 B) | 4 918 |
+| `backup_header` | `4e7fef0` | Bytes | `backup::read_header` and `kdf.check_bounds()`. It does **not** call `check_within(MOBILE_MAXIMUM)` (ADR-AUD-07 asked for it; `fuzz/fuzz_targets/backup_header.rs:7-9`) | 1 (3 953 B) | 2 861 |
+| `totp` | `4e7fef0` | UTF-8 | `Totp::parse`, `code_at(u64::MAX)`, `seconds_remaining` | 2 (157 B) | 1 868 |
+| `vault_json` | new | Bytes | `serde_json` of `VaultHeader` and of `EncryptedItem` (`hex_bytes`), with round trip | 2 (1 142 B) | 4 513 |
+| `item_open` | new | `EncryptedItem` in JSON | `vault.decrypt_overview`, `decrypt_details`, `decrypt_item` with the test vault | 1 (919 B) | 3 276 |
+| `item_plaintext` | new | Bytes | `seal_item_part` (padding + sealing with a fixed key) → `decrypt_details` and `decrypt_overview`: `padding::unpad` and the item JSON | 3 (178 B) | 2 228 |
+| `backup_body` | new | Bytes | `seal_backup` (STREAM with a fixed key) → `open_with_vault`: chunking and JSON `Body`, **without KDF**; also the raw bytes | 3 (2 391 B) | 936 |
+| `kdbx_container` | `a3daf4e` | Bytes (the first one chooses the shape) | `kdbx_fuzzing::container`: KDBX 3.1/4 sealed with a fixed transformed key; `read_header`, `open_payload`: blocks with HMAC or hash, outer cipher (AES or ChaCha20), gunzip, inner header and XML | 5 (9 415 B) | 0 (no local corpus) |
+| `ffi_records` | new | Bytes (`Unstructured`) | `op_ffi::Vault::unlock_with_vault_key` with an arbitrary and fixed header, and `decrypt_overview`/`decrypt_details` with an arbitrary or sealed `EncryptedItemRecord` | 1 (98 B) | 1 755 |
 
-- **Total**: 29 semillas, unos 93 000 B (`for t in seeds/*; do ls $t | wc -l; done`); el corpus local son ficheros del equipo de desarrollo y no
-  entra en el repositorio (`fuzz/.gitignore`: `corpus/`, `artifacts/`).
-- **Resultados**: `fuzz/artifacts/<objetivo>/` está **vacío** en los once objetivos en esta máquina
-  (`ls fuzz/artifacts/*`): ningún fallo guardado. El mensaje del commit `8063fd1` da «unos 48 millones
-  de ejecuciones en local sin fallos» **para los cinco primeros objetivos**. **No hay ninguna cifra de
-  ejecuciones registrada para los seis nuevos**: el tamaño del corpus local de cinco de ellos demuestra que se
-  ejecutaron, no cuánto; `kdbx_container` no tiene corpus local. Cualquier cifra de ejecuciones por objetivo nuevo sería una estimación.
-- **Hallazgos que ha producido hasta ahora**: ninguno. Los dos defectos de `op-core` que el fuzzing
-  **no** encontró —y que la revisión interna sí— están en `internal-review.md` y ya están corregidos en `2bd56ce`:
-  [ID-INT-01](internal-review.md#id-int-01)) (memoria cuadrática del XML, que `kdbx_xml` no encontraba
-  porque exige anidamiento profundo **y** muchas entradas; ahora hay límites y semillas) y
-  [ID-INT-25](internal-review.md#id-int-25)) (el hueco de cobertura de la cabecera de KDBX; ahora lo
-  cubren `import` y `kdbx_container`).
+- **Total**: 29 seeds, about 93 000 B (`for t in seeds/*; do ls $t | wc -l; done`); the local corpus is files from the development machine and does not
+  enter the repository (`fuzz/.gitignore`: `corpus/`, `artifacts/`).
+- **Results**: `fuzz/artifacts/<target>/` is **empty** for the eleven targets on this machine
+  (`ls fuzz/artifacts/*`): no saved failure. The commit message `4e7fef0` gives «about 48 million
+  executions locally without failures» **for the first five targets**. **There is no execution figure
+  recorded for the six new ones**: the local corpus size of five of them shows that they were
+  run, not for how long; `kdbx_container` has no local corpus. Any execution figure per new target would be an estimate.
+- **Findings it has produced so far**: none. The two `op-core` defects that fuzzing
+  **did not** find —and that the internal review did— are in `internal-review.md` and are already fixed in `a3daf4e`:
+  [ID-INT-01](internal-review.md#id-int-01)) (quadratic XML memory, which `kdbx_xml` did not find
+  because it requires deep nesting **and** many entries; there are now limits and seeds) and
+  [ID-INT-25](internal-review.md#id-int-25)) (the KDBX header coverage gap; it is now
+  covered by `import` and `kdbx_container`).
 
-## 2. Ganchos `cfg(fuzzing)`
+## 2. `cfg(fuzzing)` hooks
 
-`cargo fuzz` compila con `--cfg fuzzing`; nada más en el repositorio lo activa. Lo declara
+`cargo fuzz` compiles with `--cfg fuzzing`; nothing else in the repository enables it. It is declared by
 `[workspace.lints.rust] unexpected_cfgs … check-cfg = ["cfg(fuzzing)"]` (`Cargo.toml:15`).
 
-| Módulo | Fichero y línea | Qué expone |
+| Module | File and line | What it exposes |
 |---|---|---|
-| `op_core::fuzzing` | `core/src/lib.rs:26` | `TEST_VAULT_KEY` (`[7; 32]`), `header()` (cabecera bien formada, clave envuelta vacía), `vault()` (baúl abierto con `unlock_with_vault_key`); reexporta los dos siguientes |
-| `vault::fuzzing` | `core/src/vault/mod.rs:273` | `seal_item_part(vault, plaintext)`: clave de elemento `[9; 32]`, nonce `[5; …]`, id `[2; 16]`, relleno y sellado, para llegar a `unpad` y al JSON |
-| `backup::fuzzing` | `core/src/backup/mod.rs:144` | `seal_backup(vault, body)` (clave de fichero `[4; 32]`, nonce `[6; …]`) y `open_with_vault(bytes, vault)` (`decrypt_body` sin KDF) |
-| `import::kdbx_fuzzing` | `core/src/import/mod.rs:11` → `core/src/import/kdbx.rs:661` | `xml(&str)`, `key_file(&[u8])`, `file(&[u8])` (cabecera y comprobaciones previas a la KDF con una clave transformada fija, no secreta) y `container(&[u8])` (sella un KDBX con esa clave y llega hasta el XML) |
+| `op_core::fuzzing` | `core/src/lib.rs:26` | `TEST_VAULT_KEY` (`[7; 32]`), `header()` (well-formed header, empty wrapped key), `vault()` (open vault with `unlock_with_vault_key`); it re-exports the next two |
+| `vault::fuzzing` | `core/src/vault/mod.rs:273` | `seal_item_part(vault, plaintext)`: item key `[9; 32]`, nonce `[5; …]`, id `[2; 16]`, padding and sealing, to reach `unpad` and the JSON |
+| `backup::fuzzing` | `core/src/backup/mod.rs:144` | `seal_backup(vault, body)` (file key `[4; 32]`, nonce `[6; …]`) and `open_with_vault(bytes, vault)` (`decrypt_body` without KDF) |
+| `import::kdbx_fuzzing` | `core/src/import/mod.rs:11` → `core/src/import/kdbx.rs:661` | `xml(&str)`, `key_file(&[u8])`, `file(&[u8])` (header and checks before the KDF with a fixed, non-secret transformed key) and `container(&[u8])` (seals a KDBX with that key and reaches the XML) |
 
-**Claves y nonces constantes y públicos.** Por eso el módulo no puede entrar en un binario de
-producción. Se comprueba así:
+**Constant and public keys and nonces.** That is why the module cannot enter a production
+binary. This is checked like this:
 
-- **Comprobación válida**: `strings -a android/app/build/rust/jniLibs/arm64-v8a/libop_ffi.so | grep -cE
-  'seal_backup|seal_item_part|TEST_VAULT_KEY'` → **0**, con un control positivo
-  (`… | grep -c "cost above the accepted maximum"` → 1, una cadena que sí existe). El `.so` se
-  compiló a las 10:14 del 30/10 con el árbol que incluye `check_within`.
-- **Comprobación del README: no sirve** ([ID-INT-21](internal-review.md#id-int-21))): sobre
-  `target/release/libop_core.rlib` el mismo control positivo da 0, porque con LTO el `.rlib` es
-  *bitcode*. El auditor no debería fiarse de ella.
-- `cargo build --release` no define `fuzzing`, así que los módulos no se compilan: la ausencia en
-  `libop_ffi.so` lo confirma.
+- **Valid check**: `strings -a android/app/build/rust/jniLibs/arm64-v8a/libop_ffi.so | grep -cE
+  'seal_backup|seal_item_part|TEST_VAULT_KEY'` → **0**, with a positive control
+  (`… | grep -c "cost above the accepted maximum"` → 1, a string that does exist). The `.so` was
+  compiled at 10:14 on 30/10 with the tree that includes `check_within`.
+- **README check: it does not work** ([ID-INT-21](internal-review.md#id-int-21))): over
+  `target/release/libop_core.rlib` the same positive control gives 0, because with LTO the `.rlib` is
+  *bitcode*. The auditor should not rely on it.
+- `cargo build --release` does not define `fuzzing`, so the modules are not compiled: the absence in
+  `libop_ffi.so` confirms it.
 
-El riesgo que queda ([`decisions.md`](decisions.md)), «Riesgos que quedan abiertos»): código que solo
-existe en fuzzing y que el auditor tiene que leer; se pide revisarlo y se propone un paso de CI con la
-comprobación válida.
+The risk that remains ([`decisions.md`](decisions.md)), «Risks that remain open»): code that only
+exists in fuzzing and that the auditor has to read; it is asked to review it and a CI step with the
+valid check is proposed.
 
-## 3. Corpus y semillas
+## 3. Corpus and seeds
 
-- **Semillas**: `fuzz/seeds/<objetivo>/`, hechas a mano o con un generador temporal que usa los
-  ganchos y los vectores de `core/tests/vectors/op-v1.json` (los de los objetivos nuevos, según
-  `fuzz/README.md`). No están minimizadas.
-- **PR y *push*** (`ci.yml`, job `fuzz`): corpus vacío más las semillas, **30 s por objetivo**
-  (`-max_total_time=30`), once objetivos en serie, sin caché. Si falla, sube `fuzz/artifacts`.
-- **Nocturno** (`.github/workflows/fuzz-nightly.yml`): `cron: '17 3 * * *'` (UTC) y
-  `workflow_dispatch`. Matriz de once trabajos en paralelo, uno por objetivo, `timeout-minutes: 150`,
-  `-max_total_time=600` (**10 min**), `concurrency` de un solo grupo sin cancelación.
-  - **Corpus en caché**: `actions/cache` con clave `fuzz-corpus-<objetivo>-<run_id>` y
-    `restore-keys: fuzz-corpus-<objetivo>-`: cada noche restaura el más reciente y guarda uno nuevo.
-  - **Minimización**: `cargo fuzz cmin` solo el domingo (`date -u +%u = 7`).
-  - **Si un objetivo falla**: sube `fuzz/artifacts/<objetivo>` y el trabajo queda en rojo. `fail-fast:
-    false`, así que los otros diez terminan.
-- **Nunca ejecutado**: el fichero se confirmó en `2bd56ce` y no hay constancia de ninguna ejecución de
-  GitHub Actions (ni manual ni programada) en este repositorio. El paso 12 del plan pide una ejecución
-  `workflow_dispatch` en verde.
-- **Caducidad**: la caché de Actions caduca a los 7 días sin uso (ADR-AUD-05). Con `actions/cache`, el
-  guardado se hace al acabar con éxito: si un objetivo falla esa noche, **ese día no se guarda el
-  corpus** (comportamiento por defecto de la acción; sin verificar en este repositorio).
+- **Seeds**: `fuzz/seeds/<target>/`, made by hand or with a temporary generator that uses the
+  hooks and the vectors of `core/tests/vectors/op-v1.json` (those of the new targets, per
+  `fuzz/README.md`). They are not minimised.
+- **PR and *push*** (`ci.yml`, `fuzz` job): empty corpus plus the seeds, **30 s per target**
+  (`-max_total_time=30`), eleven targets in series, no cache. If it fails, it uploads `fuzz/artifacts`.
+- **Nightly** (`.github/workflows/fuzz-nightly.yml`): `cron: '17 3 * * *'` (UTC) and
+  `workflow_dispatch`. Matrix of eleven jobs in parallel, one per target, `timeout-minutes: 150`,
+  `-max_total_time=600` (**10 min**), `concurrency` of a single group without cancellation.
+  - **Cached corpus**: `actions/cache` with key `fuzz-corpus-<target>-<run_id>` and
+    `restore-keys: fuzz-corpus-<target>-`: each night it restores the most recent one and saves a new one.
+  - **Minimisation**: `cargo fuzz cmin` only on Sunday (`date -u +%u = 7`).
+  - **If a target fails**: it uploads `fuzz/artifacts/<target>` and the job turns red. `fail-fast:
+    false`, so the other ten finish.
+- **Never run**: the file was committed in `a3daf4e` and there is no record of any GitHub Actions
+  run (neither manual nor scheduled) in this repository. Step 12 of the plan asks for a green
+  `workflow_dispatch` run.
+- **Expiry**: the Actions cache expires after 7 days without use (ADR-AUD-05). With `actions/cache`, the
+  save happens on successful completion: if a target fails that night, **the corpus is not saved that day**
+  (default behaviour of the action; unverified in this repository).
 
-### Tiempos (estimaciones, no medidas)
+### Timings (estimates, not measured)
 
-| Qué | Estimación | Base |
+| What | Estimate | Basis |
 |---|---|---|
-| Job `fuzz` de PR | ≈ 5,5 min de fuzzing (11 × 30 s) más compilación de 11 binarios | Aritmética del `ci.yml`; ADR-AUD-05 dice «unos 5 min». **No hay una duración de ejecución real registrada** |
-| Nocturno | ≈ 110 min de CPU (11 × 10 min), ≈ 10–20 min de reloj en paralelo más compilación | Aritmética del workflow; sin medir |
-| Ejecuciones por objetivo y por minuto | **Sin medir** | No hay `exec/s` en el repositorio |
+| PR `fuzz` job | ≈ 5.5 min of fuzzing (11 × 30 s) plus compilation of 11 binaries | Arithmetic from `ci.yml`; ADR-AUD-05 says «about 5 min». **There is no real run duration recorded** |
+| Nightly | ≈ 110 min of CPU (11 × 10 min), ≈ 10–20 min of wall clock in parallel plus compilation | Arithmetic from the workflow; not measured |
+| Executions per target per minute | **Not measured** | There is no `exec/s` in the repository |
 
-## 4. Qué falta y por qué se pospone
+## 4. What is missing and why it is postponed
 
-| Hueco | Estado | Motivo |
+| Gap | Status | Reason |
 |---|---|---|
-| **`backup_header` sin `check_within(MOBILE_MAXIMUM)`** | Pedido por ADR-AUD-07, no hecho | El techo vive en `op-ffi`; `fuzz` ya depende de `op-ffi` (`ffi_records`) |
-| **`open_backup` y `parse_import` completos** (con `check_mobile_kdf` y KDF) | Sin cobertura | El coste de la KDF y la contraseña; `ffi_records` solo cubre cabecera y registros |
-| **KDF de KDBX** | Sin cobertura (deliberado) | Su coste lo fija el fichero; la cabecera, los bloques, el gunzip y el XML sí se cubren con clave fija (`import`, `kdbx_container`) |
-| **Memoria del XML bajo `-rss_limit_mb=2048`** | Abierto | Hay límites y semillas de anidamiento (ID-INT-01 corregido), pero 2048 MB sigue siendo más de lo que aguanta un teléfono |
-| **Diccionarios y estructura** (`-dict`, `Arbitrary` para JSON y XML) | No hay | Los objetivos de JSON parten de bytes crudos; los diccionarios acelerarían llegar a campos válidos |
-| **Medición de cobertura** (`cargo fuzz coverage`) | No hay informe | No hay `exec/s`, ni cobertura por objetivo, ni dato sobre qué ramas no alcanza ninguno |
-| **Jazzer para el Kotlin del autorrelleno** (`StructureParser`, `FieldClassifier`, `LoginMatcher`, `PublicSuffix`) | **Pospuesto** (decisión nº 9) | `StructureParser` depende de `AssistStructure` y Jazzer no lo alcanza sin Robolectric; `LoginMatcher` y `FieldClassifier` son funciones puras con tests de invariantes deterministas (`LoginMatcherTest`: 29 tests, generadores `Random(20260630)` y `Random(7)`, líneas 75 y 87); Jazzer exigiría pasar a JUnit 5 y añadir dependencias a la verificación de Gradle |
-| **`StructureParser`** | Sin fuzzing | Refactorizar a una abstracción de nodos sin Android; es el criterio para reconsiderar Jazzer. Candidato real: [ID-INT-18](internal-review.md#id-int-18)) (recursión sin tope) |
-| **ClusterFuzzLite** | **Pospuesto** | Persistir el corpus necesita un repositorio o rama y un token (otro secreto) y un Dockerfile; el nocturno da lo esencial con las mismas herramientas. Criterio para reconsiderar: que la caché se pierda a menudo |
-| **OSS-Fuzz** | **Descartado** | Exige base de usuarios y su calendario de divulgación no encaja antes de la auditoría |
-| **Imágenes y QR** (descodificadores de imagen del sistema y ZXing) | Sin fuzzing | Código nativo del sistema fuera de alcance; ZXing sin UI se podría fuzzear con Jazzer más adelante |
-| **Pruebas diferenciales** contra otra implementación (KeePassXC, `openssl`) | No hay | Los vectores dorados (`core/tests/vectors/op-v1.json`) cubren el formato propio |
+| **`backup_header` without `check_within(MOBILE_MAXIMUM)`** | Requested by ADR-AUD-07, not done | The ceiling lives in `op-ffi`; `fuzz` already depends on `op-ffi` (`ffi_records`) |
+| **Complete `open_backup` and `parse_import`** (with `check_mobile_kdf` and KDF) | No coverage | The cost of the KDF and the password; `ffi_records` only covers header and records |
+| **KDBX KDF** | No coverage (deliberate) | Its cost is set by the file; the header, the blocks, the gunzip and the XML are covered with a fixed key (`import`, `kdbx_container`) |
+| **XML memory under `-rss_limit_mb=2048`** | Open | There are limits and nesting seeds (ID-INT-01 fixed), but 2048 MB is still more than a phone can take |
+| **Dictionaries and structure** (`-dict`, `Arbitrary` for JSON and XML) | None | The JSON targets start from raw bytes; dictionaries would speed up reaching valid fields |
+| **Coverage measurement** (`cargo fuzz coverage`) | No report | There is no `exec/s`, no coverage per target, no data on which branches none of them reaches |
+| **Jazzer for the autofill Kotlin** (`StructureParser`, `FieldClassifier`, `LoginMatcher`, `PublicSuffix`) | **Postponed** (decision no. 9) | `StructureParser` depends on `AssistStructure` and Jazzer does not reach it without Robolectric; `LoginMatcher` and `FieldClassifier` are pure functions with deterministic invariant tests (`LoginMatcherTest`: 29 tests, generators `Random(20260630)` and `Random(7)`, lines 75 and 87); Jazzer would require moving to JUnit 5 and adding dependencies to the Gradle verification |
+| **`StructureParser`** | No fuzzing | Refactor it into a node abstraction without Android; it is the criterion for reconsidering Jazzer. A real candidate: [ID-INT-18](internal-review.md#id-int-18)) (recursion with no cap) |
+| **ClusterFuzzLite** | **Postponed** | Persisting the corpus needs a repository or branch and a token (another secret) and a Dockerfile; the nightly gives the essentials with the same tools. Criterion for reconsidering: that the cache is lost often |
+| **OSS-Fuzz** | **Discarded** | It requires a user base and its disclosure schedule does not fit before the audit |
+| **Images and QR** (system image decoders and ZXing) | No fuzzing | System native code out of scope; ZXing without UI could be fuzzed with Jazzer later |
+| **Differential tests** against another implementation (KeePassXC, `openssl`) | None | The golden vectors (`core/tests/vectors/op-v1.json`) cover the project's own format |
 
-## 5. Cómo reproducir una ejecución local
+## 5. How to reproduce a local run
 
 ```sh
 rustup toolchain install nightly --profile minimal && cargo install cargo-fuzz
@@ -127,14 +127,14 @@ mkdir -p corpus/kdbx_xml && cp seeds/kdbx_xml/* corpus/kdbx_xml/
 cargo +nightly fuzz run -O -a kdbx_xml corpus/kdbx_xml -- -max_total_time=60 -max_len=65536 -rss_limit_mb=2048 -timeout=10
 ```
 
-El XML de [ID-INT-01](internal-review.md#id-int-01)) ya no se reproduce: lo cubre el test
-`deep_group_nesting_is_refused_before_it_costs_memory` (`cargo test -p op-core deep_group`) y las semillas
-de `fuzz/seeds/kdbx_xml/`.
+The XML of [ID-INT-01](internal-review.md#id-int-01)) no longer reproduces: it is covered by the test
+`deep_group_nesting_is_refused_before_it_costs_memory` (`cargo test -p op-core deep_group`) and the seeds
+of `fuzz/seeds/kdbx_xml/`.
 
-## 6. Qué no se ha podido comprobar
+## 6. What could not be checked
 
-- Ninguna ejecución de `cargo fuzz` en esta revisión (solo la comprobación de símbolos y, antes de
-  `2bd56ce`, los programas de prueba de ID-INT-01 e ID-INT-25).
-- Las cifras de ejecuciones, `exec/s`, cobertura y duración de los trabajos de CI.
-- Que el workflow nocturno funcione en GitHub (corpus restaurado y guardado, artefactos en un
-  fallo).
+- Any `cargo fuzz` run in this review (only the symbol check and, before
+  `a3daf4e`, the ID-INT-01 and ID-INT-25 test programs).
+- The execution figures, `exec/s`, coverage and duration of the CI jobs.
+- That the nightly workflow works on GitHub (corpus restored and saved, artifacts on a
+  failure).

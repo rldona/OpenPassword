@@ -1,138 +1,138 @@
-# Paquete de auditoría externa
+# External audit package
 
-Este directorio reúne todo lo que un auditor externo necesita para revisar OpenPassword, y lo que el
-proyecto necesita para contratar, seguir y cerrar esa auditoría. Cubre la Fase 3 de la
-[propuesta](../proposal.html)).
+This directory gathers everything an external auditor needs to review OpenPassword, and everything the
+project needs to hire, follow and close that audit. It covers Phase 3 of the
+[proposal](../proposal.html)).
 
-## Resumen de cierre (30-oct-2026)
+## Closing summary (2026-10-30)
 
-> **Preparación de la Fase 3 completa; auditoría externa pendiente.** El endurecimiento está aplicado, los
-> hallazgos internos están tratados y el paquete de auditoría está escrito, pero **no se ha contratado ni
-> realizado ninguna auditoría externa**. Por eso el proyecto **no** está en 1.0 y la advertencia de
-> [`SECURITY.md`](../../../SECURITY.md)) sigue vigente: no guardes datos reales todavía.
+> **Phase 3 preparation complete; external audit pending.** Hardening is applied, the internal
+> findings are handled and the audit package is written, but **no external audit has been hired or
+> performed**. That is why the project is **not** at 1.0 and the warning in
+> [`SECURITY.md`](../../../SECURITY.md)) still stands: do not store real data yet.
 
-Este apartado es la puerta de entrada para retomar el trabajo.
+This section is the entry point for resuming the work.
 
-### Qué está hecho
+### What is done
 
-- **Endurecimiento**: los 19 pasos de ADR-AUD, con 3 pendientes o parciales (9, 18 y 19), en [`hardening.md`](hardening.md)).
-- **Revisión interna**: 26 hallazgos en [`internal-review.md`](internal-review.md)): **19 corregidos, 1 parcial (ID-INT-23), 4 aceptados (entre ellos ID-INT-14, como riesgo residual) y 2 abiertos (ID-INT-20 e ID-INT-22)**.
-- **Paquete de auditoría**: alcance, proveedores, presupuesto, proceso de hallazgos, superficie de ataque, revisión del modelo de amenazas, dependencias y fuzzing (índice más abajo).
-- **Pruebas**: 102 tests de Rust en verde (ejecutados); 17 tests instrumentados en un SM-S948B (API 37) en verde; pruebas manuales en dispositivo en parte (tabla siguiente). Los 186 `@Test` de Kotlin en la JVM **sí** se han ejecutado (macOS, JDK 17): 186 pasan, 0 fallan.
+- **Hardening**: the 19 steps of ADR-AUD, with 3 pending or partial (9, 18 and 19), in [`hardening.md`](hardening.md)).
+- **Internal review**: 26 findings in [`internal-review.md`](internal-review.md)): **19 fixed, 1 partial (ID-INT-23), 4 accepted (among them ID-INT-14, as residual risk) and 2 open (ID-INT-20 and ID-INT-22)**.
+- **Audit package**: scope, vendors, budget, findings process, attack surface, threat model review, dependencies and fuzzing (index below).
+- **Tests**: 102 Rust tests green (executed); 17 instrumented tests green on an SM-S948B (API 37); manual device tests partly done (table below). The 186 Kotlin `@Test` on the JVM **have** been run (macOS, JDK 17): 186 pass, 0 fail.
 
-### Qué falta
+### What is missing
 
-- **Contratar la auditoría externa** (nada contratado): elegir proveedor con [`vendors.md`](vendors.md)), pedir oferta con [`budget-timeline.md`](budget-timeline.md)) y firmar con [`scope.md`](scope.md)) como anexo.
-- **Presupuesto**: todos los importes y fechas de [`budget-timeline.md`](budget-timeline.md)) son huecos a propósito; y los plazos y contactos de `scope.md`, sin rellenar.
-- **Congelar la versión**: subir a `0.2.0`, crear `release/0.2`, etiquetar `v0.2.0` con firma y anotar el SHA aquí y en `scope.md` (todavía no hay rama ni etiqueta). Pasos 9 (parcial), 18 (parcial) y 19 de [`hardening.md`](hardening.md)); ejecutar una vez el job `release` y `fuzz-nightly.yml`.
-- **Decisiones humanas aún abiertas** de [`decisions.md`](decisions.md)): solo la nº 1 (qué clave firma las etiquetas y cuándo se crea `release/0.2`). Las demás se aprobaron el 30-oct-2026.
-- **Pruebas en dispositivo pendientes**: no bloquean la contratación (ver la tabla).
+- **Hiring the external audit** (nothing hired): choose a vendor with [`vendors.md`](vendors.md)), request a quote with [`budget-timeline.md`](budget-timeline.md)) and sign with [`scope.md`](scope.md)) as an annex.
+- **Budget**: every amount and date in [`budget-timeline.md`](budget-timeline.md)) is a deliberate placeholder; and the deadlines and contacts in `scope.md` are unfilled.
+- **Freezing the version**: bump to `0.2.0`, create `release/0.2`, tag `v0.2.0` with a signature and record the SHA here and in `scope.md` (there is no branch or tag yet). Steps 9 (partial), 18 (partial) and 19 of [`hardening.md`](hardening.md)); run the `release` job and `fuzz-nightly.yml` once.
+- **Human decisions still open** in [`decisions.md`](decisions.md)): only no. 1 (which key signs the tags and when `release/0.2` is created). The rest were approved on 2026-10-30.
+- **Device tests pending**: they do not block hiring (see the table).
 
-### Pruebas en dispositivo (SM-S948B, Android 17 / API 37, 30-oct-2026)
+### Device tests (SM-S948B, Android 17 / API 37, 2026-10-30)
 
-Detalle y evidencia en [`device-tests.md`](device-tests.md)). Sesión cerrada el 30-oct-2026; lo pendiente
-requiere emulador o dispositivo API 28 y **no bloquea la contratación de la auditoría**.
+Details and evidence in [`device-tests.md`](device-tests.md)). Session closed on 2026-10-30; what is
+pending requires an API 28 emulator or device and **does not block hiring the audit**.
 
-| Prueba | Resultado | Motivo o límite |
+| Test | Result | Reason or limit |
 |---|---|---|
-| DT-01 (anti-tapjacking, API 31+) | **Pasa** | Solo `MainActivity` y un toque |
-| DT-04a (borrado a los 30 s, primer plano) | **Pasa** | Solo API 37 |
-| **DT-04b (borrado en segundo plano)** | **Falla** | Confirma ID-INT-14; **aceptado como riesgo residual** |
-| DT-05 (lista de sufijos públicos) | **Pasa** | Solo build de depuración; **variante R8 pendiente** |
-| DT-07 (app no navegador con `webDomain`) | **Pasa** | Faltan los pasos 4 y 5 del plan |
-| Instrumentados (`connectedDebugAndroidTest`) | **Pasan** (17 tests) | Un único dispositivo |
-| DT-02, DT-03 (anti-tapjacking API 28-30 y diálogos) | Pendiente | Requieren emulador API 28-30 (no hay imágenes en el equipo) |
-| DT-06 (Chrome real) | Pendiente | Navegador real, sin ejecutar |
-| DT-08 (navegador predeterminado malicioso) | Pendiente | Sin ejecutar |
-| DT-09, DT-10 (autorrelleno completo y «recordar») | Pendiente | Sin ejecutar |
-| DT-11 (aviso de root) | Pendiente | Requiere emulador `userdebug` |
-| DT-12 (biometría en Android 9) | Pendiente | Requiere emulador o dispositivo API 28 |
-| DT-13 (KDBX 4 real) | Pendiente | Sin ejecutar |
-| DT-14, DT-15, DT-16, DT-17 (KDF/RAM, copias, bloqueo automático, TOTP) | Pendiente | Sin ejecutar |
-| DT-04c, DT-04d (pantalla apagada, marca de sensible) | Pendiente | Sin ejecutar |
+| DT-01 (anti-tapjacking, API 31+) | **Pass** | Only `MainActivity` and one tap |
+| DT-04a (wipe after 30 s, foreground) | **Pass** | Only API 37 |
+| **DT-04b (wipe in background)** | **Fail** | Confirms ID-INT-14; **accepted as residual risk** |
+| DT-05 (public suffix list) | **Pass** | Debug build only; **R8 variant pending** |
+| DT-07 (non-browser app with `webDomain`) | **Pass** | Steps 4 and 5 of the plan are missing |
+| Instrumented (`connectedDebugAndroidTest`) | **Pass** (17 tests) | A single device |
+| DT-02, DT-03 (anti-tapjacking API 28-30 and dialogs) | Pending | Require an API 28-30 emulator (no images on the machine) |
+| DT-06 (real Chrome) | Pending | Real browser, not run |
+| DT-08 (malicious default browser) | Pending | Not run |
+| DT-09, DT-10 (full autofill and «remember») | Pending | Not run |
+| DT-11 (root warning) | Pending | Requires a `userdebug` emulator |
+| DT-12 (biometrics on Android 9) | Pending | Requires an API 28 emulator or device |
+| DT-13 (real KDBX 4) | Pending | Not run |
+| DT-14, DT-15, DT-16, DT-17 (KDF/RAM, backups, automatic lock, TOTP) | Pending | Not run |
+| DT-04c, DT-04d (screen off, sensitive flag) | Pending | Not run |
 
-### Decisiones tomadas
+### Decisions taken
 
-- **Licencia NCSA** (`libfuzzer-sys`, solo en `fuzz/deny.toml`; ID-INT-23): **aprobada por el responsable el 30-oct-2026**. ID-INT-23 sigue «parcial».
-- **ID-INT-06** (un elemento ilegible): se omite y se avisa en la lista, en lugar de impedir el desbloqueo (`EntryLoading.kt`).
-- **ID-INT-14** (portapapeles): **aceptado como riesgo residual** al cerrar la fase. Limitación de Android: `clearPrimaryClip()` no surte efecto en segundo plano. Mitigaciones: marca de sensible, borrado a los 30 s con la app en primer plano, borrado al volver a la app y al apagar pantalla, y mensaje honesto en la UI. No se quita el botón de copiar. Ver [DT-04](device-tests.md#dt-04)).
-- **Publicación en F-Droid: en pausa** por decisión del responsable (30-oct-2026); se retoma desde [`docs/fdroid/README.md`](../fdroid/README.md)).
+- **NCSA license** (`libfuzzer-sys`, only in `fuzz/deny.toml`; ID-INT-23): **approved by the owner on 2026-10-30**. ID-INT-23 remains «partial».
+- **ID-INT-06** (an unreadable item): it is skipped and reported in the list, instead of blocking the unlock (`EntryLoading.kt`).
+- **ID-INT-14** (clipboard): **accepted as residual risk** when closing the phase. Android limitation: `clearPrimaryClip()` has no effect in the background. Mitigations: sensitive flag, wipe after 30 s with the app in the foreground, wipe on returning to the app and on screen off, and an honest message in the UI. The copy button is not removed. See [DT-04](device-tests.md#dt-04)).
+- **F-Droid publication: paused** by decision of the owner (2026-10-30); it is resumed from [`docs/fdroid/README.md`](../fdroid/README.md)).
 
-> Nota sobre «sin commit»: varios documentos del paquete hablan de trabajo «sin commit» sobre `2bd56ce`.
-> Ese trabajo está ya en `b2e18ca` («Fase 3: cerrar los hallazgos que no dependen del dispositivo») y
-> `0ff88be`; el texto conserva la redacción original.
+> Note on «no commit»: several documents in the package mention work «without a commit» on `a3daf4e`.
+> That work is already in `183598d` («Phase 3: close the findings that do not depend on the device») and
+> `3868f4f`; the text keeps the original wording.
 
-## Qué se audita
+## What is audited
 
-| Dato | Valor |
+| Data | Value |
 |---|---|
-| Versión | `v0.2.0`, congelada tras el endurecimiento ([ADR-AUD-01](decisions.md#adr-aud-01--estrategia-de-congelación))) |
-| Rama | `release/0.2` (todavía no existe; se crea al contratar la auditoría) |
-| Commit base inspeccionado al redactar las decisiones | `3e94bce` («CI: fuzzing con el target gnu del runner») |
-| Commit de `main` que contiene este paquete | `0ff88be` (pruebas en dispositivo y cierre), sobre `b2e18ca` (hallazgos que no dependen del dispositivo), `2bd56ce` (endurecimiento, cadena de suministro y paquete), `3725741` (frontera FFI y A7/A10) y `2c6ba2d` (cierre de la `v0.1.0`) |
-| **Commit que se auditará** | **PENDIENTE**: SHA de 40 caracteres de la punta de `release/0.2` etiquetada `v0.2.0`. Se rellena al crear la etiqueta firmada |
-| Etiqueta firmada | **PENDIENTE** (`git tag -l` no muestra ninguna etiqueta en el clon local; la clave de firma está pendiente de aprobación, ver [decisions.md](decisions.md#decisiones-que-requieren-aprobación-humana))) |
-| Dentro del alcance | `op-core`, `op-ffi`, app Android, formato `.opvault` v1, builds reproducibles y firma |
-| Fuera del alcance | CLI `opvault`, Fase 4, iOS y escritorio |
+| Version | `v0.2.0`, frozen after hardening ([ADR-AUD-01](decisions.md#adr-aud-01--freeze-strategy))) |
+| Branch | `release/0.2` (does not exist yet; it is created when the audit is hired) |
+| Base commit inspected when the decisions were written | `9eb9c7f` («CI: fuzz with the runner's gnu target») |
+| `main` commit containing this package | `3868f4f` (device tests and closing), on top of `183598d` (findings that do not depend on the device), `a3daf4e` (hardening, supply chain and package), `700f1a7` (FFI boundary and A7/A10) and `1649636` (closing `v0.1.0`) |
+| **Commit that will be audited** | **PENDING**: 40-character SHA of the tip of `release/0.2` tagged `v0.2.0`. It is filled in when the signed tag is created |
+| Signed tag | **PENDING** (`git tag -l` shows no tag in the local clone; the signing key is pending approval, see [decisions.md](decisions.md#decisions-that-require-human-approval))) |
+| In scope | `op-core`, `op-ffi`, the Android app, the `.opvault` v1 format, reproducible builds and signing |
+| Out of scope | The `opvault` CLI, Phase 4, iOS and desktop |
 
-Cuando se cree la etiqueta, hay que actualizar **este fichero y [`scope.md`](scope.md))** con el SHA.
-Lo que se audita es el SHA, no el nombre de la etiqueta.
+When the tag is created, **this file and [`scope.md`](scope.md))** must be updated with the SHA.
+What is audited is the SHA, not the tag name.
 
-## Índice y estado
+## Index and status
 
-Estados: **hecho** (escrito y contrastado con el repositorio), **pendiente** (falta contenido que
-solo el proyecto puede aportar), **sin verificar** (contiene datos externos no comprobados).
+Statuses: **done** (written and checked against the repository), **pending** (content that only the
+project can provide is missing), **unverified** (contains external data that has not been checked).
 
-| Documento | Para qué sirve | Estado |
+| Document | What it is for | Status |
 |---|---|---|
-| [`decisions.md`](decisions.md)) | ADR-AUD-01 a 07: decisiones técnicas previas a la auditoría | **hecho** como propuesta; su cabecera refleja ya que `3725741` y `2bd56ce` implementan ADR-AUD-02 a 07 (ver [`hardening.md`](hardening.md))), con el texto de los ADR sin tocar. Hay 10 decisiones que esperan aprobación humana |
-| [`scope.md`](scope.md)) | *Scope of work* para el auditor | **pendiente**: faltan el SHA congelado, los plazos y los contactos. El resto está contrastado con el repositorio |
-| [`vendors.md`](vendors.md)) | Shortlist de proveedores y vías de financiación | **sin verificar** en disponibilidad y precios; especialidades e informes públicos contrastados en las webs de cada proveedor (fuente y fecha en el documento) |
-| [`budget-timeline.md`](budget-timeline.md)) | Plantilla de presupuesto por proveedor y calendario | **pendiente**: todos los importes y fechas son huecos a propósito |
-| [`findings-process.md`](findings-process.md)) | Severidad, seguimiento, correcciones, re-test y criterios de `1.0.0` | **hecho** como propuesta; los plazos y criterios nuevos necesitan aprobación |
-| [`attack-surface.md`](attack-surface.md)) | Superficie de ataque por componente | **hecho**, sin recontrastar línea a línea tras `2bd56ce` (se corrigieron las afirmaciones de ID-INT-01, 16, 25 y 26) |
-| [`threat-model-review.md`](threat-model-review.md)) | Revisión del [modelo de amenazas](../../threat-model.md)) antes de la auditoría | **hecho**, con una nota de actualización posterior a `2bd56ce`: se aplicó parte de su sección 5 a `threat-model.md`, y las secciones que describen ID-INT-01 e ID-INT-16 reflejan el estado anterior a su corrección |
-| [`internal-review.md`](internal-review.md)) | Revisión interna previa | **hecho**: 26 hallazgos (2 Alta, 3 Media, 11 Baja, 10 Info): 19 corregidos (los de `2bd56ce`: ID-INT-01, 05, 07, 24 y 25; el resto, en `b2e18ca`, incluidos 16 y 26), 1 parcial (ID-INT-23; la licencia NCSA está aprobada), **4 aceptados (ID-INT-04, 15, 19 y **ID-INT-14, riesgo residual aceptado**)** y 2 abiertos (ID-INT-20 y 22). Verificados en dispositivo el 30-oct-2026 (SM-S948B, API 37): ID-INT-13, los tests instrumentados de ID-INT-05, 08 y 09, la parte de ID-INT-16 sobre apps no navegador (DT-07) y la carga de la lista de sufijos de ID-INT-20 en la build de depuración (DT-05). ID-INT-14 se **confirmó como fallo** (el portapapeles no se borra con la app en segundo plano, DT-04) y se **acepta como riesgo residual**. Pendiente de dispositivo: 16 (Chrome real, DT-08, `iframe`), 18, 20 (R8) y 26 (y DT-02, DT-03 y DT-12, bloqueados o sin ejecutar); aprobadas el 30-oct-2026 la política de KDBX de ID-INT-02, la licencia NCSA de ID-INT-23 y la aceptación de ID-INT-14. Rust: 102 tests en verde; Kotlin en la JVM: 186 pasan, 0 fallan; instrumentadas: 17 pasan |
-| [`dependencies.md`](dependencies.md)) | Inventario y política de dependencias | **hecho** (`cargo-deny`, verificación de Gradle, SBOM y Actions por SHA ya implementados; falta ejecutar el job `release` y una compilación con la verificación activa) |
-| [`fuzzing.md`](fuzzing.md)) | Cobertura y resultados de fuzzing | **hecho** (11 objetivos, nocturno); sin ninguna ejecución del workflow nocturno ni cifras de ejecuciones de los objetivos nuevos |
-| [`hardening.md`](hardening.md)) | Endurecimiento aplicado y pendiente | **hecho** (estado final de los 19 pasos de ADR-AUD); pasos pendientes: 9 en parte, 18 en parte y 19 |
-| [`device-tests.md`](device-tests.md)) | Plan de pruebas manuales en dispositivo (DT-01 a DT-17) para lo que no se puede verificar en la JVM ni en la CI; sirve de evidencia para el auditor | **parcial**, sesión cerrada el 30-oct-2026: plan con resultados en un único dispositivo (SM-S948B, API 37): DT-01 `pasa` (con límites), DT-04 (04a `pasa`, **04b `falla`**: ID-INT-14, aceptado como riesgo residual), DT-05 `pasa` (solo depuración) y DT-07 `pasa`; DT-02 y DT-12 `bloqueado`; el resto **pendiente** (resumen de cierre arriba). Evidencia sin archivar (ver sección 3.4) |
+| [`decisions.md`](decisions.md)) | ADR-AUD-01 to 07: technical decisions prior to the audit | **done** as a proposal; its header already reflects that `700f1a7` and `a3daf4e` implement ADR-AUD-02 to 07 (see [`hardening.md`](hardening.md))), with the ADR text untouched. There are 10 decisions awaiting human approval |
+| [`scope.md`](scope.md)) | *Scope of work* for the auditor | **pending**: the frozen SHA, deadlines and contacts are missing. The rest is checked against the repository |
+| [`vendors.md`](vendors.md)) | Shortlist of vendors and funding channels | **unverified** on availability and prices; specialties and public reports checked on each vendor's website (source and date in the document) |
+| [`budget-timeline.md`](budget-timeline.md)) | Budget template per vendor and schedule | **pending**: every amount and date is a deliberate placeholder |
+| [`findings-process.md`](findings-process.md)) | Severity, tracking, fixes, re-test and `1.0.0` criteria | **done** as a proposal; the new deadlines and criteria need approval |
+| [`attack-surface.md`](attack-surface.md)) | Attack surface per component | **done**, not re-checked line by line after `a3daf4e` (the claims for ID-INT-01, 16, 25 and 26 were corrected) |
+| [`threat-model-review.md`](threat-model-review.md)) | Review of the [threat model](../../threat-model.md)) before the audit | **done**, with an update note after `a3daf4e`: part of its section 5 was applied to `threat-model.md`, and the sections describing ID-INT-01 and ID-INT-16 reflect the state before their fix |
+| [`internal-review.md`](internal-review.md)) | Prior internal review | **done**: 26 findings (2 High, 3 Medium, 11 Low, 10 Info): 19 fixed (those in `a3daf4e`: ID-INT-01, 05, 07, 24 and 25; the rest in `183598d`, including 16 and 26), 1 partial (ID-INT-23; the NCSA license is approved), **4 accepted (ID-INT-04, 15, 19 and **ID-INT-14, accepted residual risk**)** and 2 open (ID-INT-20 and 22). Verified on device on 2026-10-30 (SM-S948B, API 37): ID-INT-13, the instrumented tests for ID-INT-05, 08 and 09, the part of ID-INT-16 about non-browser apps (DT-07) and the loading of the suffix list of ID-INT-20 in the debug build (DT-05). ID-INT-14 was **confirmed as a bug** (the clipboard is not wiped with the app in the background, DT-04) and is **accepted as residual risk**. Pending on device: 16 (real Chrome, DT-08, `iframe`), 18, 20 (R8) and 26 (and DT-02, DT-03 and DT-12, blocked or not run); approved on 2026-10-30: the KDBX policy of ID-INT-02, the NCSA license of ID-INT-23 and the acceptance of ID-INT-14. Rust: 102 tests green; Kotlin on the JVM: 186 pass, 0 fail; instrumented: 17 pass |
+| [`dependencies.md`](dependencies.md)) | Dependency inventory and policy | **done** (`cargo-deny`, Gradle verification, SBOM and Actions by SHA already implemented; the `release` job and a build with verification enabled still need to be run) |
+| [`fuzzing.md`](fuzzing.md)) | Fuzzing coverage and results | **done** (11 targets, nightly); with no run of the nightly workflow and no execution figures for the new targets |
+| [`hardening.md`](hardening.md)) | Applied and pending hardening | **done** (final status of the 19 steps of ADR-AUD); pending steps: 9 partly, 18 partly and 19 |
+| [`device-tests.md`](device-tests.md)) | Manual device test plan (DT-01 to DT-17) for what cannot be verified on the JVM or in CI; serves as evidence for the auditor | **partial**, session closed on 2026-10-30: plan with results on a single device (SM-S948B, API 37): DT-01 `pass` (with limits), DT-04 (04a `pass`, **04b `fail`**: ID-INT-14, accepted as residual risk), DT-05 `pass` (debug only) and DT-07 `pass`; DT-02 and DT-12 `blocked`; the rest **pending** (closing summary above). Evidence not archived (see section 3.4) |
 
-Todos los documentos del índice existen.
+All the documents in the index exist.
 
-Documentos del repositorio que el auditor debe leer y que **no** se copian aquí:
+Repository documents the auditor must read and that are **not** copied here:
 
-- [`docs/crypto-spec.md`](../../crypto-spec.md)): primitivas, claves, AAD, STREAM, KDF.
-- [`docs/opvault-format.md`](../../opvault-format.md)): formato `.opvault` v1.
-- [`docs/threat-model.md`](../../threat-model.md)): activos, atacantes A1–A18 y riesgos residuales.
-- [`SECURITY.md`](../../../SECURITY.md)): cómo se notifican vulnerabilidades y plazos.
-- [`android/README.md`](../../../android/README.md)) y [`docs/fdroid/README.md`](../fdroid/README.md)): compilación y build reproducible.
+- [`docs/crypto-spec.md`](../../crypto-spec.md)): primitives, keys, AAD, STREAM, KDF.
+- [`docs/opvault-format.md`](../../opvault-format.md)): the `.opvault` v1 format.
+- [`docs/threat-model.md`](../../threat-model.md)): assets, attackers A1–A18 and residual risks.
+- [`SECURITY.md`](../../../SECURITY.md)): how vulnerabilities are reported and the deadlines.
+- [`android/README.md`](../../../android/README.md)) and [`docs/fdroid/README.md`](../fdroid/README.md)): build and reproducible build.
 
-> **Publicación en F-Droid: en pausa** por decisión del responsable del proyecto (30-oct-2026). No bloquea
-> el paquete de auditoría: la versión que se audita se entrega como pre-release de GitHub, no desde
-> F-Droid. Ver [`docs/fdroid/README.md`](../fdroid/README.md)) para retomarla.
-- [`core/tests/vectors/op-v1.json`](../../../core/tests/vectors/op-v1.json)): vectores dorados del formato.
+> **F-Droid publication: paused** by decision of the project owner (2026-10-30). It does not block
+> the audit package: the version being audited is delivered as a GitHub pre-release, not from
+> F-Droid. See [`docs/fdroid/README.md`](../fdroid/README.md)) to resume it.
+- [`core/tests/vectors/op-v1.json`](../../../core/tests/vectors/op-v1.json)): golden vectors for the format.
 
-## Cómo se usa el paquete con un proveedor
+## How the package is used with a vendor
 
-1. **Antes del contacto.** Comprueba que la tabla «Qué se audita» no tiene `PENDIENTE` y que
-   `scope.md` tiene SHA, plazos y contactos. Sin eso no se envía nada.
-2. **Primer contacto.** Se envía solo `scope.md`, el enlace al repositorio público y el SHA. No hay
-   nada secreto en el código (GPL-3.0-or-later, repositorio público); la confidencialidad afecta a
-   los hallazgos, no al código.
-3. **Presupuesto.** Se pide la oferta usando la plantilla de [`budget-timeline.md`](budget-timeline.md))
-   y se compara con los criterios de [`vendors.md`](vendors.md)). Se exigen por escrito el re-test
-   incluido y el permiso para publicar el informe.
-4. **Contratación.** Se firma con el alcance de `scope.md` como anexo. Se concede al auditor acceso de
-   lectura al repositorio y, para los hallazgos, a los avisos privados de GitHub según
+1. **Before contacting.** Check that the «What is audited» table has no `PENDING` and that
+   `scope.md` has the SHA, deadlines and contacts. Without that, nothing is sent.
+2. **First contact.** Only `scope.md`, the link to the public repository and the SHA are sent. There is
+   nothing secret in the code (GPL-3.0-or-later, public repository); confidentiality concerns
+   the findings, not the code.
+3. **Budget.** The quote is requested using the template in [`budget-timeline.md`](budget-timeline.md))
+   and compared against the criteria in [`vendors.md`](vendors.md)). The included re-test and
+   permission to publish the report are required in writing.
+4. **Hiring.** It is signed with the scope in `scope.md` as an annex. The auditor is granted read
+   access to the repository and, for the findings, to GitHub private advisories according to
    [`findings-process.md`](findings-process.md)).
-5. **Durante la auditoría.** Solo se aceptan en `release/0.2` los cambios permitidos por ADR-AUD-01.
-   Los hallazgos siguen el flujo de `findings-process.md`.
-6. **Cierre.** Re-test, informe final publicable, avisos y criterios de `1.0.0`
-   (ver `findings-process.md`).
+5. **During the audit.** Only the changes allowed by ADR-AUD-01 are accepted in `release/0.2`.
+   Findings follow the `findings-process.md` flow.
+6. **Closing.** Re-test, final publishable report, advisories and `1.0.0` criteria
+   (see `findings-process.md`).
 
-## Mantenimiento
+## Maintenance
 
-- Este índice es la única fuente de verdad del estado de cada documento. Si cambia uno, cambia aquí.
-- Las cifras técnicas (versiones de toolchain, límites de la KDF) no se copian: se enlazan a su
-  fuente (`rust-toolchain.toml`, `docs/crypto-spec.md`, `decisions.md`).
+- This index is the single source of truth for the status of each document. If one changes, it changes here.
+- Technical figures (toolchain versions, KDF limits) are not copied: they are linked to their
+  source (`rust-toolchain.toml`, `docs/crypto-spec.md`, `decisions.md`).
