@@ -118,7 +118,8 @@ fn stored_backup_opens() {
     let case = &v["backup"];
     let sk = SecretKey::parse(case["secret_key"].as_str().unwrap()).unwrap();
     let file = unhex(&case["file"]);
-    let (vault, items, attachments) = backup::open(&file, case["password"].as_str().unwrap(), &sk).unwrap();
+    let (vault, items, attachments) =
+        backup::open(&file, case["password"].as_str().unwrap(), &sk).unwrap();
     assert!(attachments.is_empty());
     let titles: Vec<String> = items
         .iter()

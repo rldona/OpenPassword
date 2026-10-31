@@ -127,7 +127,9 @@ mirror_enum!(
 mirror_enum!(
     FieldKindRecord,
     FieldKind,
-    [Text, Concealed, Pin, CardNumber, Totp, Date, Url, Email, Image]
+    [
+        Text, Concealed, Pin, CardNumber, Totp, Date, Url, Email, Image
+    ]
 );
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -524,7 +526,10 @@ impl Vault {
         details: ItemDetailsRecord,
         images: Vec<NewImageRecord>,
     ) -> Result<ItemChangeRecord> {
-        let images = images.into_iter().map(new_image).collect::<Result<Vec<_>>>()?;
+        let images = images
+            .into_iter()
+            .map(new_image)
+            .collect::<Result<Vec<_>>>()?;
         self.with(|v| v.encrypt_item_with_images(&item(overview, details), images))
             .map(Into::into)
     }
@@ -538,7 +543,10 @@ impl Vault {
         images: Vec<NewImageRecord>,
     ) -> Result<ItemChangeRecord> {
         let existing = existing.try_into()?;
-        let images = images.into_iter().map(new_image).collect::<Result<Vec<_>>>()?;
+        let images = images
+            .into_iter()
+            .map(new_image)
+            .collect::<Result<Vec<_>>>()?;
         self.with(|v| v.update_item_with_images(&existing, &item(overview, details), images))
             .map(Into::into)
     }
@@ -881,7 +889,9 @@ mod tests {
             ""
         );
 
-        let file = vault.export_backup(vec![enc2.clone()], Vec::new(), 1).unwrap();
+        let file = vault
+            .export_backup(vec![enc2.clone()], Vec::new(), 1)
+            .unwrap();
         let restored = open_backup(file, "contraseña larga de prueba".into(), sk).unwrap();
         assert_eq!(restored.items[0].id, enc2.id);
 
@@ -1023,11 +1033,7 @@ mod tests {
         assert!(!format!("{:?}", change.added[0]).contains("255"));
 
         let file = vault
-            .export_backup(
-                vec![change.item.clone()],
-                change.added.clone(),
-                1,
-            )
+            .export_backup(vec![change.item.clone()], change.added.clone(), 1)
             .unwrap();
         let restored = open_backup(file, PASSWORD.into(), sk.clone()).unwrap();
         assert_eq!(restored.attachments.len(), 1);

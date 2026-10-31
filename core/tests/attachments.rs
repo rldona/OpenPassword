@@ -1,11 +1,11 @@
 mod common;
 
 use common::*;
+use op_core::Error;
 use op_core::backup;
 use op_core::vault::{
     Field, FieldKind, MAX_IMAGE_BYTES, MAX_IMAGES_PER_ITEM, NewImage, new_attachment_id,
 };
-use op_core::Error;
 use zeroize::Zeroizing;
 
 /// Minimal structurally valid JPEG: SOI, DQT, SOF0, DHT, SOS, data, EOI.
@@ -55,9 +55,7 @@ fn image_roundtrip() {
     assert!(change.removed.is_empty());
     assert_eq!(vault.image_ids(&change.item).unwrap(), vec![id]);
 
-    let decrypted = vault
-        .decrypt_image(&change.item, &change.added[0])
-        .unwrap();
+    let decrypted = vault.decrypt_image(&change.item, &change.added[0]).unwrap();
     assert_eq!(decrypted.jpeg.as_slice(), bytes.as_slice());
 }
 
@@ -118,7 +116,13 @@ fn update_reports_added_and_removed_images() {
     assert_eq!(change.item.revision, 2);
     assert_eq!(vault.image_ids(&change.item).unwrap(), vec![second_id]);
     // Images never enter the password history.
-    assert!(vault.decrypt_details(&change.item).unwrap().history.is_empty());
+    assert!(
+        vault
+            .decrypt_details(&change.item)
+            .unwrap()
+            .history
+            .is_empty()
+    );
 }
 
 #[test]
@@ -270,8 +274,13 @@ fn backup_carries_images_and_drops_orphans() {
     assert!(attachments.is_empty());
 
     assert_eq!(
-        backup::write(&vault, &[change.item], &[change.added[0].clone(), change.added[0].clone()], 1)
-            .unwrap_err(),
+        backup::write(
+            &vault,
+            &[change.item],
+            &[change.added[0].clone(), change.added[0].clone()],
+            1
+        )
+        .unwrap_err(),
         Error::InvalidInput("duplicate attachment")
     );
 }

@@ -13,7 +13,10 @@ fn sample_backup() -> (Vec<u8>, Vec<op_core::EncryptedItem>) {
         vault.encrypt_item(&card()).unwrap(),
         vault.encrypt_item(&login()).unwrap(),
     ];
-    (backup::write(&vault, &items, &[], 1_793_257_200).unwrap(), items)
+    (
+        backup::write(&vault, &items, &[], 1_793_257_200).unwrap(),
+        items,
+    )
 }
 
 #[test]

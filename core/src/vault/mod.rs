@@ -214,7 +214,9 @@ impl UnlockedVault {
         if !same_ids(&previous_ids, &current) {
             return Err(Error::InvalidInput("image set changed"));
         }
-        Ok(self.update_item_with_images(existing, item, Vec::new())?.item)
+        Ok(self
+            .update_item_with_images(existing, item, Vec::new())?
+            .item)
     }
 
     /// Re-encrypts an edited item and seals the images added in this edit.

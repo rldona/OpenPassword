@@ -269,7 +269,8 @@ pub mod fuzzing {
 mod tests {
     use super::*;
 
-    fn jpeg() -> Vec<u8> {        // Minimal structurally valid JPEG: SOI, DQT, SOF0, DHT, SOS, EOI.
+    fn jpeg() -> Vec<u8> {
+        // Minimal structurally valid JPEG: SOI, DQT, SOF0, DHT, SOS, EOI.
         let segment = |marker: u8, payload: &[u8]| {
             let mut out = vec![0xFF, marker];
             out.extend_from_slice(&u16::try_from(payload.len() + 2).unwrap().to_be_bytes());
