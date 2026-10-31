@@ -43,9 +43,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import io.github.rldona.openpassword.R
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -69,8 +71,8 @@ fun ImageCaptureScreen(onCaptured: (ByteArray) -> Unit, onCancel: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Hacer foto") },
-                navigationIcon = { IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = "Cancelar") } },
+                title = { Text(stringResource(R.string.item_editor_take_photo)) },
+                navigationIcon = { IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_cancel)) } },
             )
         },
     ) { padding ->
@@ -84,16 +86,16 @@ fun ImageCaptureScreen(onCaptured: (ByteArray) -> Unit, onCancel: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(
-                    if (denied) "Sin permiso de cámara no se puede hacer la foto. Puedes elegir una imagen de la galería."
-                    else "Para hacer la foto, OpenPassword necesita usar la cámara. La imagen se cifra y no se guarda en la galería.",
+                    if (denied) stringResource(R.string.image_capture_permission_denied)
+                    else stringResource(R.string.image_capture_permission_rationale),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (denied) {
                     Button(onClick = { permission.launch(Manifest.permission.CAMERA) }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Dar permiso de cámara")
+                        Text(stringResource(R.string.qr_permission_grant))
                     }
                 }
-                Button(onClick = onCancel, modifier = Modifier.fillMaxWidth()) { Text("Volver") }
+                Button(onClick = onCancel, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.item_detail_back)) }
             }
         }
     }
@@ -102,6 +104,7 @@ fun ImageCaptureScreen(onCaptured: (ByteArray) -> Unit, onCancel: () -> Unit) {
 @Composable
 private fun CameraCapture(onCaptured: (ByteArray) -> Unit) {
     val context = LocalContext.current
+    val res = context.resources
     val lifecycleOwner = LocalLifecycleOwner.current
     val previewView = remember { PreviewView(context).apply { scaleType = PreviewView.ScaleType.FILL_CENTER } }
     val executor = remember { Executors.newSingleThreadExecutor() }
@@ -163,7 +166,7 @@ private fun CameraCapture(onCaptured: (ByteArray) -> Unit) {
                                 ContextCompat.getMainExecutor(context).execute {
                                     busy.set(false)
                                     capturing = false
-                                    message = "No se pudo hacer la foto. Prueba otra vez."
+                                    message = res.getString(R.string.image_capture_failed)
                                 }
                             }
                         },
@@ -172,7 +175,7 @@ private fun CameraCapture(onCaptured: (ByteArray) -> Unit) {
                 enabled = !capturing,
                 modifier = Modifier.size(78.dp).background(Color.White, CircleShape),
             ) {
-                Text(if (capturing) "…" else "Foto", color = Color.Black, style = MaterialTheme.typography.titleMedium)
+                Text(if (capturing) "…" else stringResource(R.string.image_capture_shutter), color = Color.Black, style = MaterialTheme.typography.titleMedium)
             }
         }
     }

@@ -32,6 +32,7 @@ import io.github.rldona.openpassword.ui.displayNameOf
 import io.github.rldona.openpassword.ui.readBackupFile
 import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalResources
 
 @Composable
 fun RestoreStep(
@@ -39,6 +40,7 @@ fun RestoreStep(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     var file by remember { mutableStateOf<ByteArray?>(null) }
     var fileName by remember { mutableStateOf<String?>(null) }
@@ -54,7 +56,7 @@ fun RestoreStep(
             file = try {
                 readBackupFile(context, uri).also { fileName = displayNameOf(context, uri) }
             } catch (_: Exception) {
-                error = context.getString(R.string.settings_file_read_failed)
+                error = resources.getString(R.string.settings_file_read_failed)
                 null
             }
         }
@@ -70,15 +72,15 @@ fun RestoreStep(
                 onRestore(bytes, password, secretKey)
             } catch (e: OpException) {
                 error = when (e) {
-                    is OpException.WrongCredentials -> context.getString(R.string.restore_wrong_password)
-                    is OpException.WrongSecretKey -> context.getString(R.string.restore_wrong_secret_key)
-                    is OpException.Corrupted -> context.getString(R.string.restore_corrupted)
-                    else -> e.toUserMessage(context.resources)
+                    is OpException.WrongCredentials -> resources.getString(R.string.restore_wrong_password)
+                    is OpException.WrongSecretKey -> resources.getString(R.string.restore_wrong_secret_key)
+                    is OpException.Corrupted -> resources.getString(R.string.restore_corrupted)
+                    else -> e.toUserMessage(resources)
                 }
                 password = ""
                 busy = false
             } catch (_: Exception) {
-                error = context.getString(R.string.restore_failed)
+                error = resources.getString(R.string.restore_failed)
                 busy = false
             }
         }

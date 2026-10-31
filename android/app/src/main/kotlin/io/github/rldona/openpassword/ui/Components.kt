@@ -42,10 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.OpenPasswordApp
-import io.github.rldona.openpassword.security.OVERLAY_WARNING_TEXT
 import io.github.rldona.openpassword.security.OverlayWarning
 import io.github.rldona.openpassword.security.ProtectDialogWindow
-import io.github.rldona.openpassword.security.ROOT_WARNING_TEXT
 import io.github.rldona.openpassword.security.RootDetector
 import io.github.rldona.openpassword.ui.theme.SecretText
 
@@ -209,7 +207,7 @@ fun OverlayWarningBanner(modifier: Modifier = Modifier) {
         modifier.fillMaxWidth().padding(8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
     ) {
-        Text(OVERLAY_WARNING_TEXT, Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onErrorContainer)
+        Text(stringResource(R.string.overlay_warning), Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onErrorContainer)
     }
 }
 
@@ -226,7 +224,7 @@ fun RootWarning(dismissable: Boolean, modifier: Modifier = Modifier) {
     Card(modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(stringResource(R.string.component_device_security), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onTertiaryContainer)
-            Text(ROOT_WARNING_TEXT, color = MaterialTheme.colorScheme.onTertiaryContainer)
+            Text(stringResource(R.string.root_warning), color = MaterialTheme.colorScheme.onTertiaryContainer)
             if (dismissable) TextButton(onClick = app::dismissRootWarning) { Text(stringResource(R.string.component_understood)) }
         }
     }

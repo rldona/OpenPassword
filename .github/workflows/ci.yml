@@ -124,6 +124,15 @@ jobs:
             printf 'keyPassword=%s\n' "$KEY_PASSWORD"
           } > "$HOME/.openpassword/release-signing.properties"
           chmod 600 "$HOME/.openpassword/release-signing.properties"
+      # Both languages must carry the same keys, and no user-facing text may live in Kotlin.
+      # Android lint does not see Compose literals, hence the second script.
+      - name: Check translations
+        run: |
+          scripts/check-string-keys.sh
+          scripts/check-string-keys.sh --self-test
+          scripts/check-no-ui-literals.sh
+          scripts/check-no-ui-literals.sh --self-test
+
       # lintDebug catches calls above minSdk (NewApi). Also runs verifyDebugManifest / verifyReleaseManifest (no network permission, no backup).
       - name: Build, test and lint
         working-directory: android

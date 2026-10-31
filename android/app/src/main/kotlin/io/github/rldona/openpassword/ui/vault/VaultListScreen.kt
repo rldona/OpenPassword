@@ -56,6 +56,7 @@ import io.github.rldona.openpassword.ui.initialOf
 import java.text.Collator
 import java.util.Locale
 import io.github.rldona.openpassword.ui.ProtectedAlertDialog
+import androidx.compose.ui.platform.LocalConfiguration
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,7 +75,8 @@ fun VaultListScreen(
     var filter by rememberSaveable { mutableStateOf<ItemKindRecord?>(null) }
     var choosingKind by remember { mutableStateOf(false) }
 
-    val collator = remember { Collator.getInstance(Locale.forLanguageTag("es")) }
+    val locale = LocalConfiguration.current.locales[0]
+    val collator = remember(locale) { Collator.getInstance(locale) }
     val kindsPresent = remember(entries) { entries.map { it.overview.kind }.distinct().sortedBy { it.ordinal } }
     val visible = remember(entries, query, filter) {
         val key = query.searchKey().trim()

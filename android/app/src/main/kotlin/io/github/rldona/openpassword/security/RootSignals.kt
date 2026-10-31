@@ -40,8 +40,3 @@ object RootDetector {
     fun shouldWarn(signals: Set<RootSignal>, dismissed: Set<String>): Boolean =
         signals.isNotEmpty() && signals.map { it.name }.toSet() != dismissed
 }
-
-const val ROOT_WARNING_TEXT =
-    "Este dispositivo parece tener root o una compilación de depuración. Con root, otras apps " +
-        "pueden leer tus secretos de la memoria y OpenPassword no puede protegerte en ese caso. " +
-        "Es solo una heurística: puede equivocarse, se puede eludir y no te impide usar la app."

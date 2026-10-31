@@ -17,7 +17,8 @@ suspend fun biometricUnlock(context: Context, session: VaultSession): UnlockResu
     val cipher = session.biometricUnlockCipher()
         ?: return UnlockResult.Failed(Failure.BiometricsChanged)
     val title = context.getString(R.string.biometric_unlock_title)
-    return when (val result = authenticateBiometric(context, cipher, title)) {
+    val negativeButton = context.getString(R.string.biometric_use_password)
+    return when (val result = authenticateBiometric(context, cipher, title, negativeButton = negativeButton)) {
         is BiometricResult.Success -> session.unlockWithBiometric(result.cipher)
         BiometricResult.Cancelled -> null
         is BiometricResult.Error -> UnlockResult.Failed(Failure.System(result.message))
@@ -30,7 +31,8 @@ suspend fun enableBiometricUnlock(context: Context, session: VaultSession): Stri
     val cipher = session.biometricEnableCipher()
     val title = context.getString(R.string.biometric_enable_title)
     val subtitle = context.getString(R.string.biometric_enable_subtitle)
-    return when (val result = authenticateBiometric(context, cipher, title, subtitle)) {
+    val negativeButton = context.getString(R.string.biometric_use_password)
+    return when (val result = authenticateBiometric(context, cipher, title, subtitle, negativeButton = negativeButton)) {
         is BiometricResult.Success -> try {
             session.enableBiometric(result.cipher)
             context.getString(R.string.biometric_enabled)

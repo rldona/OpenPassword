@@ -44,10 +44,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import io.github.rldona.openpassword.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
@@ -73,8 +75,8 @@ fun QrScanScreen(onResult: (String) -> Unit, onCancel: () -> Unit, onPickImage: 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Escanear código QR") },
-                navigationIcon = { IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = "Cancelar") } },
+                title = { Text(stringResource(R.string.qr_title)) },
+                navigationIcon = { IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_cancel)) } },
             )
         },
     ) { padding ->
@@ -90,23 +92,23 @@ fun QrScanScreen(onResult: (String) -> Unit, onCancel: () -> Unit, onPickImage: 
                     Box(Modifier.size(240.dp).border(3.dp, Color.White.copy(alpha = 0.85f), RoundedCornerShape(16.dp)))
                 }
                 Text(
-                    if (notTotp) "Ese QR no es de verificación en dos pasos. Busca el que muestra el servicio al activar la 2FA."
-                    else "Apunta al código QR que te muestra el servicio al activar la verificación en dos pasos.",
+                    if (notTotp) stringResource(R.string.qr_not_totp)
+                    else stringResource(R.string.qr_hint),
                     textAlign = TextAlign.Center,
                     color = if (notTotp) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.fillMaxWidth(),
                 )
             } else {
                 Text(
-                    if (denied) "Sin permiso de cámara no se puede escanear. Puedes leer el QR desde una captura o pegar el enlace."
-                    else "Para escanear el QR, OpenPassword necesita usar la cámara. Las imágenes se procesan en el teléfono y no se guardan.",
+                    if (denied) stringResource(R.string.qr_permission_denied)
+                    else stringResource(R.string.qr_permission_rationale),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (denied) {
-                    Button(onClick = { permission.launch(Manifest.permission.CAMERA) }, modifier = Modifier.fillMaxWidth()) { Text("Dar permiso de cámara") }
+                    Button(onClick = { permission.launch(Manifest.permission.CAMERA) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.qr_permission_grant)) }
                 }
             }
-            OutlinedButton(onClick = onPickImage, modifier = Modifier.fillMaxWidth()) { Text("Leer el QR de una imagen") }
+            OutlinedButton(onClick = onPickImage, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.qr_from_image)) }
         }
     }
 }

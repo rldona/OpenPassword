@@ -25,7 +25,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.session.VaultEntry
 import io.github.rldona.openpassword.ui.Avatar
 import io.github.rldona.openpassword.ui.SectionLabel
@@ -36,6 +40,7 @@ import io.github.rldona.openpassword.ui.vault.avatarColor
 @Composable
 fun HealthBanner(report: HealthReport, onClick: () -> Unit, modifier: Modifier = Modifier) {
     if (report.isClean) return
+    val res = LocalContext.current.resources
     Card(
         onClick = onClick,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
@@ -43,43 +48,44 @@ fun HealthBanner(report: HealthReport, onClick: () -> Unit, modifier: Modifier =
     ) {
         ListItem(
             headlineContent = {
-                Text(if (report.affected == 1) "1 elemento necesita atención" else "${report.affected} elementos necesitan atención")
+                Text(pluralStringResource(R.plurals.health_banner_attention, report.affected, report.affected))
             },
-            supportingContent = { Text(summary(report)) },
+            supportingContent = { Text(summary(report, res)) },
             leadingContent = { Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary) },
             colors = androidx.compose.material3.ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
         )
     }
 }
 
-private fun summary(r: HealthReport): String = listOfNotNull(
-    r.reusedIds.size.takeIf { it > 0 }?.let { "$it con contraseña repetida" },
-    r.weak.size.takeIf { it > 0 }?.let { if (it == 1) "1 débil" else "$it débiles" },
+private fun summary(r: HealthReport, res: android.content.res.Resources): String = listOfNotNull(
+    r.reusedIds.size.takeIf { it > 0 }?.let { res.getString(R.string.health_summary_reused, it) },
+    r.weak.size.takeIf { it > 0 }?.let { res.getQuantityString(R.plurals.health_summary_weak, it, it) },
     (r.expiredCards.size + r.expiringCards.size).takeIf { it > 0 }?.let {
-        if (it == 1) "1 tarjeta caducada o a punto" else "$it tarjetas caducadas o a punto"
+        res.getQuantityString(R.plurals.health_summary_cards, it, it)
     },
     (r.expiredDocuments.size + r.expiringDocuments.size).takeIf { it > 0 }?.let {
-        if (it == 1) "1 documento caducado o a punto" else "$it documentos caducados o a punto"
+        res.getQuantityString(R.plurals.health_summary_documents, it, it)
     },
-    r.old.size.takeIf { it > 0 }?.let { "$it sin cambios en un año" },
+    r.old.size.takeIf { it > 0 }?.let { res.getString(R.string.health_summary_old, it) },
 ).joinToString(" · ")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HealthScreen(report: HealthReport, entries: List<VaultEntry>, onOpen: (VaultEntry) -> Unit, onBack: () -> Unit) {
     val byId = entries.associateBy { it.id }
+    val res = LocalContext.current.resources
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Salud de la caja fuerte") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver") } },
+                title = { Text(stringResource(R.string.health_title)) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.item_detail_back)) } },
             )
         },
     ) { padding ->
         LazyColumn(Modifier.padding(padding).fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
             item {
                 Text(
-                    "Se comprueba en este teléfono, sin conexión: tus contraseñas no se envían a ningún sitio.",
+                    stringResource(R.string.health_intro),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp),
@@ -88,40 +94,40 @@ fun HealthScreen(report: HealthReport, entries: List<VaultEntry>, onOpen: (Vault
             if (report.isClean) {
                 item {
                     Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Todo en orden", style = MaterialTheme.typography.titleMedium)
-                        Text("No hay contraseñas débiles ni repetidas, ni tarjetas o documentos a punto de caducar.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.health_all_clear_title), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.health_all_clear_body), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
             if (report.reused.isNotEmpty()) {
-                section("Contraseñas repetidas", "Si una de estas webs sufre una filtración, las demás quedan expuestas. Cambia cada una por una distinta.")
+                section(res.getString(R.string.health_reused_title), res.getString(R.string.health_reused_body))
                 report.reused.forEachIndexed { i, group ->
-                    item { SectionLabel("La misma contraseña en ${group.size} logins", Modifier.padding(start = 16.dp, top = 8.dp)) }
+                    item { SectionLabel(pluralStringResource(R.plurals.health_reused_group, group.size, group.size), Modifier.padding(start = 16.dp, top = 8.dp)) }
                     items(group.mapNotNull(byId::get), key = { "r$i-" + it.id }) { EntryRow(it, onOpen) }
                 }
             }
             if (report.weak.isNotEmpty()) {
-                section("Contraseñas débiles", "Son cortas o fáciles de adivinar. Usa el generador al editarlas.")
+                section(res.getString(R.string.health_weak_title), res.getString(R.string.health_weak_body))
                 items(report.weak.mapNotNull(byId::get), key = { "w" + it.id }) { EntryRow(it, onOpen) }
             }
             if (report.expiredCards.isNotEmpty()) {
-                section("Tarjetas caducadas", "Actualiza la fecha y el número si el banco te envió una nueva.")
+                section(res.getString(R.string.health_expired_cards_title), res.getString(R.string.health_expired_cards_body))
                 items(report.expiredCards.mapNotNull(byId::get), key = { "x" + it.id }) { EntryRow(it, onOpen) }
             }
             if (report.expiringCards.isNotEmpty()) {
-                section("Tarjetas que caducan pronto", "Caducan este mes o en los próximos ${VaultHealth.EXPIRING_MONTHS} meses.")
+                section(res.getString(R.string.health_expiring_cards_title), res.getString(R.string.health_expiring_cards_body, VaultHealth.EXPIRING_MONTHS))
                 items(report.expiringCards.mapNotNull(byId::get), key = { "s" + it.id }) { EntryRow(it, onOpen) }
             }
             if (report.expiredDocuments.isNotEmpty()) {
-                section("Documentos caducados", "Renuévalos y actualiza el número y las fechas.")
+                section(res.getString(R.string.health_expired_documents_title), res.getString(R.string.health_expired_documents_body))
                 items(report.expiredDocuments.mapNotNull(byId::get), key = { "dx" + it.id }) { EntryRow(it, onOpen) }
             }
             if (report.expiringDocuments.isNotEmpty()) {
-                section("Documentos que caducan pronto", "Caducan en los próximos ${VaultHealth.DOCUMENT_EXPIRING_MONTHS} meses: pide cita para renovarlos con tiempo.")
+                section(res.getString(R.string.health_expiring_documents_title), res.getString(R.string.health_expiring_documents_body, VaultHealth.DOCUMENT_EXPIRING_MONTHS))
                 items(report.expiringDocuments.mapNotNull(byId::get), key = { "ds" + it.id }) { EntryRow(it, onOpen) }
             }
             if (report.old.isNotEmpty()) {
-                section("Sin cambios desde hace más de un año", "No se han modificado en ${VaultHealth.OLD_AFTER_DAYS} días. Si son cuentas importantes, plantéate cambiar la contraseña.")
+                section(res.getString(R.string.health_old_title), res.getString(R.string.health_old_body, VaultHealth.OLD_AFTER_DAYS))
                 items(report.old.mapNotNull(byId::get), key = { "o" + it.id }) { EntryRow(it, onOpen) }
             }
         }

@@ -388,4 +388,86 @@
     <string name="component_secret_key_placeholder">OP1-XXXXXX-…</string>
     <string name="component_device_security">Device security</string>
     <string name="component_understood">Got it</string>
+
+    <!-- Pantalla: salud de la caja fuerte -->
+    <plurals name="health_banner_attention">
+        <item quantity="one">%1$d item needs attention</item>
+        <item quantity="other">%1$d items need attention</item>
+    </plurals>
+    <string name="health_title">Vault health</string>
+    <string name="health_intro">It is checked on this phone, offline: your passwords are not sent anywhere.</string>
+    <string name="health_all_clear_title">All good</string>
+    <string name="health_all_clear_body">No weak or repeated passwords, and no cards or documents about to expire.</string>
+    <string name="health_summary_reused">%1$d with a repeated password</string>
+    <plurals name="health_summary_weak">
+        <item quantity="one">%1$d weak</item>
+        <item quantity="other">%1$d weak</item>
+    </plurals>
+    <plurals name="health_summary_cards">
+        <item quantity="one">%1$d card expired or about to</item>
+        <item quantity="other">%1$d cards expired or about to</item>
+    </plurals>
+    <plurals name="health_summary_documents">
+        <item quantity="one">%1$d document expired or about to</item>
+        <item quantity="other">%1$d documents expired or about to</item>
+    </plurals>
+    <string name="health_summary_old">%1$d unchanged for over a year</string>
+    <string name="health_reused_title">Repeated passwords</string>
+    <string name="health_reused_body">If one of these sites is breached, the rest are exposed. Change each one for a different password.</string>
+    <plurals name="health_reused_group">
+        <item quantity="one">The same password in %1$d login</item>
+        <item quantity="other">The same password in %1$d logins</item>
+    </plurals>
+    <string name="health_weak_title">Weak passwords</string>
+    <string name="health_weak_body">They are short or easy to guess. Use the generator when you edit them.</string>
+    <string name="health_expired_cards_title">Expired cards</string>
+    <string name="health_expired_cards_body">Update the date and the number if your bank sent you a new one.</string>
+    <string name="health_expiring_cards_title">Cards expiring soon</string>
+    <string name="health_expiring_cards_body">They expire this month or in the next %1$d months.</string>
+    <string name="health_expired_documents_title">Expired documents</string>
+    <string name="health_expired_documents_body">Renew them and update the number and the dates.</string>
+    <string name="health_expiring_documents_title">Documents expiring soon</string>
+    <string name="health_expiring_documents_body">They expire in the next %1$d months: book an appointment to renew them in time.</string>
+    <string name="health_old_title">Unchanged for over a year</string>
+    <string name="health_old_body">They have not changed in %1$d days. If they are important accounts, consider changing the password.</string>
+
+    <!-- Pantalla: escanear un código QR -->
+    <string name="qr_title">Scan QR code</string>
+    <string name="qr_not_totp">That QR is not for two-step verification. Look for the one the service shows when you turn on 2FA.</string>
+    <string name="qr_hint">Point at the QR code the service shows when you turn on two-step verification.</string>
+    <string name="qr_permission_denied">Without camera permission the QR cannot be scanned. You can read it from a screenshot or paste the link.</string>
+    <string name="qr_permission_rationale">To scan the QR, OpenPassword needs to use the camera. Frames are processed on the phone and are not saved.</string>
+    <string name="qr_permission_grant">Allow camera access</string>
+    <string name="qr_from_image">Read the QR from an image</string>
+
+    <!-- Pantalla: hacer una foto -->
+    <string name="image_capture_permission_denied">Without camera permission the photo cannot be taken. You can pick an image from the gallery.</string>
+    <string name="image_capture_permission_rationale">To take the photo, OpenPassword needs to use the camera. The image is encrypted and not saved to the gallery.</string>
+    <string name="image_capture_failed">The photo could not be taken. Try again.</string>
+    <string name="image_capture_shutter">Photo</string>
+
+    <!-- Pantalla: guardar un login desde el autorrelleno -->
+    <string name="save_login_title">Save to OpenPassword</string>
+    <string name="save_login_close">Don\'t save</string>
+    <string name="save_login_for">For: %1$s</string>
+    <string name="save_login_update_notice">You already have «%1$s» with this username. Updating changes only its password.</string>
+    <string name="save_login_update_action">Update «%1$s»</string>
+    <string name="save_login_save_as_new">Save as new</string>
+
+    <!-- Pantalla: elegir un login para el autorrelleno -->
+    <string name="autofill_title">Fill with OpenPassword</string>
+    <string name="autofill_for">For: %1$s</string>
+    <string name="autofill_matches">Matches</string>
+    <string name="autofill_choose_login">Choose a login</string>
+    <string name="autofill_other_logins">Other logins</string>
+    <string name="autofill_search">Search</string>
+    <string name="autofill_remember">Remember the chosen login for this app</string>
+    <string name="autofill_no_login_for">No login has %1$s saved. Check that this is the site you expect before filling.</string>
+    <string name="autofill_search_in_app">Search in OpenPassword</string>
+    <string name="autofill_unlock_app">Unlock OpenPassword</string>
+
+    <!-- Avisos del sistema -->
+    <string name="root_warning">This device seems to have root or a debug build. With root, other apps can read your secrets from memory and OpenPassword cannot protect you in that case. It is only a heuristic: it can be wrong, it can be bypassed and it does not stop you from using the app.</string>
+    <string name="overlay_warning">Another app is showing something over OpenPassword. For safety, covered touches are ignored.</string>
+    <string name="biometric_use_password">Use password</string>
 </resources>

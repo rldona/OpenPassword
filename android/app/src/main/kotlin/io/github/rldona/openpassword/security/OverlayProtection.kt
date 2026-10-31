@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.DialogWindowProvider
+import io.github.rldona.openpassword.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,12 +58,9 @@ fun protectFromOverlays(activity: Activity) = protectWindow(activity.window)
 fun warnIfObscured(activity: Activity, event: MotionEvent) {
     if (obscuredTouch(event.flags) == Obscured.NONE) return
     if (OverlayWarning.report()) {
-        Toast.makeText(activity, OVERLAY_WARNING_TEXT, Toast.LENGTH_LONG).show()
+        Toast.makeText(activity, activity.getString(R.string.overlay_warning), Toast.LENGTH_LONG).show()
     }
 }
-
-const val OVERLAY_WARNING_TEXT =
-    "Otra app está mostrando algo encima de OpenPassword. Por seguridad se ignoran los toques tapados."
 
 /**
  * Compose dialogs are separate windows and do not inherit the activity's protection.

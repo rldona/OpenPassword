@@ -10,6 +10,7 @@ import android.service.autofill.SaveCallback
 import android.service.autofill.SaveInfo
 import android.service.autofill.SaveRequest
 import io.github.rldona.openpassword.OpenPasswordApp
+import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.session.SessionState
 import kotlinx.coroutines.CoroutineScope
@@ -54,7 +55,7 @@ class OpAutofillService : AutofillService() {
                         Datasets.direct(this@OpAutofillService, login, entry, credentials)?.let(response::addDataset)
                     }
             }
-            val openText = if (state is SessionState.Unlocked) "Buscar en OpenPassword" else "Desbloquear OpenPassword"
+            val openText = if (state is SessionState.Unlocked) getString(R.string.autofill_search_in_app) else getString(R.string.autofill_unlock_app)
             response.addDataset(Datasets.openApp(this@OpAutofillService, login, openText))
             // Ask Android to offer "save to OpenPassword" when the user submits a password.
             login.password?.let { passwordId ->

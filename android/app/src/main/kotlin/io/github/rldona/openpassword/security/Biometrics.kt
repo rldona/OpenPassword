@@ -8,6 +8,7 @@ import android.hardware.biometrics.BiometricPrompt
 import android.os.Build
 import android.os.CancellationSignal
 import androidx.annotation.RequiresApi
+import io.github.rldona.openpassword.R
 import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.crypto.Cipher
 import kotlin.coroutines.resume
@@ -76,7 +77,13 @@ private fun fingerprintAvailable(context: Context): Boolean {
  * Shows the system biometric prompt bound to [cipher]. The Keystore key behind the
  * cipher only works if this authentication succeeds, so the prompt cannot be faked.
  */
-suspend fun authenticateBiometric(context: Context, cipher: Cipher, title: String, subtitle: String? = null): BiometricResult =
+suspend fun authenticateBiometric(
+    context: Context,
+    cipher: Cipher,
+    title: String,
+    subtitle: String? = null,
+    negativeButton: String,
+): BiometricResult =
     suspendCancellableCoroutine { cont ->
         val executor = context.mainExecutor
         val signal = CancellationSignal()
@@ -94,7 +101,7 @@ suspend fun authenticateBiometric(context: Context, cipher: Cipher, title: Strin
                     setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
                 }
             }
-            .setNegativeButton("Usar contraseña", executor) { _, _ -> finish(BiometricResult.Cancelled) }
+            .setNegativeButton(negativeButton, executor) { _, _ -> finish(BiometricResult.Cancelled) }
             .build()
 
         prompt.authenticate(
@@ -104,11 +111,11 @@ suspend fun authenticateBiometric(context: Context, cipher: Cipher, title: Strin
             object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     val authorized = result.cryptoObject?.cipher
-                    finish(if (authorized != null) BiometricResult.Success(authorized) else BiometricResult.Error("El sistema no devolvió la clave."))
+                    finish(if (authorized != null) BiometricResult.Success(authorized) else BiometricResult.Error(context.getString(R.string.error_biometric_no_key)))
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    // The "Usar contraseña" button arrives through setNegativeButton's listener instead.
+                    // The negative button arrives through setNegativeButton's listener instead.
                     val cancelled = errorCode == BiometricPrompt.BIOMETRIC_ERROR_USER_CANCELED ||
                         errorCode == BiometricPrompt.BIOMETRIC_ERROR_CANCELED
                     finish(if (cancelled) BiometricResult.Cancelled else BiometricResult.Error(errString.toString()))

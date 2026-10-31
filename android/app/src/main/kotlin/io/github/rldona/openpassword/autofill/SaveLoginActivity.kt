@@ -39,11 +39,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.rldona.openpassword.OpenPasswordApp
+import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.core.FieldKindRecord
 import io.github.rldona.openpassword.core.FieldRecord
 import io.github.rldona.openpassword.core.ItemDetailsRecord
@@ -51,6 +53,7 @@ import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.core.ItemOverviewRecord
 import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.OpException
+import io.github.rldona.openpassword.data.StoredLabels
 import io.github.rldona.openpassword.security.excludeFromAutofill
 import io.github.rldona.openpassword.security.protectFromOverlays
 import io.github.rldona.openpassword.security.warnIfObscured
@@ -187,13 +190,13 @@ private fun SaveForm(pending: PendingSave, entries: List<VaultEntry>, session: V
                         } else {
                             f
                         }
-                    }.let { if (replaced) it else it + FieldRecord("Contraseña", FieldKindRecord.CONCEALED, password) }
+                    }.let { if (replaced) it else it + FieldRecord(StoredLabels.PASSWORD, FieldKindRecord.CONCEALED, password) }
                     session.save(existing, existing.overview.copy(updatedAt = now), details.copy(fields = fields))
                 } else {
                     val user = username.trim()
                     val fields = listOfNotNull(
-                        user.takeIf(String::isNotEmpty)?.let { FieldRecord("Usuario", if ('@' in it) FieldKindRecord.EMAIL else FieldKindRecord.TEXT, it) },
-                        FieldRecord("Contraseña", FieldKindRecord.CONCEALED, password),
+                        user.takeIf(String::isNotEmpty)?.let { FieldRecord(StoredLabels.USERNAME, if ('@' in it) FieldKindRecord.EMAIL else FieldKindRecord.TEXT, it) },
+                        FieldRecord(StoredLabels.PASSWORD, FieldKindRecord.CONCEALED, password),
                     )
                     val overview = ItemOverviewRecord(
                         kind = ItemKindRecord.LOGIN,
@@ -221,8 +224,8 @@ private fun SaveForm(pending: PendingSave, entries: List<VaultEntry>, session: V
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Guardar en OpenPassword") },
-                navigationIcon = { IconButton(onClick = onDone) { Icon(Icons.Filled.Close, contentDescription = "No guardar") } },
+                title = { Text(stringResource(R.string.save_login_title)) },
+                navigationIcon = { IconButton(onClick = onDone) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.save_login_close)) } },
             )
         },
     ) { padding ->
@@ -230,12 +233,12 @@ private fun SaveForm(pending: PendingSave, entries: List<VaultEntry>, session: V
             Modifier.padding(padding).imePadding().fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Para: $where", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.save_login_for, where), color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (existing == null) {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Nombre") },
+                    label = { Text(stringResource(R.string.item_editor_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -243,27 +246,27 @@ private fun SaveForm(pending: PendingSave, entries: List<VaultEntry>, session: V
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
-                label = { Text("Usuario") },
+                label = { Text(stringResource(R.string.field_username)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next, autoCorrectEnabled = false),
                 modifier = Modifier.fillMaxWidth(),
             )
-            PasswordField(value = password, onValueChange = { password = it }, label = "Contraseña", modifier = Modifier.fillMaxWidth())
+            PasswordField(value = password, onValueChange = { password = it }, label = stringResource(R.string.field_password), modifier = Modifier.fillMaxWidth())
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             if (existing != null) {
                 Text(
-                    "Ya tienes «${existing.overview.title}» con este usuario. Actualizar cambia solo su contraseña.",
+                    stringResource(R.string.save_login_update_notice, existing.overview.title),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Button(onClick = { save(asNew = false) }, enabled = !busy && password.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
-                    Text("Actualizar «${existing.overview.title}»")
+                    Text(stringResource(R.string.save_login_update_action, existing.overview.title))
                 }
                 OutlinedButton(onClick = { save(asNew = true) }, enabled = !busy && password.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
-                    Text("Guardar como nuevo")
+                    Text(stringResource(R.string.save_login_save_as_new))
                 }
             } else {
                 Button(onClick = { save(asNew = true) }, enabled = !busy && password.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
-                    Text("Guardar")
+                    Text(stringResource(R.string.item_editor_save))
                 }
             }
         }

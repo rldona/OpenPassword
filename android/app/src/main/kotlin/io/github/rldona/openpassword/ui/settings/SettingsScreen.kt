@@ -84,11 +84,13 @@ import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.locale.AppLanguage
 import io.github.rldona.openpassword.locale.AppLocales
 import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.platform.LocalResources
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> Unit) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     var askingPassword by remember { mutableStateOf(false) }
@@ -109,7 +111,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                         is PendingImport -> pendingExternal = read
                     }
                 }
-                .onFailure { snackbar.showSnackbar(importErrorMessage(it, context.resources)) }
+                .onFailure { snackbar.showSnackbar(importErrorMessage(it, resources)) }
         }
     }
     val backup by autoBackup.status.collectAsStateWithLifecycle()
@@ -117,7 +119,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
     val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
         if (tree == null) return@rememberLauncherForActivityResult
         runCatching { autoBackup.setFolder(tree, folderLabel(tree)) }
-            .onFailure { scope.launch { snackbar.showSnackbar(context.getString(R.string.settings_folder_error)) } }
+            .onFailure { scope.launch { snackbar.showSnackbar(resources.getString(R.string.settings_folder_error)) } }
     }
     val autofillManager = remember { context.getSystemService(AutofillManager::class.java) }
     var autofillOn by remember { mutableStateOf(autofillManager?.hasEnabledAutofillServices() == true) }
@@ -134,10 +136,10 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
         if (uri == null || key == null) return@rememberLauncherForActivityResult
         scope.launch {
             val message = try {
-                writeDocument(context, uri, EmergencyKit.pdf(EmergencyKit.Text.from(context.resources), key))
-                context.getString(R.string.settings_kit_saved)
+                writeDocument(context, uri, EmergencyKit.pdf(EmergencyKit.Text.from(resources), key))
+                resources.getString(R.string.settings_kit_saved)
             } catch (_: Exception) {
-                context.getString(R.string.settings_kit_save_failed)
+                resources.getString(R.string.settings_kit_save_failed)
             }
             shownSecretKey = null
             snackbar.showSnackbar(message)
@@ -150,7 +152,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
             try {
                 importBytes = readBackupFile(context, uri)
             } catch (_: Exception) {
-                snackbar.showSnackbar(context.getString(R.string.settings_file_read_failed))
+                snackbar.showSnackbar(resources.getString(R.string.settings_file_read_failed))
             }
         }
     }
@@ -163,13 +165,13 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                 withContext(Dispatchers.IO) {
                     context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(bytes) } ?: error("no output")
                 }
-                context.getString(R.string.settings_export_saved)
+                resources.getString(R.string.settings_export_saved)
             } catch (_: InternalException) {
-                internalMessage(context.resources)
+                internalMessage(resources)
             } catch (e: OpException) {
-                e.toUserMessage(context.resources)
+                e.toUserMessage(resources)
             } catch (_: Exception) {
-                context.getString(R.string.settings_export_failed)
+                resources.getString(R.string.settings_export_failed)
             }
             snackbar.showSnackbar(message)
         }
@@ -223,10 +225,10 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                             val error = autoBackup.backupNow()
                             backingUp = false
                             snackbar.showSnackbar(
-                                error?.message(context.resources)
-                                    ?: context.getString(
+                                error?.message(resources)
+                                    ?: resources.getString(
                                         R.string.settings_backup_now_done,
-                                        backup.folderName ?: context.getString(R.string.settings_folder_unnamed),
+                                        backup.folderName ?: resources.getString(R.string.settings_folder_unnamed),
                                     ),
                             )
                         }
@@ -372,8 +374,8 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                 scope.launch {
                     snackbar.showSnackbar(
                         when {
-                            summary.added == 0 && summary.updated == 0 -> context.getString(R.string.settings_import_nothing_new)
-                            else -> context.getString(R.string.settings_import_result, summary.added, summary.updated)
+                            summary.added == 0 && summary.updated == 0 -> resources.getString(R.string.settings_import_nothing_new)
+                            else -> resources.getString(R.string.settings_import_result, summary.added, summary.updated)
                         },
                     )
                 }
@@ -420,7 +422,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
 
 @Composable
 private fun ConfirmPasswordDialog(onDismiss: () -> Unit, onConfirm: suspend (String) -> UnlockResult) {
-    val res = LocalContext.current.resources
+    val resources = LocalResources.current
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
@@ -433,10 +435,10 @@ private fun ConfirmPasswordDialog(onDismiss: () -> Unit, onConfirm: suspend (Str
             error = when (val result = onConfirm(password)) {
                 UnlockResult.Success -> null
                 is UnlockResult.WrongPassword ->
-                    res.getString(R.string.settings_confirm_wrong_password) +
-                        if (result.waitSeconds > 0) " " + res.getString(R.string.settings_confirm_wait, result.waitSeconds) else ""
-                is UnlockResult.MustWait -> res.getString(R.string.settings_confirm_too_many_attempts, result.waitSeconds)
-                is UnlockResult.Failed -> result.failure.message(res)
+                    resources.getString(R.string.settings_confirm_wrong_password) +
+                        if (result.waitSeconds > 0) " " + resources.getString(R.string.settings_confirm_wait, result.waitSeconds) else ""
+                is UnlockResult.MustWait -> resources.getString(R.string.settings_confirm_too_many_attempts, result.waitSeconds)
+                is UnlockResult.Failed -> result.failure.message(resources)
             }
             password = ""
             busy = false
@@ -465,7 +467,7 @@ private fun ConfirmPasswordDialog(onDismiss: () -> Unit, onConfirm: suspend (Str
 
 @Composable
 private fun ImportDialog(onDismiss: () -> Unit, onImport: suspend (password: String, secretKey: String) -> Unit) {
-    val res = LocalContext.current.resources
+    val resources = LocalResources.current
     var password by remember { mutableStateOf("") }
     var secretKey by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
@@ -481,15 +483,15 @@ private fun ImportDialog(onDismiss: () -> Unit, onImport: suspend (password: Str
                 onImport(password, secretKey)
             } catch (e: OpException) {
                 error = when (e) {
-                    is OpException.WrongCredentials -> res.getString(R.string.settings_import_wrong_password)
-                    is OpException.WrongSecretKey -> res.getString(R.string.settings_import_wrong_secret_key)
-                    is OpException.Corrupted -> res.getString(R.string.settings_import_corrupted)
-                    else -> e.toUserMessage(res)
+                    is OpException.WrongCredentials -> resources.getString(R.string.settings_import_wrong_password)
+                    is OpException.WrongSecretKey -> resources.getString(R.string.settings_import_wrong_secret_key)
+                    is OpException.Corrupted -> resources.getString(R.string.settings_import_corrupted)
+                    else -> e.toUserMessage(resources)
                 }
                 password = ""
                 busy = false
             } catch (_: InternalException) {
-                error = res.getString(R.string.settings_import_read_failed)
+                error = resources.getString(R.string.settings_import_read_failed)
                 password = ""
                 busy = false
             }

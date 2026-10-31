@@ -388,4 +388,86 @@
     <string name="component_secret_key_placeholder">OP1-XXXXXX-…</string>
     <string name="component_device_security">Seguridad del dispositivo</string>
     <string name="component_understood">Entendido</string>
+
+    <!-- Pantalla: salud de la caja fuerte -->
+    <plurals name="health_banner_attention">
+        <item quantity="one">%1$d elemento necesita atención</item>
+        <item quantity="other">%1$d elementos necesitan atención</item>
+    </plurals>
+    <string name="health_title">Salud de la caja fuerte</string>
+    <string name="health_intro">Se comprueba en este teléfono, sin conexión: tus contraseñas no se envían a ningún sitio.</string>
+    <string name="health_all_clear_title">Todo en orden</string>
+    <string name="health_all_clear_body">No hay contraseñas débiles ni repetidas, ni tarjetas o documentos a punto de caducar.</string>
+    <string name="health_summary_reused">%1$d con contraseña repetida</string>
+    <plurals name="health_summary_weak">
+        <item quantity="one">%1$d débil</item>
+        <item quantity="other">%1$d débiles</item>
+    </plurals>
+    <plurals name="health_summary_cards">
+        <item quantity="one">%1$d tarjeta caducada o a punto</item>
+        <item quantity="other">%1$d tarjetas caducadas o a punto</item>
+    </plurals>
+    <plurals name="health_summary_documents">
+        <item quantity="one">%1$d documento caducado o a punto</item>
+        <item quantity="other">%1$d documentos caducados o a punto</item>
+    </plurals>
+    <string name="health_summary_old">%1$d sin cambios en un año</string>
+    <string name="health_reused_title">Contraseñas repetidas</string>
+    <string name="health_reused_body">Si una de estas webs sufre una filtración, las demás quedan expuestas. Cambia cada una por una distinta.</string>
+    <plurals name="health_reused_group">
+        <item quantity="one">La misma contraseña en %1$d login</item>
+        <item quantity="other">La misma contraseña en %1$d logins</item>
+    </plurals>
+    <string name="health_weak_title">Contraseñas débiles</string>
+    <string name="health_weak_body">Son cortas o fáciles de adivinar. Usa el generador al editarlas.</string>
+    <string name="health_expired_cards_title">Tarjetas caducadas</string>
+    <string name="health_expired_cards_body">Actualiza la fecha y el número si el banco te envió una nueva.</string>
+    <string name="health_expiring_cards_title">Tarjetas que caducan pronto</string>
+    <string name="health_expiring_cards_body">Caducan este mes o en los próximos %1$d meses.</string>
+    <string name="health_expired_documents_title">Documentos caducados</string>
+    <string name="health_expired_documents_body">Renuévalos y actualiza el número y las fechas.</string>
+    <string name="health_expiring_documents_title">Documentos que caducan pronto</string>
+    <string name="health_expiring_documents_body">Caducan en los próximos %1$d meses: pide cita para renovarlos con tiempo.</string>
+    <string name="health_old_title">Sin cambios desde hace más de un año</string>
+    <string name="health_old_body">No se han modificado en %1$d días. Si son cuentas importantes, plantéate cambiar la contraseña.</string>
+
+    <!-- Pantalla: escanear un código QR -->
+    <string name="qr_title">Escanear código QR</string>
+    <string name="qr_not_totp">Ese QR no es de verificación en dos pasos. Busca el que muestra el servicio al activar la 2FA.</string>
+    <string name="qr_hint">Apunta al código QR que te muestra el servicio al activar la verificación en dos pasos.</string>
+    <string name="qr_permission_denied">Sin permiso de cámara no se puede escanear. Puedes leer el QR desde una captura o pegar el enlace.</string>
+    <string name="qr_permission_rationale">Para escanear el QR, OpenPassword necesita usar la cámara. Las imágenes se procesan en el teléfono y no se guardan.</string>
+    <string name="qr_permission_grant">Dar permiso de cámara</string>
+    <string name="qr_from_image">Leer el QR de una imagen</string>
+
+    <!-- Pantalla: hacer una foto -->
+    <string name="image_capture_permission_denied">Sin permiso de cámara no se puede hacer la foto. Puedes elegir una imagen de la galería.</string>
+    <string name="image_capture_permission_rationale">Para hacer la foto, OpenPassword necesita usar la cámara. La imagen se cifra y no se guarda en la galería.</string>
+    <string name="image_capture_failed">No se pudo hacer la foto. Prueba otra vez.</string>
+    <string name="image_capture_shutter">Foto</string>
+
+    <!-- Pantalla: guardar un login desde el autorrelleno -->
+    <string name="save_login_title">Guardar en OpenPassword</string>
+    <string name="save_login_close">No guardar</string>
+    <string name="save_login_for">Para: %1$s</string>
+    <string name="save_login_update_notice">Ya tienes «%1$s» con este usuario. Actualizar cambia solo su contraseña.</string>
+    <string name="save_login_update_action">Actualizar «%1$s»</string>
+    <string name="save_login_save_as_new">Guardar como nuevo</string>
+
+    <!-- Pantalla: elegir un login para el autorrelleno -->
+    <string name="autofill_title">Rellenar con OpenPassword</string>
+    <string name="autofill_for">Para: %1$s</string>
+    <string name="autofill_matches">Coinciden</string>
+    <string name="autofill_choose_login">Elige un login</string>
+    <string name="autofill_other_logins">Otros logins</string>
+    <string name="autofill_search">Buscar</string>
+    <string name="autofill_remember">Recordar el login elegido para esta app</string>
+    <string name="autofill_no_login_for">Ningún login tiene guardado %1$s. Comprueba que es el sitio que esperas antes de rellenar.</string>
+    <string name="autofill_search_in_app">Buscar en OpenPassword</string>
+    <string name="autofill_unlock_app">Desbloquear OpenPassword</string>
+
+    <!-- Avisos del sistema -->
+    <string name="root_warning">Este dispositivo parece tener root o una compilación de depuración. Con root, otras apps pueden leer tus secretos de la memoria y OpenPassword no puede protegerte en ese caso. Es solo una heurística: puede equivocarse, se puede eludir y no te impide usar la app.</string>
+    <string name="overlay_warning">Otra app está mostrando algo encima de OpenPassword. Por seguridad se ignoran los toques tapados.</string>
+    <string name="biometric_use_password">Usar contraseña</string>
 </resources>

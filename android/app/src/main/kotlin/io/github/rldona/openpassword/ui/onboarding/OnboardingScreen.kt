@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -200,14 +201,15 @@ private fun SecretKeyStep(secretKey: String, onCreate: suspend () -> Unit) {
     var kitMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val resources = LocalResources.current
     val kitLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             kitMessage = try {
                 writeDocument(context, uri, EmergencyKit.pdf(EmergencyKit.Text.from(context.resources), secretKey))
-                context.getString(R.string.settings_kit_saved)
+                resources.getString(R.string.settings_kit_saved)
             } catch (_: Exception) {
-                context.getString(R.string.settings_kit_save_failed)
+                resources.getString(R.string.settings_kit_save_failed)
             }
         }
     }

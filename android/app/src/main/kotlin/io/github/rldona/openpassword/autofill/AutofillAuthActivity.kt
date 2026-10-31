@@ -44,12 +44,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.activity.viewModels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.rldona.openpassword.OpenPasswordApp
+import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.core.OpException
@@ -217,14 +219,14 @@ private fun PickLogin(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Rellenar con OpenPassword") },
-                navigationIcon = { IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = "Cancelar") } },
+                title = { Text(stringResource(R.string.autofill_title)) },
+                navigationIcon = { IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_cancel)) } },
             )
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             Text(
-                "Para: $where",
+                stringResource(R.string.autofill_for, where),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -232,16 +234,16 @@ private fun PickLogin(
             pickError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
             LazyColumn(Modifier.fillMaxSize()) {
                 if (matching.isNotEmpty()) {
-                    item { SectionLabel("Coinciden", Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp)) }
+                    item { SectionLabel(stringResource(R.string.autofill_matches), Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp)) }
                     items(matching, key = { "m" + it.id }) { LoginRow(it) { pick(it, isMatch = true) } }
                 }
                 item {
                     Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SectionLabel(if (matching.isEmpty()) "Elige un login" else "Otros logins")
+                        SectionLabel(if (matching.isEmpty()) stringResource(R.string.autofill_choose_login) else stringResource(R.string.autofill_other_logins))
                         OutlinedTextField(
                             value = query,
                             onValueChange = { query = it },
-                            placeholder = { Text("Buscar") },
+                            placeholder = { Text(stringResource(R.string.autofill_search)) },
                             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
@@ -252,11 +254,11 @@ private fun PickLogin(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Checkbox(checked = remember, onCheckedChange = null)
-                                Text("Recordar el login elegido para esta app", Modifier.padding(start = 12.dp))
+                                Text(stringResource(R.string.autofill_remember), Modifier.padding(start = 12.dp))
                             }
                         } else if (target is FillTarget.Web && matching.isEmpty()) {
                             Text(
-                                "Ningún login tiene guardado $where. Comprueba que es el sitio que esperas antes de rellenar.",
+                                stringResource(R.string.autofill_no_login_for, where),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.tertiary,
                             )
