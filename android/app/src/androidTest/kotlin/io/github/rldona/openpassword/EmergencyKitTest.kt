@@ -20,7 +20,7 @@ class EmergencyKitTest {
 
     @Test
     fun isOneA4PageWithInk() {
-        val pdf = EmergencyKit.pdf("OP1-H7K2Q9-XW4R8T-M3NV6P-2JDL5C-9FBZ7Y")
+        val pdf = EmergencyKit.pdf(EmergencyKit.Text.from(context.resources), "OP1-H7K2Q9-XW4R8T-M3NV6P-2JDL5C-9FBZ7Y")
         assertEquals("%PDF", String(pdf, 0, 4))
         // Sample key only; kept for a visual check with: adb pull <externalFilesDir>/kit-sample.pdf
         context.getExternalFilesDir(null)?.let { File(it, "kit-sample.pdf").writeBytes(pdf) }

@@ -79,4 +79,130 @@
     <string name="biometric_enable_title">Enable fingerprint unlock</string>
     <string name="biometric_enable_subtitle">Confirm with your fingerprint</string>
     <string name="biometric_enabled">Fingerprint unlock enabled. We will ask for your password every 14 days and after a restart.</string>
+
+    <string name="kit_subtitle">Emergency kit</string>
+    <string name="kit_created_on">Created on %1$s</string>
+    <string name="kit_intro">With this sheet and your master password you can recover your data on another phone from a backup (.opvault). Without both, nobody can decrypt it: not even us.</string>
+    <string name="kit_secret_key_label">SECRET KEY</string>
+    <string name="kit_ambiguity_note">The letters O, I and L are not used: if in doubt, it is a zero or a one.</string>
+    <string name="kit_master_password_label">MASTER PASSWORD (OPTIONAL, BY HAND)</string>
+    <string name="kit_master_password_warning">Write it down only if you are going to keep this sheet somewhere truly safe. Whoever has the sheet with the password and a backup of your vault will be able to open it.</string>
+    <string name="kit_restore_label">HOW TO RECOVER YOUR DATA</string>
+    <string name="kit_restore_step_1">Install OpenPassword on the new phone and choose «%1$s».</string>
+    <string name="kit_restore_step_2">Pick your .opvault file (from your computer, an SD card or your cloud).</string>
+    <string name="kit_restore_step_3">Type the secret key from this sheet and your master password.</string>
+    <string name="kit_offline_tool">Without the app you can also decrypt the backup with the open-source tool «opvault decrypt» (github.com/rldona/OpenPassword).</string>
+    <string name="kit_keep_safe_label">KEEP IT SAFE</string>
+    <string name="kit_keep_safe_1">Print it and keep it with your important documents, or give it to someone you trust.</string>
+    <string name="kit_keep_safe_2">Delete the PDF from the phone after printing it. Do not upload it to the cloud or take photos of it.</string>
+    <string name="kit_keep_safe_3">If you lose this sheet and your master password, your backups cannot be opened.</string>
+    <string name="kit_footer">OpenPassword is free software (GPL-3.0-or-later).</string>
+    <string name="onboarding_restore">Restore a backup</string>
+
+    <string name="settings_language">Language</string>
+    <string name="settings_language_hint">Follows the phone unless you choose one.</string>
+    <string name="language_system">System</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
+    <string name="action_cancel">Cancel</string>
+
+    <!-- Pantalla: lista del baúl -->
+    <string name="vault_list_title">Vault</string>
+    <string name="vault_list_lock">Lock</string>
+    <string name="vault_list_settings">Settings</string>
+    <string name="vault_list_add_item">Add item</string>
+    <plurals name="vault_list_search_placeholder">
+        <item quantity="one">Search in %1$d item</item>
+        <item quantity="other">Search in %1$d items</item>
+    </plurals>
+    <string name="vault_list_filter_all">All</string>
+    <string name="vault_list_empty_title">Your vault is empty</string>
+    <string name="vault_list_empty_body">Tap + to save your first password, card or PIN.</string>
+    <string name="vault_list_no_results_title">No results</string>
+    <string name="vault_list_no_results_body">No item matches «%1$s».</string>
+    <string name="vault_list_choose_kind_title">What do you want to save?</string>
+    <string name="vault_list_favorite">Favorite</string>
+    <plurals name="vault_list_unreadable_title">
+        <item quantity="one">%1$d item cannot be read</item>
+        <item quantity="other">%1$d items cannot be read</item>
+    </plurals>
+    <string name="vault_list_unreadable_body">The data is damaged. Nothing has been deleted or touched: it is still in the vault and in your backups. Import a recent backup to recover it.</string>
+
+    <!-- Pantalla: detalle del elemento -->
+    <string name="item_detail_back">Back</string>
+    <string name="item_detail_edit">Edit</string>
+    <string name="item_detail_delete">Delete</string>
+    <string name="item_detail_copied">%1$s copied. It will be cleared in 30 s, or when you come back to the app if you leave.</string>
+    <string name="item_detail_code_copied">Code copied. It will be cleared in 30 s, or when you come back to the app if you leave.</string>
+    <string name="item_detail_previous_password_copied">Previous password copied. It will be cleared in 30 s, or when you come back to the app if you leave.</string>
+    <string name="item_detail_image_unavailable">Image not available.</string>
+    <string name="item_detail_show_wifi_qr">Show QR to connect</string>
+    <string name="item_detail_website">Website</string>
+    <string name="item_detail_fill_apps">Apps where it fills in</string>
+    <string name="item_detail_previous_passwords">Previous passwords</string>
+    <string name="item_detail_history_label">%1$s · until %2$s</string>
+    <string name="item_detail_notes">Notes</string>
+    <string name="item_detail_created_modified">Created %1$s · Modified %2$s</string>
+    <string name="item_detail_wifi_qr_description">Network QR code</string>
+    <string name="item_detail_wifi_qr_hint">Scan it with the other phone\'s camera. Anyone who sees this code can join the network.</string>
+    <string name="item_detail_close">Close</string>
+    <string name="item_detail_delete_title">Delete «%1$s»?</string>
+    <string name="item_detail_delete_body">It will be deleted from this phone. The backups you have already exported keep it.</string>
+    <string name="item_detail_encrypted_image">Encrypted image</string>
+    <string name="item_detail_totp_invalid">The saved secret is not valid. Edit the item.</string>
+    <string name="item_detail_totp_changes_in">Changes in %1$d s</string>
+    <string name="item_detail_copy">Copy</string>
+    <string name="item_detail_view">View</string>
+    <string name="item_detail_hide">Hide</string>
+
+    <!-- Pantalla: editor del elemento -->
+    <string name="item_editor_title_new">New: %1$s</string>
+    <string name="item_editor_title_edit">Edit</string>
+    <string name="item_editor_save">Save</string>
+    <string name="item_editor_name">Name</string>
+    <string name="item_editor_website">Website</string>
+    <string name="item_editor_notes">Notes</string>
+    <string name="item_editor_favorite">Favorite</string>
+    <string name="item_editor_images">Images</string>
+    <string name="item_editor_take_photo">Take photo</string>
+    <string name="item_editor_from_gallery">From gallery</string>
+    <string name="item_editor_image_note">They are stored encrypted and can only be seen inside the app. The original photo, if you pick it from the gallery, is still there: delete it if you want.</string>
+    <string name="item_editor_image_new_label">New image</string>
+    <string name="item_editor_image_saved_label">Saved image</string>
+    <string name="item_editor_image_new_hint">It will be encrypted when you save</string>
+    <string name="item_editor_image_saved_hint">Encrypted in the vault</string>
+    <string name="item_editor_view">View</string>
+    <string name="item_editor_remove">Remove</string>
+    <string name="item_editor_scan_qr">Scan QR</string>
+    <string name="item_editor_from_image">From an image</string>
+    <string name="item_editor_generate_password">Random password</string>
+    <string name="item_editor_generate_passphrase">Passphrase</string>
+    <string name="item_editor_generate_pin">Generate randomly</string>
+    <plurals name="item_editor_images_limit">
+        <item quantity="one">You have reached the limit of %1$d image per item.</item>
+        <item quantity="other">You have reached the limit of %1$d images per item.</item>
+    </plurals>
+    <string name="item_editor_image_unavailable">Image not available.</string>
+    <string name="item_editor_image_unreadable">That image could not be read. Try another one.</string>
+    <string name="item_editor_totp_invalid">The TOTP code is not valid. Paste the otpauth:// link or the secret the service gave you.</string>
+    <string name="item_editor_card_invalid">The card number is not valid: check that no digit is missing or extra.</string>
+    <string name="item_editor_iban_invalid">The IBAN is not valid: check the country, the length and the digits.</string>
+    <string name="item_editor_image_quota">No room for more images: the vault is at its limit. Delete one or use smaller photos.</string>
+    <string name="item_editor_qr_read">QR code read.</string>
+    <string name="item_editor_qr_not_totp">That QR is not a two-step verification one.</string>
+    <string name="item_editor_qr_not_found">No QR code was found in that image.</string>
+    <string name="item_editor_photo_failed">The photo could not be prepared. Try again or pick one from the gallery.</string>
+    <string name="item_editor_placeholder_login">Google, Netflix, bank…</string>
+    <string name="item_editor_placeholder_card">Bank Visa</string>
+    <string name="item_editor_placeholder_pin">Home alarm, SIM, safe…</string>
+    <string name="item_editor_placeholder_secret">Production API key</string>
+    <string name="item_editor_placeholder_note">Recovery codes</string>
+    <string name="item_editor_placeholder_bank_account">Salary account</string>
+    <string name="item_editor_placeholder_identity">ID card, passport, driving licence…</string>
+    <string name="item_editor_placeholder_wifi">Home Wi-Fi</string>
+
+    <!-- Pantalla: visor de imágenes -->
+    <string name="image_viewer_open_failed">The image could not be opened.</string>
+    <string name="image_viewer_image_description">Image: %1$s</string>
+    <string name="image_viewer_close">Close</string>
 </resources>

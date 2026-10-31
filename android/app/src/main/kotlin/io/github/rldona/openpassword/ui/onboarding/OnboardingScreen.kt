@@ -194,7 +194,7 @@ private fun SecretKeyStep(secretKey: String, onCreate: suspend () -> Unit) {
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             kitMessage = try {
-                writeDocument(context, uri, EmergencyKit.pdf(secretKey))
+                writeDocument(context, uri, EmergencyKit.pdf(EmergencyKit.Text.from(context.resources), secretKey))
                 "Kit guardado. Imprímelo y después borra el PDF del teléfono."
             } catch (_: Exception) {
                 "No se pudo guardar el kit en esa ubicación."

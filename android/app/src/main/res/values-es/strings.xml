@@ -79,4 +79,130 @@
     <string name="biometric_enable_title">Activar desbloqueo con huella</string>
     <string name="biometric_enable_subtitle">Confirma con tu huella</string>
     <string name="biometric_enabled">Desbloqueo con huella activado. Te pediremos la contraseña cada 14 días y tras reiniciar.</string>
+
+    <string name="kit_subtitle">Kit de emergencia</string>
+    <string name="kit_created_on">Creado el %1$s</string>
+    <string name="kit_intro">Con este papel y tu contraseña maestra puedes recuperar tus datos en otro teléfono a partir de una copia de seguridad (.opvault). Sin los dos, nadie puede descifrarla: tampoco nosotros.</string>
+    <string name="kit_secret_key_label">CLAVE SECRETA</string>
+    <string name="kit_ambiguity_note">Las letras O, I y L no se usan: si dudas, es un cero o un uno.</string>
+    <string name="kit_master_password_label">CONTRASEÑA MAESTRA (OPCIONAL, A MANO)</string>
+    <string name="kit_master_password_warning">Escríbela solo si vas a guardar este papel en un lugar realmente seguro. Quien tenga el papel con la contraseña y una copia de tu caja fuerte podrá abrirla.</string>
+    <string name="kit_restore_label">CÓMO RECUPERAR TUS DATOS</string>
+    <string name="kit_restore_step_1">Instala OpenPassword en el teléfono nuevo y elige «%1$s».</string>
+    <string name="kit_restore_step_2">Elige tu fichero .opvault (de tu ordenador, una tarjeta SD o tu nube).</string>
+    <string name="kit_restore_step_3">Escribe la clave secreta de este papel y tu contraseña maestra.</string>
+    <string name="kit_offline_tool">Sin la app también puedes descifrar la copia con la herramienta de código abierto «opvault decrypt» (github.com/rldona/OpenPassword).</string>
+    <string name="kit_keep_safe_label">GUÁRDALO BIEN</string>
+    <string name="kit_keep_safe_1">Imprímelo y guárdalo con tus documentos importantes, o dáselo a alguien de confianza.</string>
+    <string name="kit_keep_safe_2">Borra el PDF del teléfono después de imprimirlo. No lo subas a la nube ni le hagas fotos.</string>
+    <string name="kit_keep_safe_3">Si pierdes este papel y tu contraseña maestra, tus copias no se podrán abrir.</string>
+    <string name="kit_footer">OpenPassword es software libre (GPL-3.0-or-later).</string>
+    <string name="onboarding_restore">Restaurar una copia de seguridad</string>
+
+    <string name="settings_language">Idioma</string>
+    <string name="settings_language_hint">Sigue al teléfono salvo que elijas uno.</string>
+    <string name="language_system">Sistema</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
+    <string name="action_cancel">Cancelar</string>
+
+    <!-- Pantalla: lista del baúl -->
+    <string name="vault_list_title">Caja fuerte</string>
+    <string name="vault_list_lock">Bloquear</string>
+    <string name="vault_list_settings">Ajustes</string>
+    <string name="vault_list_add_item">Añadir elemento</string>
+    <plurals name="vault_list_search_placeholder">
+        <item quantity="one">Buscar en %1$d elemento</item>
+        <item quantity="other">Buscar en %1$d elementos</item>
+    </plurals>
+    <string name="vault_list_filter_all">Todo</string>
+    <string name="vault_list_empty_title">Tu caja fuerte está vacía</string>
+    <string name="vault_list_empty_body">Pulsa + para guardar tu primera contraseña, tarjeta o PIN.</string>
+    <string name="vault_list_no_results_title">Sin resultados</string>
+    <string name="vault_list_no_results_body">Ningún elemento coincide con «%1$s».</string>
+    <string name="vault_list_choose_kind_title">¿Qué quieres guardar?</string>
+    <string name="vault_list_favorite">Favorito</string>
+    <plurals name="vault_list_unreadable_title">
+        <item quantity="one">%1$d elemento no se puede leer</item>
+        <item quantity="other">%1$d elementos no se pueden leer</item>
+    </plurals>
+    <string name="vault_list_unreadable_body">Los datos están dañados. No se han borrado ni tocado: siguen en la caja fuerte y en las copias. Importa una copia reciente para recuperarlos.</string>
+
+    <!-- Pantalla: detalle del elemento -->
+    <string name="item_detail_back">Volver</string>
+    <string name="item_detail_edit">Editar</string>
+    <string name="item_detail_delete">Borrar</string>
+    <string name="item_detail_copied">%1$s copiado. Se borrará en 30 s, o al volver a la app si sales.</string>
+    <string name="item_detail_code_copied">Código copiado. Se borrará en 30 s, o al volver a la app si sales.</string>
+    <string name="item_detail_previous_password_copied">Contraseña anterior copiada. Se borrará en 30 s, o al volver a la app si sales.</string>
+    <string name="item_detail_image_unavailable">Imagen no disponible.</string>
+    <string name="item_detail_show_wifi_qr">Mostrar QR para conectarse</string>
+    <string name="item_detail_website">Sitio web</string>
+    <string name="item_detail_fill_apps">Apps donde se rellena</string>
+    <string name="item_detail_previous_passwords">Contraseñas anteriores</string>
+    <string name="item_detail_history_label">%1$s · hasta el %2$s</string>
+    <string name="item_detail_notes">Notas</string>
+    <string name="item_detail_created_modified">Creado %1$s · Modificado %2$s</string>
+    <string name="item_detail_wifi_qr_description">Código QR de la red</string>
+    <string name="item_detail_wifi_qr_hint">Escanéalo con la cámara del otro teléfono. Quien vea este código puede conectarse a la red.</string>
+    <string name="item_detail_close">Cerrar</string>
+    <string name="item_detail_delete_title">¿Borrar «%1$s»?</string>
+    <string name="item_detail_delete_body">Se borrará de este teléfono. Las copias de seguridad que ya hayas exportado lo conservan.</string>
+    <string name="item_detail_encrypted_image">Imagen cifrada</string>
+    <string name="item_detail_totp_invalid">El secreto guardado no es válido. Edita el elemento.</string>
+    <string name="item_detail_totp_changes_in">Cambia en %1$d s</string>
+    <string name="item_detail_copy">Copiar</string>
+    <string name="item_detail_view">Ver</string>
+    <string name="item_detail_hide">Ocultar</string>
+
+    <!-- Pantalla: editor del elemento -->
+    <string name="item_editor_title_new">Nuevo: %1$s</string>
+    <string name="item_editor_title_edit">Editar</string>
+    <string name="item_editor_save">Guardar</string>
+    <string name="item_editor_name">Nombre</string>
+    <string name="item_editor_website">Sitio web</string>
+    <string name="item_editor_notes">Notas</string>
+    <string name="item_editor_favorite">Favorito</string>
+    <string name="item_editor_images">Imágenes</string>
+    <string name="item_editor_take_photo">Hacer foto</string>
+    <string name="item_editor_from_gallery">De la galería</string>
+    <string name="item_editor_image_note">Se guardan cifradas y solo se ven dentro de la app. La foto original, si la eliges de la galería, sigue ahí: bórrala si quieres.</string>
+    <string name="item_editor_image_new_label">Imagen nueva</string>
+    <string name="item_editor_image_saved_label">Imagen guardada</string>
+    <string name="item_editor_image_new_hint">Se cifrará al guardar</string>
+    <string name="item_editor_image_saved_hint">Cifrada en la caja fuerte</string>
+    <string name="item_editor_view">Ver</string>
+    <string name="item_editor_remove">Quitar</string>
+    <string name="item_editor_scan_qr">Escanear QR</string>
+    <string name="item_editor_from_image">Desde una imagen</string>
+    <string name="item_editor_generate_password">Contraseña al azar</string>
+    <string name="item_editor_generate_passphrase">Frase de paso</string>
+    <string name="item_editor_generate_pin">Generar al azar</string>
+    <plurals name="item_editor_images_limit">
+        <item quantity="one">Has llegado al máximo de %1$d imagen por elemento.</item>
+        <item quantity="other">Has llegado al máximo de %1$d imágenes por elemento.</item>
+    </plurals>
+    <string name="item_editor_image_unavailable">Imagen no disponible.</string>
+    <string name="item_editor_image_unreadable">No se pudo leer esa imagen. Prueba con otra.</string>
+    <string name="item_editor_totp_invalid">El código TOTP no es válido. Pega el enlace otpauth:// o el secreto que te dio el servicio.</string>
+    <string name="item_editor_card_invalid">El número de tarjeta no es válido: revisa que no falte ni sobre ningún dígito.</string>
+    <string name="item_editor_iban_invalid">El IBAN no es válido: revisa el país, la longitud y los dígitos.</string>
+    <string name="item_editor_image_quota">No cabe más imágenes: la caja fuerte llega a su límite. Borra alguna o usa fotos más pequeñas.</string>
+    <string name="item_editor_qr_read">Código QR leído.</string>
+    <string name="item_editor_qr_not_totp">Ese QR no es de verificación en dos pasos.</string>
+    <string name="item_editor_qr_not_found">No se encontró ningún código QR en esa imagen.</string>
+    <string name="item_editor_photo_failed">No se pudo preparar la foto. Prueba otra vez o elige una de la galería.</string>
+    <string name="item_editor_placeholder_login">Google, Netflix, banco…</string>
+    <string name="item_editor_placeholder_card">Visa del banco</string>
+    <string name="item_editor_placeholder_pin">Alarma de casa, SIM, caja fuerte…</string>
+    <string name="item_editor_placeholder_secret">Clave API de producción</string>
+    <string name="item_editor_placeholder_note">Códigos de recuperación</string>
+    <string name="item_editor_placeholder_bank_account">Cuenta nómina</string>
+    <string name="item_editor_placeholder_identity">DNI, pasaporte, carné de conducir…</string>
+    <string name="item_editor_placeholder_wifi">Wi-Fi de casa</string>
+
+    <!-- Pantalla: visor de imágenes -->
+    <string name="image_viewer_open_failed">No se pudo abrir la imagen.</string>
+    <string name="image_viewer_image_description">Imagen: %1$s</string>
+    <string name="image_viewer_close">Cerrar</string>
 </resources>

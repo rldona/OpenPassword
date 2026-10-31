@@ -75,6 +75,15 @@ import io.github.rldona.openpassword.ui.RootWarning
 import io.github.rldona.openpassword.session.message
 import io.github.rldona.openpassword.ui.text.backupErrorText
 import io.github.rldona.openpassword.ui.text.message
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import io.github.rldona.openpassword.R
+import io.github.rldona.openpassword.locale.AppLanguage
+import io.github.rldona.openpassword.locale.AppLocales
+import androidx.compose.material3.AlertDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,6 +121,9 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
     }
     val autofillManager = remember { context.getSystemService(AutofillManager::class.java) }
     var autofillOn by remember { mutableStateOf(autofillManager?.hasEnabledAutofillServices() == true) }
+    val activity = remember(context) { context.findActivity() }
+    var language by remember { mutableStateOf(AppLocales.current(context)) }
+    var showLanguage by remember { mutableStateOf(false) }
     val autofillLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         autofillOn = autofillManager?.hasEnabledAutofillServices() == true
     }
@@ -122,7 +134,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
         if (uri == null || key == null) return@rememberLauncherForActivityResult
         scope.launch {
             val message = try {
-                writeDocument(context, uri, EmergencyKit.pdf(key))
+                writeDocument(context, uri, EmergencyKit.pdf(EmergencyKit.Text.from(context.resources), key))
                 "Kit guardado. Imprímelo y después borra el PDF del teléfono."
             } catch (_: Exception) {
                 "No se pudo guardar el kit en esa ubicación."
@@ -287,12 +299,41 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                 headlineContent = { Text("Sin acceso a Internet") },
                 supportingContent = { Text("Esta app no tiene permiso de red. Tus datos solo salen del teléfono en las copias que exportes tú.") },
             )
+            SectionLabel(stringResource(R.string.settings_language), Modifier.padding(start = 16.dp, top = 16.dp))
+            ListItem(
+                headlineContent = { Text(stringResource(language.labelRes)) },
+                supportingContent = { Text(stringResource(R.string.settings_language_hint)) },
+                modifier = Modifier.clickable { showLanguage = true },
+            )
             HorizontalDivider()
             ListItem(
                 headlineContent = { Text("OpenPassword ${BuildConfigInfo.versionName(context)}") },
                 supportingContent = { Text("Software libre bajo GPL-3.0-or-later. github.com/rldona/OpenPassword\nFrases de paso con la lista de palabras de la EFF (CC BY 3.0 US).") },
             )
         }
+    }
+
+    if (showLanguage) {
+        AlertDialog(
+            onDismissRequest = { showLanguage = false },
+            title = { Text(stringResource(R.string.settings_language)) },
+            text = {
+                Column {
+                    AppLanguage.entries.forEach { option ->
+                        ListItem(
+                            headlineContent = { Text(stringResource(option.labelRes)) },
+                            modifier = Modifier.clickable {
+                                showLanguage = false
+                                language = option
+                                activity?.let { AppLocales.set(it, option) }
+                            },
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { showLanguage = false }) { Text(stringResource(R.string.action_cancel)) } },
+        )
     }
 
     lockedExternal?.let { locked ->
@@ -481,3 +522,20 @@ private fun folderLabel(tree: Uri): String? =
         ?.substringAfter(':')?.trimEnd('/')?.substringAfterLast('/')?.ifBlank { null }
 
 private val dateTime: DateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+
+@get:StringRes
+private val AppLanguage.labelRes: Int
+    get() = when (this) {
+        AppLanguage.SYSTEM -> R.string.language_system
+        AppLanguage.ENGLISH -> R.string.language_english
+        AppLanguage.SPANISH -> R.string.language_spanish
+    }
+
+private fun Context.findActivity(): Activity? {
+    var current: Context? = this
+    while (current is ContextWrapper) {
+        if (current is Activity) return current
+        current = current.baseContext
+    }
+    return null
+}

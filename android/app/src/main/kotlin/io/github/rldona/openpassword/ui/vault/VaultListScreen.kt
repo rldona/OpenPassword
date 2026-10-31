@@ -42,8 +42,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.health.HealthBanner
 import io.github.rldona.openpassword.health.HealthReport
@@ -87,15 +90,15 @@ fun VaultListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Caja fuerte") },
+                title = { Text(stringResource(R.string.vault_list_title)) },
                 actions = {
-                    IconButton(onClick = onLock) { Icon(Icons.Filled.Lock, contentDescription = "Bloquear") }
-                    IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, contentDescription = "Ajustes") }
+                    IconButton(onClick = onLock) { Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.vault_list_lock)) }
+                    IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.vault_list_settings)) }
                 },
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { choosingKind = true }) { Icon(Icons.Filled.Add, contentDescription = "Añadir elemento") }
+            FloatingActionButton(onClick = { choosingKind = true }) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.vault_list_add_item)) }
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
@@ -105,7 +108,7 @@ fun VaultListScreen(
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text(if (entries.size == 1) "Buscar en 1 elemento" else "Buscar en ${entries.size} elementos") },
+                    placeholder = { Text(pluralStringResource(R.plurals.vault_list_search_placeholder, entries.size, entries.size)) },
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
@@ -115,7 +118,7 @@ fun VaultListScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        item { FilterChip(selected = filter == null, onClick = { filter = null }, label = { Text("Todo") }) }
+                        item { FilterChip(selected = filter == null, onClick = { filter = null }, label = { Text(stringResource(R.string.vault_list_filter_all)) }) }
                         items(kindsPresent) { kind ->
                             FilterChip(selected = filter == kind, onClick = { filter = if (filter == kind) null else kind }, label = { Text(kind.shortLabelText()) })
                         }
@@ -124,10 +127,13 @@ fun VaultListScreen(
             }
             when {
                 entries.isEmpty() -> EmptyState(
-                    "Tu caja fuerte está vacía",
-                    "Pulsa + para guardar tu primera contraseña, tarjeta o PIN.",
+                    stringResource(R.string.vault_list_empty_title),
+                    stringResource(R.string.vault_list_empty_body),
                 )
-                visible.isEmpty() -> EmptyState("Sin resultados", "Ningún elemento coincide con «$query».")
+                visible.isEmpty() -> EmptyState(
+                    stringResource(R.string.vault_list_no_results_title),
+                    stringResource(R.string.vault_list_no_results_body, query),
+                )
                 else -> LazyColumn(contentPadding = PaddingValues(bottom = 96.dp)) {
                     items(visible, key = { it.id }) { entry ->
                         EntryRow(entry, onClick = { onOpen(entry) })
@@ -141,7 +147,7 @@ fun VaultListScreen(
     if (choosingKind) {
         ProtectedAlertDialog(
             onDismissRequest = { choosingKind = false },
-            title = { Text("¿Qué quieres guardar?") },
+            title = { Text(stringResource(R.string.vault_list_choose_kind_title)) },
             text = {
                 Column {
                     CreatableKinds.forEach { kind ->
@@ -154,7 +160,7 @@ fun VaultListScreen(
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton(onClick = { choosingKind = false }) { Text("Cancelar") } },
+            dismissButton = { TextButton(onClick = { choosingKind = false }) { Text(stringResource(R.string.action_cancel)) } },
         )
     }
 }
@@ -167,7 +173,7 @@ private fun EntryRow(entry: VaultEntry, onClick: () -> Unit) {
         supportingContent = { Text(o.subtitle?.let { storedLabelText(it) } ?: o.kind.labelText(), maxLines = 1) },
         leadingContent = { Avatar(initialOf(o.title), o.kind.avatarColor()) },
         trailingContent = if (o.favorite) {
-            { Icon(Icons.Filled.Star, contentDescription = "Favorito", tint = MaterialTheme.colorScheme.tertiary) }
+            { Icon(Icons.Filled.Star, contentDescription = stringResource(R.string.vault_list_favorite), tint = MaterialTheme.colorScheme.tertiary) }
         } else {
             null
         },
@@ -198,10 +204,10 @@ private fun UnreadableBanner(count: Int, modifier: Modifier = Modifier) {
     ) {
         ListItem(
             headlineContent = {
-                Text(if (count == 1) "1 elemento no se puede leer" else "$count elementos no se pueden leer")
+                Text(pluralStringResource(R.plurals.vault_list_unreadable_title, count, count))
             },
             supportingContent = {
-                Text("Los datos están dañados. No se han borrado ni tocado: siguen en la caja fuerte y en las copias. Importa una copia reciente para recuperarlos.")
+                Text(stringResource(R.string.vault_list_unreadable_body))
             },
             leadingContent = { Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.errorContainer),

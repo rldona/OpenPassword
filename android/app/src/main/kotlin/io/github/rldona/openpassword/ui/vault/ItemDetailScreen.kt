@@ -42,8 +42,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.autofill.LoginMatcher
 import io.github.rldona.openpassword.core.FieldKindRecord
 import io.github.rldona.openpassword.core.FieldRecord
@@ -100,14 +102,14 @@ fun ItemDetailScreen(
 
     fun copy(field: FieldRecord) {
         clipboard.copy(field.value)
-        scope.launch { snackbar.showSnackbar("${FieldLabels.display(field.label, res)} copiado. Se borrará en 30 s, o al volver a la app si sales.") }
+        scope.launch { snackbar.showSnackbar(res.getString(R.string.item_detail_copied, FieldLabels.display(field.label, res))) }
     }
 
     fun viewImage(field: FieldRecord) {
         scope.launch {
             try {
                 val bytes = session.image(entry, field.value)
-                if (bytes == null) snackbar.showSnackbar("Imagen no disponible.") else viewing = bytes to FieldLabels.display(field.label, res)
+                if (bytes == null) snackbar.showSnackbar(res.getString(R.string.item_detail_image_unavailable)) else viewing = bytes to FieldLabels.display(field.label, res)
             } catch (e: OpException) {
                 snackbar.showSnackbar(e.toUserMessage(res))
             } catch (_: InternalException) {
@@ -120,10 +122,10 @@ fun ItemDetailScreen(
         topBar = {
             TopAppBar(
                 title = {},
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver") } },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.item_detail_back)) } },
                 actions = {
-                    IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "Editar") }
-                    IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Filled.Delete, contentDescription = "Borrar") }
+                    IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.item_detail_edit)) }
+                    IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.item_detail_delete)) }
                 },
             )
         },
@@ -156,7 +158,7 @@ fun ItemDetailScreen(
                             if (field.kind == FieldKindRecord.TOTP) {
                                 TotpRow(field, onCopy = { code ->
                                     clipboard.copy(code)
-                                    scope.launch { snackbar.showSnackbar("Código copiado. Se borrará en 30 s, o al volver a la app si sales.") }
+                                    scope.launch { snackbar.showSnackbar(res.getString(R.string.item_detail_code_copied)) }
                                 })
                             } else if (field.kind == FieldKindRecord.IMAGE) {
                                 ImageRow(field, onView = { viewImage(field) })
@@ -175,20 +177,20 @@ fun ItemDetailScreen(
                     val ssid = d.fields.firstOrNull { it.label == StoredLabels.WIFI_SSID }?.value.orEmpty()
                     val password = d.fields.firstOrNull { it.kind == FieldKindRecord.CONCEALED }?.value.orEmpty()
                     if (ssid.isNotEmpty()) {
-                        OutlinedButton(onClick = { wifiQr = WifiQr.payload(ssid, password) }) { Text("Mostrar QR para conectarse") }
+                        OutlinedButton(onClick = { wifiQr = WifiQr.payload(ssid, password) }) { Text(stringResource(R.string.item_detail_show_wifi_qr)) }
                     }
                 }
                 val (apps, sites) = o.urls.partition { it.startsWith(LoginMatcher.APP_SCHEME) }
                 if (sites.isNotEmpty()) {
-                    SectionLabel("Sitio web")
+                    SectionLabel(stringResource(R.string.item_detail_website))
                     sites.forEach { Text(it, style = MaterialTheme.typography.bodyLarge) }
                 }
                 if (apps.isNotEmpty()) {
-                    SectionLabel("Apps donde se rellena")
+                    SectionLabel(stringResource(R.string.item_detail_fill_apps))
                     apps.forEach { Text(it.removePrefix(LoginMatcher.APP_SCHEME), style = MaterialTheme.typography.bodyLarge) }
                 }
                 if (d.history.isNotEmpty()) {
-                    SectionLabel("Contraseñas anteriores")
+                    SectionLabel(stringResource(R.string.item_detail_previous_passwords))
                     val dateFmt = remember { DateFormat.getDateInstance(DateFormat.MEDIUM) }
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
@@ -196,24 +198,36 @@ fun ItemDetailScreen(
                     ) {
                         d.history.forEachIndexed { i, change ->
                             if (i > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            val old = FieldRecord("${storedLabelText(change.label)} · hasta el ${dateFmt.format(Date(change.changedAt.toLong() * 1000))}", FieldKindRecord.CONCEALED, change.value)
+                            val old = FieldRecord(
+                                stringResource(
+                                    R.string.item_detail_history_label,
+                                    storedLabelText(change.label),
+                                    dateFmt.format(Date(change.changedAt.toLong() * 1000)),
+                                ),
+                                FieldKindRecord.CONCEALED,
+                                change.value,
+                            )
                             // Negative keys so they never clash with the field indexes above.
                             FieldRow(old, revealed = revealed[-1 - i] == true, onToggle = { revealed[-1 - i] = revealed[-1 - i] != true }, onCopy = {
                                 clipboard.copy(change.value)
-                                scope.launch { snackbar.showSnackbar("Contraseña anterior copiada. Se borrará en 30 s, o al volver a la app si sales.") }
+                                scope.launch { snackbar.showSnackbar(res.getString(R.string.item_detail_previous_password_copied)) }
                             })
                         }
                     }
                 }
                 if (d.notes.isNotBlank()) {
-                    SectionLabel("Notas")
+                    SectionLabel(stringResource(R.string.item_detail_notes))
                     Text(d.notes, style = MaterialTheme.typography.bodyLarge)
                 }
             }
 
             val fmt = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
             Text(
-                "Creado ${fmt.format(Date(o.createdAt.toLong() * 1000))} · Modificado ${fmt.format(Date(o.updatedAt.toLong() * 1000))}",
+                stringResource(
+                    R.string.item_detail_created_modified,
+                    fmt.format(Date(o.createdAt.toLong() * 1000)),
+                    fmt.format(Date(o.updatedAt.toLong() * 1000)),
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 24.dp),
@@ -228,19 +242,19 @@ fun ItemDetailScreen(
             title = { Text(o.title) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Image(qr, contentDescription = "Código QR de la red", modifier = Modifier.fillMaxWidth().aspectRatio(1f))
-                    Text("Escanéalo con la cámara del otro teléfono. Quien vea este código puede conectarse a la red.")
+                    Image(qr, contentDescription = stringResource(R.string.item_detail_wifi_qr_description), modifier = Modifier.fillMaxWidth().aspectRatio(1f))
+                    Text(stringResource(R.string.item_detail_wifi_qr_hint))
                 }
             },
-            confirmButton = { TextButton(onClick = { wifiQr = null }) { Text("Cerrar") } },
+            confirmButton = { TextButton(onClick = { wifiQr = null }) { Text(stringResource(R.string.item_detail_close)) } },
         )
     }
 
     if (confirmDelete) {
         ProtectedAlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("¿Borrar «${o.title}»?") },
-            text = { Text("Se borrará de este teléfono. Las copias de seguridad que ya hayas exportado lo conservan.") },
+            title = { Text(stringResource(R.string.item_detail_delete_title, o.title)) },
+            text = { Text(stringResource(R.string.item_detail_delete_body)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = false
@@ -254,9 +268,9 @@ fun ItemDetailScreen(
                             snackbar.showSnackbar(internalMessage(res))
                         }
                     }
-                }) { Text("Borrar", color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.item_detail_delete), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancelar") } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.action_cancel)) } },
         )
     }
 
@@ -274,9 +288,9 @@ private fun ImageRow(field: FieldRecord, onView: () -> Unit) {
     ) {
         Column(Modifier.weight(1f)) {
             Text(field.displayLabel(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Imagen cifrada", style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.item_detail_encrypted_image), style = MaterialTheme.typography.bodyLarge)
         }
-        TextButton(onClick = onView) { Text("Ver") }
+        TextButton(onClick = onView) { Text(stringResource(R.string.item_detail_view)) }
     }
 }
 
@@ -294,7 +308,7 @@ private fun TotpRow(field: FieldRecord, onCopy: (String) -> Unit) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(field.displayLabel(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (code == null) {
-                Text("El secreto guardado no es válido. Edita el elemento.", color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.item_detail_totp_invalid), color = MaterialTheme.colorScheme.error)
             } else {
                 Text(code.code.chunked(3).joinToString(" "), style = SecretText.copy(fontSize = 24.sp))
                 val left = code.secondsRemaining.toFloat() / code.period.toFloat()
@@ -303,10 +317,10 @@ private fun TotpRow(field: FieldRecord, onCopy: (String) -> Unit) {
                     color = if (code.secondsRemaining <= 5uL) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
                     modifier = Modifier.fillMaxWidth(0.6f),
                 )
-                Text("Cambia en ${code.secondsRemaining} s", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.item_detail_totp_changes_in, code.secondsRemaining.toInt()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        if (code != null) TextButton(onClick = { onCopy(code.code) }) { Text("Copiar") }
+        if (code != null) TextButton(onClick = { onCopy(code.code) }) { Text(stringResource(R.string.item_detail_copy)) }
     }
 }
 
@@ -322,7 +336,7 @@ private fun FieldRow(field: FieldRecord, revealed: Boolean, onToggle: () -> Unit
                 style = if (secret) SecretText else MaterialTheme.typography.bodyLarge,
             )
         }
-        if (secret) TextButton(onClick = onToggle) { Text(if (revealed) "Ocultar" else "Ver") }
-        TextButton(onClick = onCopy) { Text("Copiar") }
+        if (secret) TextButton(onClick = onToggle) { Text(stringResource(if (revealed) R.string.item_detail_hide else R.string.item_detail_view)) }
+        TextButton(onClick = onCopy) { Text(stringResource(R.string.item_detail_copy)) }
     }
 }

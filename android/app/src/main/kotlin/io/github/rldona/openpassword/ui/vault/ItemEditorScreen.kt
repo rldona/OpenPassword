@@ -41,11 +41,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import android.content.Context
+import android.content.res.Resources
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.autofill.LoginMatcher
 import io.github.rldona.openpassword.core.FieldKindRecord
 import io.github.rldona.openpassword.core.FieldRecord
@@ -98,6 +101,7 @@ fun ItemEditorScreen(
     var loadError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val res = context.resources
     val defaultTitle = kind.labelText()
     // Drafts live only in memory: never in saved state, wiped when the screen goes away.
     val drafts = remember { mutableStateListOf<ImageDraft>() }
@@ -135,25 +139,26 @@ fun ItemEditorScreen(
         val limit = attachmentLimits().maxImagesPerItem.toInt()
         if (fields.count { it.kind == FieldKindRecord.IMAGE } >= limit) {
             jpeg.fill(0)
-            error = "Has llegado al máximo de $limit imágenes por elemento."
+            error = res.getQuantityString(R.plurals.item_editor_images_limit, limit, limit)
             return
         }
         val id = try {
             newAttachmentId()
         } catch (_: OpException) {
             jpeg.fill(0)
-            error = internalMessage(context.resources)
+            error = internalMessage(res)
             return
         } catch (_: InternalException) {
             jpeg.fill(0)
-            error = internalMessage(context.resources)
+            error = internalMessage(res)
             return
         }
         val position = fields.count { it.kind == FieldKindRecord.IMAGE } + 1
+        // Image labels are stored in the vault: they are data, so they never follow the language.
         val label = when (position) {
-            1 -> "Anverso"
-            2 -> "Reverso"
-            else -> "Imagen $position"
+            1 -> StoredLabels.IMAGE_FRONT
+            2 -> StoredLabels.IMAGE_BACK
+            else -> StoredLabels.image(position)
         }
         fields.add(FieldRecord(label, FieldKindRecord.IMAGE, id))
         drafts.add(ImageDraft(id, label, jpeg))
@@ -177,7 +182,7 @@ fun ItemEditorScreen(
         val entry = existing ?: return
         scope.launch {
             val bytes = session.image(entry, id)
-            if (bytes == null) error = "Imagen no disponible." else viewing = bytes to label
+            if (bytes == null) error = res.getString(R.string.item_editor_image_unavailable) else viewing = bytes to label
         }
     }
 
@@ -185,7 +190,7 @@ fun ItemEditorScreen(
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             val jpeg = ImagePipeline.fromUri(context, uri)
-            if (jpeg == null) error = "No se pudo leer esa imagen. Prueba con otra." else addImage(jpeg)
+            if (jpeg == null) error = res.getString(R.string.item_editor_image_unreadable) else addImage(jpeg)
         }
     }
 
@@ -204,11 +209,11 @@ fun ItemEditorScreen(
                 val kept = fields.filter { it.value.isNotBlank() }.map { normalized(kind, it) }
                 val invalid = when {
                     kept.any { it.kind == FieldKindRecord.TOTP && !isValidTotp(it.value) } ->
-                        "El código TOTP no es válido. Pega el enlace otpauth:// o el secreto que te dio el servicio."
+                        res.getString(R.string.item_editor_totp_invalid)
                     kept.any { it.kind == FieldKindRecord.CARD_NUMBER && !CardNumber.isValid(it.value) } ->
-                        "El número de tarjeta no es válido: revisa que no falte ni sobre ningún dígito."
+                        res.getString(R.string.item_editor_card_invalid)
                     kind == ItemKindRecord.BANK_ACCOUNT && kept.any { it.label == StoredLabels.IBAN && !Iban.isValid(it.value) } ->
-                        "El IBAN no es válido: revisa el país, la longitud y los dígitos."
+                        res.getString(R.string.item_editor_iban_invalid)
                     else -> null
                 }
                 if (invalid != null) {
@@ -236,13 +241,13 @@ fun ItemEditorScreen(
                 drafts.clear()
                 onSaved(saved)
             } catch (e: ImageQuotaExceeded) {
-                error = "No cabe más imágenes: la caja fuerte llega a su límite. Borra alguna o usa fotos más pequeñas."
+                error = res.getString(R.string.item_editor_image_quota)
                 saving = false
             } catch (e: OpException) {
-                error = e.toUserMessage(context.resources)
+                error = e.toUserMessage(res)
                 saving = false
             } catch (_: InternalException) {
-                error = internalMessage(context.resources)
+                error = internalMessage(res)
                 saving = false
             }
         }
@@ -258,9 +263,9 @@ fun ItemEditorScreen(
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             qrMessage = when (val scan = decodeQrImage(context, uri)) {
-                is TotpScan.Valid -> { fields[index] = fields[index].copy(value = scan.value); scanningField = null; "Código QR leído." }
-                TotpScan.NotTotp -> "Ese QR no es de verificación en dos pasos."
-                null -> "No se encontró ningún código QR en esa imagen."
+                is TotpScan.Valid -> { fields[index] = fields[index].copy(value = scan.value); scanningField = null; res.getString(R.string.item_editor_qr_read) }
+                TotpScan.NotTotp -> res.getString(R.string.item_editor_qr_not_totp)
+                null -> res.getString(R.string.item_editor_qr_not_found)
             }
         }
     }
@@ -276,7 +281,7 @@ fun ItemEditorScreen(
             onResult = { value ->
                 fields[index] = fields[index].copy(value = value)
                 scanningField = null
-                qrMessage = "Código QR leído."
+                qrMessage = res.getString(R.string.item_editor_qr_read)
             },
             onCancel = { scanningField = null },
             onPickImage = { pickQrImage(index) },
@@ -292,7 +297,7 @@ fun ItemEditorScreen(
                 scope.launch {
                     val jpeg = ImagePipeline.fromBytes(bytes)
                     bytes.fill(0)
-                    if (jpeg == null) error = "No se pudo preparar la foto. Prueba otra vez o elige una de la galería."
+                    if (jpeg == null) error = res.getString(R.string.item_editor_photo_failed)
                     else addImage(jpeg)
                 }
             },
@@ -301,14 +306,21 @@ fun ItemEditorScreen(
         return
     }
 
+    val screenTitle = if (existing == null) {
+        stringResource(R.string.item_editor_title_new, kind.labelText())
+    } else {
+        stringResource(R.string.item_editor_title_edit)
+    }
+    val saveLabel = stringResource(R.string.item_editor_save)
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (existing == null) "Nuevo: ${kind.labelText()}" else "Editar") },
-                navigationIcon = { IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = "Cancelar") } },
+                title = { Text(screenTitle) },
+                navigationIcon = { IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_cancel)) } },
                 actions = {
                     Button(onClick = ::save, enabled = loaded && !saving, modifier = Modifier.padding(end = 8.dp)) {
-                        if (saving) CircularProgressIndicator(Modifier.padding(2.dp), strokeWidth = 2.dp) else Text("Guardar")
+                        if (saving) CircularProgressIndicator(Modifier.padding(2.dp), strokeWidth = 2.dp) else Text(saveLabel)
                     }
                 },
             )
@@ -325,8 +337,8 @@ fun ItemEditorScreen(
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Nombre") },
-                placeholder = { Text(placeholderTitle(kind)) },
+                label = { Text(stringResource(R.string.item_editor_name)) },
+                placeholder = { Text(placeholderTitle(kind, res)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -334,7 +346,7 @@ fun ItemEditorScreen(
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
-                    label = { Text("Sitio web") },
+                    label = { Text(stringResource(R.string.item_editor_website)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
                     modifier = Modifier.fillMaxWidth(),
@@ -353,7 +365,7 @@ fun ItemEditorScreen(
                 }
             }
             val imageCount = fields.count { it.kind == FieldKindRecord.IMAGE }
-            SectionLabel("Imágenes")
+            SectionLabel(stringResource(R.string.item_editor_images))
             fields.forEachIndexed { i, field ->
                 if (field.kind == FieldKindRecord.IMAGE) {
                     val draft = drafts.firstOrNull { it.id == field.value }
@@ -376,27 +388,27 @@ fun ItemEditorScreen(
                     onClick = { capturing = true },
                     enabled = imageCount < attachmentLimits().maxImagesPerItem.toInt(),
                     modifier = Modifier.weight(1f),
-                ) { Text("Hacer foto") }
+                ) { Text(stringResource(R.string.item_editor_take_photo)) }
                 OutlinedButton(
                     onClick = ::pickFromGallery,
                     enabled = imageCount < attachmentLimits().maxImagesPerItem.toInt(),
                     modifier = Modifier.weight(1f),
-                ) { Text("De la galería") }
+                ) { Text(stringResource(R.string.item_editor_from_gallery)) }
             }
             Text(
-                "Se guardan cifradas y solo se ven dentro de la app. La foto original, si la eliges de la galería, sigue ahí: bórrala si quieres.",
+                stringResource(R.string.item_editor_image_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             OutlinedTextField(
                 value = notes,
                 onValueChange = { notes = it },
-                label = { Text("Notas") },
+                label = { Text(stringResource(R.string.item_editor_notes)) },
                 minLines = if (kind == ItemKindRecord.SECURE_NOTE) 8 else 3,
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text("Favorito", modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.item_editor_favorite), modifier = Modifier.weight(1f))
                 Switch(checked = favorite, onCheckedChange = { favorite = it })
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -422,19 +434,19 @@ private fun ImageFieldCard(
         OutlinedTextField(
             value = label,
             onValueChange = onLabelChange,
-            label = { Text(if (isNew) "Imagen nueva" else "Imagen guardada") },
+            label = { Text(stringResource(if (isNew) R.string.item_editor_image_new_label else R.string.item_editor_image_saved_label)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                if (isNew) "Se cifrará al guardar" else "Cifrada en la caja fuerte",
+                stringResource(if (isNew) R.string.item_editor_image_new_hint else R.string.item_editor_image_saved_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
             )
-            TextButton(onClick = onView) { Text("Ver") }
-            TextButton(onClick = onRemove) { Text("Quitar", color = MaterialTheme.colorScheme.error) }
+            TextButton(onClick = onView) { Text(stringResource(R.string.item_editor_view)) }
+            TextButton(onClick = onRemove) { Text(stringResource(R.string.item_editor_remove), color = MaterialTheme.colorScheme.error) }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
@@ -474,8 +486,8 @@ private fun FieldEditor(
             }
             if (onScanQr != null && onQrImage != null) {
                 Row {
-                    TextButton(onClick = onScanQr) { Text("Escanear QR") }
-                    TextButton(onClick = onQrImage) { Text("Desde una imagen") }
+                    TextButton(onClick = onScanQr) { Text(stringResource(R.string.item_editor_scan_qr)) }
+                    TextButton(onClick = onQrImage) { Text(stringResource(R.string.item_editor_from_image)) }
                 }
                 qrMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 12.dp)) }
             }
@@ -503,23 +515,24 @@ private fun FieldEditor(
 
 private fun generatorsFor(kind: ItemKindRecord, field: FieldRecord, context: Context): List<Pair<String, () -> String>> = when {
     field.kind == FieldKindRecord.CONCEALED && (kind == ItemKindRecord.LOGIN || kind == ItemKindRecord.WIFI) -> listOf(
-        "Contraseña al azar" to { PasswordGenerator.password() },
+        context.getString(R.string.item_editor_generate_password) to { PasswordGenerator.password() },
         // Websites often reject spaces; this one is stored, not memorised.
-        "Frase de paso" to { PasswordGenerator.passphrase(Wordlist.eff(context), words = 5, separator = "-") },
+        context.getString(R.string.item_editor_generate_passphrase) to { PasswordGenerator.passphrase(Wordlist.eff(context), words = 5, separator = "-") },
     )
-    field.kind == FieldKindRecord.PIN && kind == ItemKindRecord.PIN -> listOf("Generar al azar" to { PasswordGenerator.pin() })
+    field.kind == FieldKindRecord.PIN && kind == ItemKindRecord.PIN ->
+        listOf(context.getString(R.string.item_editor_generate_pin) to { PasswordGenerator.pin() })
     else -> emptyList()
 }
 
-private fun placeholderTitle(kind: ItemKindRecord) = when (kind) {
-    ItemKindRecord.LOGIN -> "Google, Netflix, banco…"
-    ItemKindRecord.CARD -> "Visa del banco"
-    ItemKindRecord.PIN -> "Alarma de casa, SIM, caja fuerte…"
-    ItemKindRecord.SECRET -> "Clave API de producción"
-    ItemKindRecord.SECURE_NOTE -> "Códigos de recuperación"
-    ItemKindRecord.BANK_ACCOUNT -> "Cuenta nómina"
-    ItemKindRecord.IDENTITY -> "DNI, pasaporte, carné de conducir…"
-    ItemKindRecord.WIFI -> "Wi-Fi de casa"
+private fun placeholderTitle(kind: ItemKindRecord, res: Resources) = when (kind) {
+    ItemKindRecord.LOGIN -> res.getString(R.string.item_editor_placeholder_login)
+    ItemKindRecord.CARD -> res.getString(R.string.item_editor_placeholder_card)
+    ItemKindRecord.PIN -> res.getString(R.string.item_editor_placeholder_pin)
+    ItemKindRecord.SECRET -> res.getString(R.string.item_editor_placeholder_secret)
+    ItemKindRecord.SECURE_NOTE -> res.getString(R.string.item_editor_placeholder_note)
+    ItemKindRecord.BANK_ACCOUNT -> res.getString(R.string.item_editor_placeholder_bank_account)
+    ItemKindRecord.IDENTITY -> res.getString(R.string.item_editor_placeholder_identity)
+    ItemKindRecord.WIFI -> res.getString(R.string.item_editor_placeholder_wifi)
 }
 
 /** Stores IBANs grouped by four and document dates as DD/MM/AAAA, whatever was typed. */

@@ -27,9 +27,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.images.SensitiveImages
 import io.github.rldona.openpassword.security.ProtectDialogWindow
 
@@ -77,7 +79,7 @@ fun ImageViewerDialog(bytes: ByteArray, label: String, onClose: () -> Unit) {
         ProtectDialogWindow()
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             if (bitmap == null) {
-                Text("No se pudo abrir la imagen.", modifier = Modifier.align(Alignment.Center), color = Color.White)
+                Text(stringResource(R.string.image_viewer_open_failed), modifier = Modifier.align(Alignment.Center), color = Color.White)
             } else {
                 var scale by remember { mutableFloatStateOf(1f) }
                 var offsetX by remember { mutableFloatStateOf(0f) }
@@ -89,7 +91,7 @@ fun ImageViewerDialog(bytes: ByteArray, label: String, onClose: () -> Unit) {
                 }
                 Image(
                     bitmap.asImageBitmap(),
-                    contentDescription = "Imagen: $label",
+                    contentDescription = stringResource(R.string.image_viewer_image_description, label),
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
                         .fillMaxSize()
@@ -106,7 +108,7 @@ fun ImageViewerDialog(bytes: ByteArray, label: String, onClose: () -> Unit) {
                 onClick = onClose,
                 modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
             ) {
-                Icon(Icons.Filled.Close, contentDescription = "Cerrar", tint = Color.White)
+                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.image_viewer_close), tint = Color.White)
             }
             Text(
                 label,
