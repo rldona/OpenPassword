@@ -23,7 +23,7 @@ flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
 quick-xml = "0.42"
 salsa20 = "0.10"
 chacha20poly1305 = { version = "0.10", features = ["stream"] }
-getrandom = "0.3"
+getrandom = "0.4"
 hex = "0.4"
 hkdf = "0.12"
 hmac = "0.12"
