@@ -1,6 +1,10 @@
 package io.github.rldona.openpassword.ui.vault
 
+import androidx.annotation.StringRes
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.core.FieldKindRecord
 import io.github.rldona.openpassword.core.FieldRecord
 import io.github.rldona.openpassword.core.ItemKindRecord
@@ -12,38 +16,43 @@ import io.github.rldona.openpassword.core.ItemKindRecord.PIN
 import io.github.rldona.openpassword.core.ItemKindRecord.SECRET
 import io.github.rldona.openpassword.core.ItemKindRecord.SECURE_NOTE
 import io.github.rldona.openpassword.core.ItemKindRecord.WIFI
+import io.github.rldona.openpassword.data.StoredLabels
 import java.text.Normalizer
 
 /** Item types offered by "+", in menu order. */
 val CreatableKinds = listOf(LOGIN, CARD, BANK_ACCOUNT, PIN, IDENTITY, WIFI, SECRET, SECURE_NOTE)
 
-/** Field labels other code looks up. */
-const val IBAN_LABEL = "IBAN"
-const val DOCUMENT_EXPIRY_LABEL = "Caducidad (DD/MM/AAAA)"
-const val DOCUMENT_TYPE_LABEL = "Tipo (DNI, pasaporte, carné…)"
-const val WIFI_SSID_LABEL = "Red (SSID)"
+@get:StringRes
+val ItemKindRecord.labelRes: Int
+    get() = when (this) {
+        LOGIN -> R.string.kind_login
+        CARD -> R.string.kind_card
+        PIN -> R.string.kind_pin
+        SECURE_NOTE -> R.string.kind_note
+        SECRET -> R.string.kind_secret
+        BANK_ACCOUNT -> R.string.kind_bank_account
+        IDENTITY -> R.string.kind_document
+        WIFI -> R.string.kind_wifi
+    }
 
-fun ItemKindRecord.label(): String = when (this) {
-    LOGIN -> "Login"
-    CARD -> "Tarjeta"
-    PIN -> "PIN o código"
-    SECURE_NOTE -> "Nota segura"
-    SECRET -> "Secreto o clave API"
-    BANK_ACCOUNT -> "Cuenta bancaria"
-    IDENTITY -> "Documento"
-    WIFI -> "Wi-Fi"
-}
+@get:StringRes
+val ItemKindRecord.shortLabelRes: Int
+    get() = when (this) {
+        LOGIN -> R.string.kind_login_plural
+        CARD -> R.string.kind_card_plural
+        PIN -> R.string.kind_pin_plural
+        SECURE_NOTE -> R.string.kind_note_plural
+        SECRET -> R.string.kind_secret_plural
+        BANK_ACCOUNT -> R.string.kind_bank_account_plural
+        IDENTITY -> R.string.kind_document_plural
+        WIFI -> R.string.kind_wifi
+    }
 
-fun ItemKindRecord.shortLabel(): String = when (this) {
-    LOGIN -> "Logins"
-    CARD -> "Tarjetas"
-    PIN -> "PINs"
-    SECURE_NOTE -> "Notas"
-    SECRET -> "Secretos"
-    BANK_ACCOUNT -> "Cuentas"
-    IDENTITY -> "Documentos"
-    WIFI -> "Wi-Fi"
-}
+@Composable
+fun ItemKindRecord.labelText(): String = stringResource(labelRes)
+
+@Composable
+fun ItemKindRecord.shortLabelText(): String = stringResource(shortLabelRes)
 
 fun ItemKindRecord.avatarColor(): Color = when (this) {
     LOGIN -> Color(0xFF3D5A80)
@@ -58,35 +67,46 @@ fun ItemKindRecord.avatarColor(): Color = when (this) {
 
 private fun f(label: String, kind: FieldKindRecord) = FieldRecord(label, kind, "")
 
+/**
+ * Templates write [StoredLabels], which are what the vault keeps. The interface translates them
+ * when showing them, never when saving.
+ */
 fun ItemKindRecord.template(): List<FieldRecord> = when (this) {
-    LOGIN -> listOf(f("Usuario", FieldKindRecord.EMAIL), f("Contraseña", FieldKindRecord.CONCEALED), f("Código TOTP", FieldKindRecord.TOTP))
-    CARD -> listOf(
-        f("Titular", FieldKindRecord.TEXT),
-        f("Número", FieldKindRecord.CARD_NUMBER),
-        f("Caducidad (MM/AA)", FieldKindRecord.DATE),
-        f("CVV", FieldKindRecord.CONCEALED),
-        f("PIN", FieldKindRecord.PIN),
+    LOGIN -> listOf(
+        f(StoredLabels.USERNAME, FieldKindRecord.EMAIL),
+        f(StoredLabels.PASSWORD, FieldKindRecord.CONCEALED),
+        f(StoredLabels.TOTP, FieldKindRecord.TOTP),
     )
-    PIN -> listOf(f("Código", FieldKindRecord.PIN))
-    SECRET -> listOf(f("Secreto", FieldKindRecord.CONCEALED), f("Servicio", FieldKindRecord.TEXT))
+    CARD -> listOf(
+        f(StoredLabels.HOLDER, FieldKindRecord.TEXT),
+        f(StoredLabels.NUMBER, FieldKindRecord.CARD_NUMBER),
+        f(StoredLabels.CARD_EXPIRY, FieldKindRecord.DATE),
+        f(StoredLabels.CVV, FieldKindRecord.CONCEALED),
+        f(StoredLabels.PIN, FieldKindRecord.PIN),
+    )
+    PIN -> listOf(f(StoredLabels.CODE, FieldKindRecord.PIN))
+    SECRET -> listOf(f(StoredLabels.SECRET, FieldKindRecord.CONCEALED), f(StoredLabels.SERVICE, FieldKindRecord.TEXT))
     SECURE_NOTE -> emptyList()
     BANK_ACCOUNT -> listOf(
-        f("Banco", FieldKindRecord.TEXT),
-        f("Titular", FieldKindRecord.TEXT),
-        f(IBAN_LABEL, FieldKindRecord.TEXT),
-        f("BIC / SWIFT", FieldKindRecord.TEXT),
+        f(StoredLabels.BANK, FieldKindRecord.TEXT),
+        f(StoredLabels.HOLDER, FieldKindRecord.TEXT),
+        f(StoredLabels.IBAN, FieldKindRecord.TEXT),
+        f(StoredLabels.BIC, FieldKindRecord.TEXT),
     )
     IDENTITY -> listOf(
-        f(DOCUMENT_TYPE_LABEL, FieldKindRecord.TEXT),
-        f("Número", FieldKindRecord.TEXT),
-        f("Nombre completo", FieldKindRecord.TEXT),
-        f("Expedición (DD/MM/AAAA)", FieldKindRecord.DATE),
-        f(DOCUMENT_EXPIRY_LABEL, FieldKindRecord.DATE),
+        f(StoredLabels.DOCUMENT_TYPE, FieldKindRecord.TEXT),
+        f(StoredLabels.NUMBER, FieldKindRecord.TEXT),
+        f(StoredLabels.FULL_NAME, FieldKindRecord.TEXT),
+        f(StoredLabels.ISSUED, FieldKindRecord.DATE),
+        f(StoredLabels.DOCUMENT_EXPIRY, FieldKindRecord.DATE),
     )
-    WIFI -> listOf(f(WIFI_SSID_LABEL, FieldKindRecord.TEXT), f("Contraseña", FieldKindRecord.CONCEALED))
+    WIFI -> listOf(f(StoredLabels.WIFI_SSID, FieldKindRecord.TEXT), f(StoredLabels.PASSWORD, FieldKindRecord.CONCEALED))
 }
 
-/** The line under the title in the list. Never contains a secret. */
+/**
+ * The line under the title in the list. Never contains a secret, and it is stored in the vault,
+ * so it uses stable values: the interface translates it when showing it.
+ */
 fun ItemKindRecord.subtitleFor(fields: List<FieldRecord>): String? {
     fun value(kind: FieldKindRecord) = fields.firstOrNull { it.kind == kind && it.value.isNotBlank() }?.value
     fun labelled(label: String) = fields.firstOrNull { it.label == label && it.value.isNotBlank() }?.value
@@ -95,14 +115,14 @@ fun ItemKindRecord.subtitleFor(fields: List<FieldRecord>): String? {
         CARD -> value(FieldKindRecord.CARD_NUMBER)?.let { number ->
             listOfNotNull(CardNumber.network(number), "•••• " + CardNumber.digits(number).takeLast(4)).joinToString(" ")
         }
-        PIN -> value(FieldKindRecord.PIN)?.let { "${it.length} dígitos" }
-        SECRET -> labelled("Servicio")
+        PIN -> value(FieldKindRecord.PIN)?.let { StoredLabels.pinDigits(it.length) }
+        SECRET -> labelled(StoredLabels.SERVICE)
         WIFI -> value(FieldKindRecord.TEXT)
         BANK_ACCOUNT -> listOfNotNull(
-            labelled("Banco"),
-            labelled(IBAN_LABEL)?.let(Iban::normalize)?.takeIf { it.length > 4 }?.let { "•••• ${it.takeLast(4)}" },
+            labelled(StoredLabels.BANK),
+            labelled(StoredLabels.IBAN)?.let(Iban::normalize)?.takeIf { it.length > 4 }?.let { "•••• ${it.takeLast(4)}" },
         ).joinToString(" · ").ifEmpty { null }
-        IDENTITY -> labelled(DOCUMENT_TYPE_LABEL)
+        IDENTITY -> labelled(StoredLabels.DOCUMENT_TYPE)
         else -> null
     }
 }
@@ -116,7 +136,7 @@ val FieldKindRecord.isImage: Boolean
     get() = this == FieldKindRecord.IMAGE
 
 fun FieldRecord.masked(): String = when (kind) {
-    FieldKindRecord.IMAGE -> "Imagen"
+    FieldKindRecord.IMAGE -> ""
     FieldKindRecord.CARD_NUMBER -> "•••• " + value.filter(Char::isDigit).takeLast(4)
     else -> "•".repeat(value.length.coerceIn(4, 12))
 }

@@ -1,3 +1,52 @@
 <resources>
     <string name="app_name">OpenPassword</string>
+
+    <!-- Field labels: shown only. The value stored in the vault is never translated. -->
+    <string name="field_username">Username</string>
+    <string name="field_password">Password</string>
+    <string name="field_totp">TOTP code</string>
+    <string name="field_holder">Cardholder</string>
+    <string name="field_number">Number</string>
+    <string name="field_card_expiry">Expiry (MM/YY)</string>
+    <string name="field_cvv">CVV</string>
+    <string name="field_pin">PIN</string>
+    <string name="field_code">Code</string>
+    <string name="field_secret">Secret</string>
+    <string name="field_service">Service</string>
+    <string name="field_bank">Bank</string>
+    <string name="field_iban">IBAN</string>
+    <string name="field_bic">BIC / SWIFT</string>
+    <string name="field_document_type">Type (ID card, passport, driving licence…)</string>
+    <string name="field_full_name">Full name</string>
+    <string name="field_issued">Issued (DD/MM/YYYY)</string>
+    <string name="field_document_expiry">Expiry (DD/MM/YYYY)</string>
+    <string name="field_wifi_ssid">Network (SSID)</string>
+    <string name="field_image_front">Front</string>
+    <string name="field_image_back">Back</string>
+    <string name="field_default">Field</string>
+    <string name="field_image_n">Image %1$d</string>
+    <plurals name="field_pin_digits">
+        <item quantity="one">%1$d digit</item>
+        <item quantity="other">%1$d digits</item>
+    </plurals>
+
+    <string name="kind_login">Login</string>
+    <string name="kind_card">Card</string>
+    <string name="kind_pin">PIN or code</string>
+    <string name="kind_note">Secure note</string>
+    <string name="kind_secret">Secret or API key</string>
+    <string name="kind_bank_account">Bank account</string>
+    <string name="kind_document">Document</string>
+    <string name="kind_wifi">Wi-Fi</string>
+    <string name="kind_login_plural">Logins</string>
+    <string name="kind_card_plural">Cards</string>
+    <string name="kind_pin_plural">PINs</string>
+    <string name="kind_note_plural">Notes</string>
+    <string name="kind_secret_plural">Secrets</string>
+    <string name="kind_bank_account_plural">Accounts</string>
+    <string name="kind_document_plural">Documents</string>
+
+    <string name="strength_weak">Weak</string>
+    <string name="strength_acceptable">Acceptable</string>
+    <string name="strength_strong">Strong</string>
 </resources>

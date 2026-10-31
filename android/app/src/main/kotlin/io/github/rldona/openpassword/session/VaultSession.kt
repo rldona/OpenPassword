@@ -38,6 +38,7 @@ import org.json.JSONObject
 import java.security.GeneralSecurityException
 import javax.crypto.Cipher
 import kotlin.math.min
+import io.github.rldona.openpassword.data.StoredLabels
 
 /** What an import from another password manager did. */
 data class ExternalImportSummary(val added: Int, val duplicates: Int)
@@ -455,7 +456,7 @@ class VaultSession(
                 updatedAt = entry.overview.updatedAt.toLong(),
                 documentExpiry = if (kind != ItemKindRecord.IDENTITY) null else details.fields.let { fields ->
                     // Imported documents may name the field differently; then the last date is the likeliest.
-                    fields.firstOrNull { it.kind == FieldKindRecord.DATE && it.label.startsWith("Caducidad") }
+                    fields.firstOrNull { it.kind == FieldKindRecord.DATE && StoredLabels.isDocumentExpiry(it.label) }
                         ?: fields.lastOrNull { it.kind == FieldKindRecord.DATE }
                 }?.value,
             )

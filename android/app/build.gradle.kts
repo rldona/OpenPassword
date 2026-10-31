@@ -22,6 +22,12 @@ android {
     compileSdk = 37
     ndkVersion = "30.0.16248370"
 
+    // English is the default resource set (res/resources.properties); Spanish lives in values-es.
+    // generateLocaleConfig exposes both in the system's per-app language settings.
+    androidResources {
+        generateLocaleConfig = true
+    }
+
     defaultConfig {
         applicationId = "io.github.rldona.openpassword"
         minSdk = 28

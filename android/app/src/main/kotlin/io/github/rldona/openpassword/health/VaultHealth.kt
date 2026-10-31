@@ -49,7 +49,7 @@ object VaultHealth {
     fun analyze(items: List<HealthInput>, today: LocalDate): HealthReport {
         val logins = items.filter { it.isLogin && it.passwords.isNotEmpty() }
 
-        val weak = logins.filter { item -> item.passwords.any { strengthOf(it).label == "Débil" } }.map { it.id }
+        val weak = logins.filter { item -> item.passwords.any { strengthOf(it).level == 0 } }.map { it.id }
 
         // Group by a digest so no plaintext copy is kept in the map.
         val reused = logins

@@ -7,7 +7,7 @@ import io.github.rldona.openpassword.health.HealthInput
 import io.github.rldona.openpassword.health.VaultHealth
 import io.github.rldona.openpassword.qr.WifiQr
 import io.github.rldona.openpassword.ui.vault.CardNumber
-import io.github.rldona.openpassword.ui.vault.IBAN_LABEL
+import io.github.rldona.openpassword.data.StoredLabels
 import io.github.rldona.openpassword.ui.vault.Iban
 import io.github.rldona.openpassword.ui.vault.subtitleFor
 import org.junit.Assert.assertEquals
@@ -40,7 +40,7 @@ class NewKindsTest {
 
     @Test
     fun bankSubtitleShowsBankAndLastFour() {
-        val fields = listOf(FieldRecord("Banco", FieldKindRecord.TEXT, "CaixaBank"), FieldRecord(IBAN_LABEL, FieldKindRecord.TEXT, "ES91 2100 0418 4502 0005 1332"))
+        val fields = listOf(FieldRecord("Banco", FieldKindRecord.TEXT, "CaixaBank"), FieldRecord(StoredLabels.IBAN, FieldKindRecord.TEXT, "ES91 2100 0418 4502 0005 1332"))
         assertEquals("CaixaBank · •••• 1332", ItemKindRecord.BANK_ACCOUNT.subtitleFor(fields))
     }
 

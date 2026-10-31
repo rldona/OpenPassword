@@ -1,0 +1,52 @@
+<resources>
+    <string name="app_name">OpenPassword</string>
+
+    <!-- Etiquetas de campo: solo se muestran. El valor guardado en la bóveda nunca se traduce. -->
+    <string name="field_username">Usuario</string>
+    <string name="field_password">Contraseña</string>
+    <string name="field_totp">Código TOTP</string>
+    <string name="field_holder">Titular</string>
+    <string name="field_number">Número</string>
+    <string name="field_card_expiry">Caducidad (MM/AA)</string>
+    <string name="field_cvv">CVV</string>
+    <string name="field_pin">PIN</string>
+    <string name="field_code">Código</string>
+    <string name="field_secret">Secreto</string>
+    <string name="field_service">Servicio</string>
+    <string name="field_bank">Banco</string>
+    <string name="field_iban">IBAN</string>
+    <string name="field_bic">BIC / SWIFT</string>
+    <string name="field_document_type">Tipo (DNI, pasaporte, carné…)</string>
+    <string name="field_full_name">Nombre completo</string>
+    <string name="field_issued">Expedición (DD/MM/AAAA)</string>
+    <string name="field_document_expiry">Caducidad (DD/MM/AAAA)</string>
+    <string name="field_wifi_ssid">Red (SSID)</string>
+    <string name="field_image_front">Anverso</string>
+    <string name="field_image_back">Reverso</string>
+    <string name="field_default">Campo</string>
+    <string name="field_image_n">Imagen %1$d</string>
+    <plurals name="field_pin_digits">
+        <item quantity="one">%1$d dígito</item>
+        <item quantity="other">%1$d dígitos</item>
+    </plurals>
+
+    <string name="kind_login">Login</string>
+    <string name="kind_card">Tarjeta</string>
+    <string name="kind_pin">PIN o código</string>
+    <string name="kind_note">Nota segura</string>
+    <string name="kind_secret">Secreto o clave API</string>
+    <string name="kind_bank_account">Cuenta bancaria</string>
+    <string name="kind_document">Documento</string>
+    <string name="kind_wifi">Wi-Fi</string>
+    <string name="kind_login_plural">Logins</string>
+    <string name="kind_card_plural">Tarjetas</string>
+    <string name="kind_pin_plural">PINs</string>
+    <string name="kind_note_plural">Notas</string>
+    <string name="kind_secret_plural">Secretos</string>
+    <string name="kind_bank_account_plural">Cuentas</string>
+    <string name="kind_document_plural">Documentos</string>
+
+    <string name="strength_weak">Débil</string>
+    <string name="strength_acceptable">Aceptable</string>
+    <string name="strength_strong">Fuerte</string>
+</resources>

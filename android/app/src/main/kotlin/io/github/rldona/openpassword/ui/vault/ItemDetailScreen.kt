@@ -67,6 +67,8 @@ import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
 import io.github.rldona.openpassword.ui.ProtectedAlertDialog
+import androidx.compose.ui.platform.LocalContext
+import io.github.rldona.openpassword.data.StoredLabels
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,18 +95,19 @@ fun ItemDetailScreen(
     var wifiQr by remember { mutableStateOf<String?>(null) }
     var viewing by remember { mutableStateOf<Pair<ByteArray, String>?>(null) }
     val scope = rememberCoroutineScope()
+    val res = LocalContext.current.resources
     val o = entry.overview
 
     fun copy(field: FieldRecord) {
         clipboard.copy(field.value)
-        scope.launch { snackbar.showSnackbar("${field.label} copiado. Se borrará en 30 s, o al volver a la app si sales.") }
+        scope.launch { snackbar.showSnackbar("${FieldLabels.display(field.label, res)} copiado. Se borrará en 30 s, o al volver a la app si sales.") }
     }
 
     fun viewImage(field: FieldRecord) {
         scope.launch {
             try {
                 val bytes = session.image(entry, field.value)
-                if (bytes == null) snackbar.showSnackbar("Imagen no disponible.") else viewing = bytes to field.label
+                if (bytes == null) snackbar.showSnackbar("Imagen no disponible.") else viewing = bytes to FieldLabels.display(field.label, res)
             } catch (e: OpException) {
                 snackbar.showSnackbar(e.toUserMessage())
             } catch (_: InternalException) {
@@ -134,7 +137,7 @@ fun ItemDetailScreen(
                 Avatar(initialOf(o.title), o.kind.avatarColor(), size = 52.dp)
                 Column {
                     Text(o.title, style = MaterialTheme.typography.titleLarge)
-                    Text(o.kind.label(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(o.kind.labelText(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -169,7 +172,7 @@ fun ItemDetailScreen(
                     }
                 }
                 if (o.kind == ItemKindRecord.WIFI) {
-                    val ssid = d.fields.firstOrNull { it.label == WIFI_SSID_LABEL }?.value.orEmpty()
+                    val ssid = d.fields.firstOrNull { it.label == StoredLabels.WIFI_SSID }?.value.orEmpty()
                     val password = d.fields.firstOrNull { it.kind == FieldKindRecord.CONCEALED }?.value.orEmpty()
                     if (ssid.isNotEmpty()) {
                         OutlinedButton(onClick = { wifiQr = WifiQr.payload(ssid, password) }) { Text("Mostrar QR para conectarse") }
@@ -193,7 +196,7 @@ fun ItemDetailScreen(
                     ) {
                         d.history.forEachIndexed { i, change ->
                             if (i > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            val old = FieldRecord("${change.label} · hasta el ${dateFmt.format(Date(change.changedAt.toLong() * 1000))}", FieldKindRecord.CONCEALED, change.value)
+                            val old = FieldRecord("${storedLabelText(change.label)} · hasta el ${dateFmt.format(Date(change.changedAt.toLong() * 1000))}", FieldKindRecord.CONCEALED, change.value)
                             // Negative keys so they never clash with the field indexes above.
                             FieldRow(old, revealed = revealed[-1 - i] == true, onToggle = { revealed[-1 - i] = revealed[-1 - i] != true }, onCopy = {
                                 clipboard.copy(change.value)
@@ -270,7 +273,7 @@ private fun ImageRow(field: FieldRecord, onView: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(field.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(field.displayLabel(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Imagen cifrada", style = MaterialTheme.typography.bodyLarge)
         }
         TextButton(onClick = onView) { Text("Ver") }
@@ -289,7 +292,7 @@ private fun TotpRow(field: FieldRecord, onCopy: (String) -> Unit) {
     val code = remember(field.value, now) { runCatching { totpCode(field.value, now.toULong()) }.getOrNull() }
     Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(field.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(field.displayLabel(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (code == null) {
                 Text("El secreto guardado no es válido. Edita el elemento.", color = MaterialTheme.colorScheme.error)
             } else {
@@ -313,7 +316,7 @@ private fun FieldRow(field: FieldRecord, revealed: Boolean, onToggle: () -> Unit
     Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             val network = if (field.kind == FieldKindRecord.CARD_NUMBER) CardNumber.network(field.value) else null
-            Text(listOfNotNull(field.label, network).joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(listOfNotNull(field.displayLabel(), network).joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
                 if (secret && !revealed) field.masked() else field.formatted(),
                 style = if (secret) SecretText else MaterialTheme.typography.bodyLarge,

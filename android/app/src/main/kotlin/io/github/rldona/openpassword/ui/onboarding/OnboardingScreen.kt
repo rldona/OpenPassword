@@ -60,6 +60,7 @@ import io.github.rldona.openpassword.ui.PasswordField
 import io.github.rldona.openpassword.ui.SectionLabel
 import io.github.rldona.openpassword.ui.theme.SecretFont
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
 
 private const val MIN_PASSWORD = 10
 private const val RESTORE = -1
@@ -161,7 +162,7 @@ private fun ChoosePassword(password: String, onChange: (String) -> Unit, onNext:
     if (password.isNotEmpty()) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             LinearProgressIndicator(progress = { strength.fraction }, modifier = Modifier.fillMaxWidth(), color = strength.color())
-            Text(strength.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(strength.labelRes), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
     PasswordField(

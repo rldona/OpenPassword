@@ -3,6 +3,7 @@ package io.github.rldona.openpassword
 import io.github.rldona.openpassword.core.FieldKindRecord
 import io.github.rldona.openpassword.core.FieldRecord
 import io.github.rldona.openpassword.core.ItemKindRecord
+import io.github.rldona.openpassword.data.StoredLabels
 import io.github.rldona.openpassword.ui.vault.formatted
 import io.github.rldona.openpassword.ui.vault.isSecret
 import io.github.rldona.openpassword.ui.vault.masked
@@ -34,7 +35,7 @@ class ItemKindsTest {
         val secret = FieldRecord("Contraseña", FieldKindRecord.CONCEALED, "s3creto!")
         val login = listOf(FieldRecord("Usuario", FieldKindRecord.EMAIL, "raul@ejemplo.com"), secret)
         assertEquals("raul@ejemplo.com", ItemKindRecord.LOGIN.subtitleFor(login))
-        assertEquals("4 dígitos", ItemKindRecord.PIN.subtitleFor(listOf(FieldRecord("Código", FieldKindRecord.PIN, "2958"))))
+        assertEquals(StoredLabels.pinDigits(4), ItemKindRecord.PIN.subtitleFor(listOf(FieldRecord("Código", FieldKindRecord.PIN, "2958"))))
         assertNull(ItemKindRecord.SECRET.subtitleFor(listOf(secret)))
         for (kind in ItemKindRecord.entries) {
             val s = kind.subtitleFor(login + card("4940192355674821")) ?: continue

@@ -74,6 +74,7 @@ import io.github.rldona.openpassword.session.toUserMessage
 import io.github.rldona.openpassword.ui.PasswordField
 import io.github.rldona.openpassword.ui.SectionLabel
 import kotlinx.coroutines.launch
+import io.github.rldona.openpassword.data.StoredLabels
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,6 +98,7 @@ fun ItemEditorScreen(
     var loadError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val defaultTitle = kind.labelText()
     // Drafts live only in memory: never in saved state, wiped when the screen goes away.
     val drafts = remember { mutableStateListOf<ImageDraft>() }
     var capturing by remember { mutableStateOf(false) }
@@ -205,7 +207,7 @@ fun ItemEditorScreen(
                         "El código TOTP no es válido. Pega el enlace otpauth:// o el secreto que te dio el servicio."
                     kept.any { it.kind == FieldKindRecord.CARD_NUMBER && !CardNumber.isValid(it.value) } ->
                         "El número de tarjeta no es válido: revisa que no falte ni sobre ningún dígito."
-                    kind == ItemKindRecord.BANK_ACCOUNT && kept.any { it.label == IBAN_LABEL && !Iban.isValid(it.value) } ->
+                    kind == ItemKindRecord.BANK_ACCOUNT && kept.any { it.label == StoredLabels.IBAN && !Iban.isValid(it.value) } ->
                         "El IBAN no es válido: revisa el país, la longitud y los dígitos."
                     else -> null
                 }
@@ -216,7 +218,7 @@ fun ItemEditorScreen(
                 }
                 val overview = ItemOverviewRecord(
                     kind = kind,
-                    title = title.trim().ifEmpty { kind.label() },
+                    title = title.trim().ifEmpty { defaultTitle },
                     subtitle = kind.subtitleFor(kept),
                     urls = listOf(url.trim()).filter(String::isNotEmpty) + appLinks,
                     tags = existing?.overview?.tags ?: emptyList(),
@@ -302,7 +304,7 @@ fun ItemEditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (existing == null) "Nuevo: ${kind.label()}" else "Editar") },
+                title = { Text(if (existing == null) "Nuevo: ${kind.labelText()}" else "Editar") },
                 navigationIcon = { IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, contentDescription = "Cancelar") } },
                 actions = {
                     Button(onClick = ::save, enabled = loaded && !saving, modifier = Modifier.padding(end = 8.dp)) {
@@ -355,14 +357,16 @@ fun ItemEditorScreen(
             fields.forEachIndexed { i, field ->
                 if (field.kind == FieldKindRecord.IMAGE) {
                     val draft = drafts.firstOrNull { it.id == field.value }
+                    val shownLabel = field.displayLabel()
                     ImageFieldCard(
-                        label = field.label,
+                        label = shownLabel,
                         isNew = draft != null,
                         onLabelChange = { newLabel ->
-                            fields[i] = fields[i].copy(label = newLabel)
-                            draft?.label = newLabel
+                            val stable = FieldLabels.editedLabel(newLabel, field.label, context.resources)
+                            fields[i] = fields[i].copy(label = stable)
+                            draft?.label = stable
                         },
-                        onView = { openImage(field.value, field.label) },
+                        onView = { openImage(field.value, shownLabel) },
                         onRemove = { removeImage(field.value) },
                     )
                 }
@@ -520,7 +524,7 @@ private fun placeholderTitle(kind: ItemKindRecord) = when (kind) {
 
 /** Stores IBANs grouped by four and document dates as DD/MM/AAAA, whatever was typed. */
 private fun normalized(kind: ItemKindRecord, field: FieldRecord): FieldRecord = when {
-    kind == ItemKindRecord.BANK_ACCOUNT && field.label == IBAN_LABEL && Iban.isValid(field.value) -> field.copy(value = Iban.format(field.value))
+    kind == ItemKindRecord.BANK_ACCOUNT && field.label == StoredLabels.IBAN && Iban.isValid(field.value) -> field.copy(value = Iban.format(field.value))
     kind == ItemKindRecord.IDENTITY && field.kind == FieldKindRecord.DATE ->
         VaultHealth.parseDocumentDate(field.value)?.let { field.copy(value = it.format(VaultHealth.DOCUMENT_DATE)) } ?: field
     else -> field

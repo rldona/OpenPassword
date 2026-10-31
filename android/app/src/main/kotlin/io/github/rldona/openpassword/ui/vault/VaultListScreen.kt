@@ -117,7 +117,7 @@ fun VaultListScreen(
                     ) {
                         item { FilterChip(selected = filter == null, onClick = { filter = null }, label = { Text("Todo") }) }
                         items(kindsPresent) { kind ->
-                            FilterChip(selected = filter == kind, onClick = { filter = if (filter == kind) null else kind }, label = { Text(kind.shortLabel()) })
+                            FilterChip(selected = filter == kind, onClick = { filter = if (filter == kind) null else kind }, label = { Text(kind.shortLabelText()) })
                         }
                     }
                 }
@@ -146,8 +146,8 @@ fun VaultListScreen(
                 Column {
                     CreatableKinds.forEach { kind ->
                         ListItem(
-                            headlineContent = { Text(kind.label()) },
-                            leadingContent = { Avatar(kind.label().take(1), kind.avatarColor(), size = 32.dp) },
+                            headlineContent = { Text(kind.labelText()) },
+                            leadingContent = { Avatar(kind.labelText().take(1), kind.avatarColor(), size = 32.dp) },
                             modifier = Modifier.clickable { choosingKind = false; onAdd(kind) },
                         )
                     }
@@ -164,7 +164,7 @@ private fun EntryRow(entry: VaultEntry, onClick: () -> Unit) {
     val o = entry.overview
     ListItem(
         headlineContent = { Text(o.title, maxLines = 1) },
-        supportingContent = { Text(o.subtitle ?: o.kind.label(), maxLines = 1) },
+        supportingContent = { Text(o.subtitle?.let { storedLabelText(it) } ?: o.kind.labelText(), maxLines = 1) },
         leadingContent = { Avatar(initialOf(o.title), o.kind.avatarColor()) },
         trailingContent = if (o.favorite) {
             { Icon(Icons.Filled.Star, contentDescription = "Favorito", tint = MaterialTheme.colorScheme.tertiary) }

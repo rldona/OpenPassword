@@ -1,16 +1,18 @@
 package io.github.rldona.openpassword.ui.onboarding
 
+import androidx.annotation.StringRes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import io.github.rldona.openpassword.R
 import kotlin.math.log2
 
 /**
  * Rough guidance only, with no dictionary: a common word with an accent still looks
- * "random" by bits alone, so length gates each level. "Aceptable" needs 12 characters
- * and "Fuerte" 16, which favours passphrases.
+ * "random" by bits alone, so length gates each level. "Acceptable" needs 12 characters
+ * and "Strong" 16, which favours passphrases.
  */
-data class Strength(val fraction: Float, val label: String, private val level: Int) {
+data class Strength(val fraction: Float, val level: Int) {
     @Composable
     fun color(): Color = when (level) {
         0 -> MaterialTheme.colorScheme.error
@@ -18,6 +20,14 @@ data class Strength(val fraction: Float, val label: String, private val level: I
         else -> MaterialTheme.colorScheme.primary
     }
 }
+
+@get:StringRes
+val Strength.labelRes: Int
+    get() = when (level) {
+        0 -> R.string.strength_weak
+        1 -> R.string.strength_acceptable
+        else -> R.string.strength_strong
+    }
 
 fun strengthOf(password: String): Strength {
     val pool = listOf(
@@ -29,8 +39,8 @@ fun strengthOf(password: String): Strength {
     val bits = password.length * log2(pool.toDouble())
     val fraction = (bits / 100).toFloat().coerceIn(0f, 1f)
     return when {
-        password.length >= 16 && bits >= 75 -> Strength(fraction, "Fuerte", 2)
-        password.length >= 12 && bits >= 50 -> Strength(fraction.coerceAtMost(0.74f), "Aceptable", 1)
-        else -> Strength(fraction.coerceAtMost(0.44f), "Débil", 0)
+        password.length >= 16 && bits >= 75 -> Strength(fraction, 2)
+        password.length >= 12 && bits >= 50 -> Strength(fraction.coerceAtMost(0.74f), 1)
+        else -> Strength(fraction.coerceAtMost(0.44f), 0)
     }
 }

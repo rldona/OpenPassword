@@ -6,11 +6,11 @@ import org.junit.Test
 
 class StrengthTest {
     @Test
-    fun labelsFollowEstimatedBits() {
-        assertEquals("Débil", strengthOf("abc").label)
-        assertEquals("Débil", strengthOf("contraseña").label)
-        assertEquals("Aceptable", strengthOf("Contrasena2026").label)
-        assertEquals("Fuerte", strengthOf("caballo-bateria-grapa-correcta").label)
+    fun levelsFollowEstimatedBits() {
+        assertEquals(0, strengthOf("abc").level)
+        assertEquals(0, strengthOf("contraseña").level)
+        assertEquals(1, strengthOf("Contrasena2026").level)
+        assertEquals(2, strengthOf("caballo-bateria-grapa-correcta").level)
     }
 
     @Test
