@@ -16,7 +16,8 @@ Kotlin, Jetpack Compose and Material 3. All cryptography is done by `op-core` (R
 - Wi-Fi: the detail shows a standard QR (`WIFI:T:WPA;…`) so another phone can connect with its camera. Without a password it is treated as an open network.
 - Reveal field by field and copy to the clipboard marked as sensitive, which is erased after 30 s.
 - Generator of passwords, PINs and passphrases (EFF long list, 7776 words). At signup it can suggest a 6-word phrase as the master password.
-- Emergency kit in PDF for printing, with the secret key and how to restore. It is offered at signup and in Settings, after confirming the password.
+- Emergency kit in PDF for printing, with the secret key and how to restore. It is offered at signup and in Settings, after confirming the password. It follows the interface language, date included.
+- English and Spanish, English by default. It follows the phone's language; Settings → Language offers System / English / Español. From Android 13 the choice also appears in the system's per-app language settings.
 - Export an encrypted `.opvault` backup wherever the user chooses. It opens with `opvault decrypt`. From format v2 it includes the images.
 - Encrypted images: attached to any item (ID card, card, policy) with the app's camera or from the gallery. They are rescaled to 2048 px, re-encoded without EXIF and sealed with the item's key. They are only visible inside the app, with zoom; they are not shared or saved to the gallery. There is a cap of 10 per item and 24 MiB per vault.
 - Automatic backup to a folder chosen by the user (from their cloud, Syncthing or SD card): a few seconds after every change and on unlock if the last one is more than a day old. It keeps the last 10 and only deletes its own backups (`openpassword-auto-…opvault`). Since encrypting requires the vault to be open, with the vault locked no backups are made: pending ones are made on unlock.
@@ -31,6 +32,22 @@ Kotlin, Jetpack Compose and Material 3. All cryptography is done by `op-core` (R
 - Autofill in other apps and in the browser (Chrome: *Settings → Autofill services → Autofill with another service* (*Ajustes → Servicios de autocompletar → Autocompletar con otro servicio*)).
 
 **Publishing to stores: archived.** The project is for personal use; the F-Droid recipe, the metadata and the signing flow remain in [`docs/archive/fdroid/`](../docs/archive/fdroid) in case it is ever planned as a public product again. There is no tag or published release.
+
+## Languages
+
+English lives in `res/values/` (the default) and Spanish in `res/values-es/`. Both files must
+declare exactly the same keys: `scripts/check-string-keys.sh` fails otherwise, and
+`scripts/check-no-ui-literals.sh` fails if any user-facing text is hardcoded in Kotlin (Android
+lint does not see Compose calls). Both run in CI.
+
+The choice is per app: `AppLocales` uses `LocaleManager` on Android 13+ and a preference applied
+in `attachBaseContext` on Android 12 and below, for the three activities and the autofill service.
+On 28-32 an autofill service that is already bound can keep the previous language until Android
+recreates it.
+
+Field labels stored inside the vault (`data/StoredLabels.kt`) are data, not interface: they never
+change with the language. `ui/vault/FieldLabels.kt` translates them only when showing them, so a
+vault written in one language opens in the other without migration.
 
 ## Security enforced by the build
 

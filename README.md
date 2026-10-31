@@ -23,6 +23,8 @@ Password manager for passwords, cards, PINs and secrets, offline and without a s
   `.opvault` export.
 - Import from KeePass, 1Password, Bitwarden, Chrome, Firefox and CSV.
 - Emergency kit in PDF for printing, with the secret key.
+- English and Spanish, English by default: it follows the phone's language and can be changed in
+  Settings.
 
 Full detail in [`android/README.md`](android/README.md).
 
