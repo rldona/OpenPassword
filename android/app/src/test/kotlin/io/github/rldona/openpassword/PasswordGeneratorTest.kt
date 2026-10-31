@@ -18,8 +18,8 @@ class PasswordGeneratorTest {
             assertTrue(p.any(Char::isUpperCase))
             assertTrue(p.any(Char::isDigit))
             assertTrue(p.any { !it.isLetterOrDigit() })
-            assertTrue("solo caracteres permitidos: $p", p.all { it in PasswordGenerator.PASSWORD_ALPHABET })
-            assertTrue("sin caracteres ambiguos: $p", p.none { it in "lIO01" })
+            assertTrue("only allowed characters: $p", p.all { it in PasswordGenerator.PASSWORD_ALPHABET })
+            assertTrue("no ambiguous characters: $p", p.none { it in "lIO01" })
         }
     }
 

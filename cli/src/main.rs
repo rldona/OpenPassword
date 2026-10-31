@@ -19,7 +19,7 @@ use zeroize::Zeroizing;
 #[command(
     name = "opvault",
     version,
-    about = "Inspecciona y descifra respaldos .opvault de OpenPassword"
+    about = "Inspect and decrypt OpenPassword .opvault backups"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -28,19 +28,19 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Muestra la cabecera del respaldo. No pide credenciales ni revela datos.
+    /// Show the backup header. It asks for no credentials and reveals no data.
     Inspect { file: PathBuf },
-    /// Descifra el respaldo y escribe los elementos en claro como JSON en la salida estándar.
+    /// Decrypt the backup and write the items in the clear as JSON to standard output.
     Decrypt {
         file: PathBuf,
         #[command(flatten)]
         creds: Credentials,
     },
-    /// Genera una clave secreta nueva.
+    /// Generate a new secret key.
     NewSecretKey,
-    /// Calcula el código TOTP actual. Lee el enlace otpauth:// o el secreto de la entrada estándar.
+    /// Compute the current TOTP code. Reads the otpauth:// link or the secret from standard input.
     Totp,
-    /// Crea un respaldo con elementos de ejemplo, para probar la herramienta.
+    /// Create a backup with sample items, to try the tool.
     Sample {
         file: PathBuf,
         #[command(flatten)]
@@ -50,10 +50,10 @@ enum Command {
 
 #[derive(clap::Args)]
 struct Credentials {
-    /// Clave secreta (OP1-…). Si no se indica, se pide de forma interactiva.
+    /// Secret key (OP1-…). If omitted, it is asked for interactively.
     #[arg(long)]
     secret_key: Option<String>,
-    /// Lee la contraseña maestra de la primera línea de la entrada estándar.
+    /// Read the master password from the first line of standard input.
     #[arg(long)]
     password_stdin: bool,
 }
@@ -65,15 +65,15 @@ impl Credentials {
             std::io::stdin().lock().read_line(&mut line)?;
             Zeroizing::new(line.trim_end_matches(['\r', '\n']).to_owned())
         } else {
-            Zeroizing::new(rpassword::prompt_password("Contraseña maestra: ")?)
+            Zeroizing::new(rpassword::prompt_password("Master password: ")?)
         };
         let secret_key = match &self.secret_key {
             Some(sk) => SecretKey::parse(sk),
             None => SecretKey::parse(&Zeroizing::new(rpassword::prompt_password(
-                "Clave secreta: ",
+                "Secret key: ",
             )?)),
         }
-        .context("clave secreta no válida")?;
+        .context("invalid secret key")?;
         Ok((password, secret_key))
     }
 }
@@ -119,7 +119,7 @@ fn main() -> Result<()> {
 }
 
 fn read_file(file: &PathBuf) -> Result<Vec<u8>> {
-    std::fs::read(file).with_context(|| format!("no se puede leer {}", file.display()))
+    std::fs::read(file).with_context(|| format!("cannot read {}", file.display()))
 }
 
 fn inspect(file: &PathBuf) -> Result<()> {
@@ -177,7 +177,7 @@ fn decrypt(file: &PathBuf, creds: &Credentials) -> Result<()> {
     let stdout = std::io::stdout();
     if stdout.is_terminal() {
         eprintln!(
-            "Aviso: lo siguiente son tus secretos en claro. Redirige la salida a un fichero seguro si no quieres verlos en pantalla."
+            "Warning: the following is your secrets in the clear. Redirect the output to a safe file if you do not want to see them on screen."
         );
     }
     let json = Zeroizing::new(serde_json::to_string_pretty(&out)?);
@@ -188,10 +188,10 @@ fn decrypt(file: &PathBuf, creds: &Credentials) -> Result<()> {
 fn totp() -> Result<()> {
     let mut line = Zeroizing::new(String::new());
     std::io::stdin().lock().read_line(&mut line)?;
-    let totp = op_core::totp::Totp::parse(&line).context("secreto TOTP no válido")?;
+    let totp = op_core::totp::Totp::parse(&line).context("invalid TOTP secret")?;
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     println!(
-        "{} (cambia en {} s)",
+        "{} (changes in {} s)",
         totp.code_at(now),
         totp.seconds_remaining(now)
     );
@@ -200,7 +200,7 @@ fn totp() -> Result<()> {
 
 fn sample(file: &PathBuf, creds: &Credentials) -> Result<()> {
     if file.exists() {
-        bail!("{} ya existe; no lo sobrescribo", file.display());
+        bail!("{} already exists; not overwriting it", file.display());
     }
     let (password, secret_key) = creds.read()?;
     let vault = UnlockedVault::create(&password, &secret_key, KdfParams::RECOMMENDED)?;
@@ -211,7 +211,7 @@ fn sample(file: &PathBuf, creds: &Credentials) -> Result<()> {
         .collect::<op_core::Result<Vec<_>>>()?;
     std::fs::write(file, backup::write(&vault, &items, &[], now)?)?;
     eprintln!(
-        "Creado {} con {} elementos de ejemplo.",
+        "Created {} with {} sample items.",
         file.display(),
         items.len()
     );

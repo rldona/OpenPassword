@@ -37,10 +37,10 @@ class EmergencyKitTest {
                     page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
                     // The secret key box sits in the upper third: some row there must be dense with text.
                     val densest = (150 until 330).maxOf { y -> (60 until 535).count { x -> Color.red(bitmap.getPixel(x, y)) < 100 } }
-                    assertTrue("fila más densa en la zona de la clave: $densest píxeles oscuros", densest > 40)
+                    assertTrue("densest row in the key area: $densest dark pixels", densest > 40)
                     // Nothing may be drawn past the right margin (48 pt): the key once overflowed the page.
                     val overflow = (150 until 330).sumOf { y -> (548 until 595).count { x -> Color.red(bitmap.getPixel(x, y)) < 200 } }
-                    assertEquals("píxeles pintados fuera del margen derecho", 0, overflow)
+                    assertEquals("pixels drawn past the right margin", 0, overflow)
                 }
             }
         } finally {

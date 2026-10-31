@@ -26,8 +26,8 @@ android {
         applicationId = "io.github.rldona.openpassword"
         minSdk = 28
         targetSdk = 36
-        // La CI los pasa con -PversionCode / -PversionName. El versionCode sale del número de
-        // commits, así que nunca retrocede y una build se puede instalar encima de la anterior.
+        // CI passes them with -PversionCode / -PversionName. The versionCode comes from the
+        // commit count, so it never goes backwards and a build can be installed over the previous one.
         versionCode = providers.gradleProperty("versionCode").getOrElse("1").toInt()
         versionName = providers.gradleProperty("versionName").getOrElse("0.1.0")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -172,12 +172,12 @@ abstract class VerifyManifest : DefaultTask() {
         val text = manifest.get().asFile.readText()
         val forbidden = listOf("android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE")
             .filter { text.contains("\"$it\"") }
-        if (forbidden.isNotEmpty()) throw GradleException("El manifiesto declara permisos prohibidos: $forbidden")
+        if (forbidden.isNotEmpty()) throw GradleException("The manifest declares forbidden permissions: $forbidden")
         val required = listOf("android.permission.HIDE_OVERLAY_WINDOWS")
             .filterNot { text.contains("\"$it\"") }
-        if (required.isNotEmpty()) throw GradleException("El manifiesto debe declarar los permisos de protección: $required")
-        if (text.contains("\"android.permission.QUERY_ALL_PACKAGES\"")) throw GradleException("QUERY_ALL_PACKAGES está prohibido: usa <queries> con paquetes concretos")
-        if (!text.contains("android:allowBackup=\"false\"")) throw GradleException("android:allowBackup debe ser false")
+        if (required.isNotEmpty()) throw GradleException("The manifest must declare the protection permissions: $required")
+        if (text.contains("\"android.permission.QUERY_ALL_PACKAGES\"")) throw GradleException("QUERY_ALL_PACKAGES is forbidden: use <queries> with concrete packages")
+        if (!text.contains("android:allowBackup=\"false\"")) throw GradleException("android:allowBackup must be false")
     }
 }
 
