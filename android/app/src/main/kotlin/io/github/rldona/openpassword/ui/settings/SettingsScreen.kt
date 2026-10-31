@@ -109,7 +109,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                         is PendingImport -> pendingExternal = read
                     }
                 }
-                .onFailure { snackbar.showSnackbar(importErrorMessage(it)) }
+                .onFailure { snackbar.showSnackbar(importErrorMessage(it, context.resources)) }
         }
     }
     val backup by autoBackup.status.collectAsStateWithLifecycle()
@@ -117,7 +117,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
     val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
         if (tree == null) return@rememberLauncherForActivityResult
         runCatching { autoBackup.setFolder(tree, folderLabel(tree)) }
-            .onFailure { scope.launch { snackbar.showSnackbar("No se pudo usar esa carpeta. Prueba con otra.") } }
+            .onFailure { scope.launch { snackbar.showSnackbar(context.getString(R.string.settings_folder_error)) } }
     }
     val autofillManager = remember { context.getSystemService(AutofillManager::class.java) }
     var autofillOn by remember { mutableStateOf(autofillManager?.hasEnabledAutofillServices() == true) }
@@ -135,9 +135,9 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
         scope.launch {
             val message = try {
                 writeDocument(context, uri, EmergencyKit.pdf(EmergencyKit.Text.from(context.resources), key))
-                "Kit guardado. Imprímelo y después borra el PDF del teléfono."
+                context.getString(R.string.settings_kit_saved)
             } catch (_: Exception) {
-                "No se pudo guardar el kit en esa ubicación."
+                context.getString(R.string.settings_kit_save_failed)
             }
             shownSecretKey = null
             snackbar.showSnackbar(message)
@@ -150,7 +150,7 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
             try {
                 importBytes = readBackupFile(context, uri)
             } catch (_: Exception) {
-                snackbar.showSnackbar("No se pudo leer ese fichero.")
+                snackbar.showSnackbar(context.getString(R.string.settings_file_read_failed))
             }
         }
     }
@@ -163,13 +163,13 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                 withContext(Dispatchers.IO) {
                     context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(bytes) } ?: error("no output")
                 }
-                "Copia cifrada guardada. Para abrirla necesitarás tu contraseña maestra y tu clave secreta."
+                context.getString(R.string.settings_export_saved)
             } catch (_: InternalException) {
                 internalMessage(context.resources)
             } catch (e: OpException) {
                 e.toUserMessage(context.resources)
             } catch (_: Exception) {
-                "No se pudo guardar la copia en esa ubicación."
+                context.getString(R.string.settings_export_failed)
             }
             snackbar.showSnackbar(message)
         }
@@ -178,25 +178,30 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ajustes") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver") } },
+                title = { Text(stringResource(R.string.settings_title)) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back)) } },
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState())) {
-            SectionLabel("Copia de seguridad", Modifier.padding(start = 16.dp, top = 8.dp))
+            SectionLabel(stringResource(R.string.settings_section_backup), Modifier.padding(start = 16.dp, top = 8.dp))
             ListItem(
-                headlineContent = { Text("Copia automática") },
+                headlineContent = { Text(stringResource(R.string.settings_auto_backup)) },
                 supportingContent = {
                     when {
-                        !backup.enabled -> Text("Desactivada. Elige una carpeta, por ejemplo de tu nube, y guardaremos ahí una copia cifrada tras cada cambio.")
+                        !backup.enabled -> Text(stringResource(R.string.settings_auto_backup_disabled))
                         backup.lastError != null -> Text(backupErrorText(backup.lastError!!), color = MaterialTheme.colorScheme.error)
-                        else -> Text(
-                            "En «${backup.folderName ?: "la carpeta elegida"}». " +
-                                (backup.lastBackupAt?.let { "Última copia: ${dateTime.format(Date(it))}." } ?: "Aún no hay ninguna copia.") +
-                                " Se guardan las 10 últimas.",
-                        )
+                        else -> {
+                            val folder = backup.folderName ?: stringResource(R.string.settings_folder_chosen)
+                            val lastBackupAt = backup.lastBackupAt
+                            val lastCopy = if (lastBackupAt == null) {
+                                stringResource(R.string.settings_backup_none)
+                            } else {
+                                stringResource(R.string.settings_backup_last, dateTime.format(Date(lastBackupAt)))
+                            }
+                            Text(stringResource(R.string.settings_backup_status, folder, lastCopy))
+                        }
                     }
                 },
                 trailingContent = { Switch(checked = backup.enabled, onCheckedChange = null) },
@@ -211,52 +216,58 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
             )
             if (backup.enabled) {
                 ListItem(
-                    headlineContent = { Text(if (backingUp) "Haciendo copia…" else "Hacer copia ahora") },
+                    headlineContent = { Text(if (backingUp) stringResource(R.string.settings_backup_busy) else stringResource(R.string.settings_backup_now)) },
                     modifier = Modifier.clickable(enabled = !backingUp) {
                         backingUp = true
                         scope.launch {
                             val error = autoBackup.backupNow()
                             backingUp = false
-                            snackbar.showSnackbar(error?.message(context.resources) ?: "Copia guardada en «${backup.folderName ?: "la carpeta"}».")
+                            snackbar.showSnackbar(
+                                error?.message(context.resources)
+                                    ?: context.getString(
+                                        R.string.settings_backup_now_done,
+                                        backup.folderName ?: context.getString(R.string.settings_folder_unnamed),
+                                    ),
+                            )
                         }
                     },
                 )
                 ListItem(
-                    headlineContent = { Text("Cambiar carpeta") },
+                    headlineContent = { Text(stringResource(R.string.settings_change_folder)) },
                     modifier = Modifier.clickable { session.beforeSystemPicker(); folderLauncher.launch(null) },
                 )
             }
             ListItem(
-                headlineContent = { Text("Exportar copia cifrada") },
-                supportingContent = { Text("Guarda un fichero .opvault donde elijas: tu ordenador, una tarjeta SD o una carpeta de la nube.") },
+                headlineContent = { Text(stringResource(R.string.settings_export_backup)) },
+                supportingContent = { Text(stringResource(R.string.settings_export_backup_hint)) },
                 modifier = Modifier.clickable { session.beforeSystemPicker(); exportLauncher.launch("openpassword-${LocalDate.now()}.opvault") },
             )
             ListItem(
-                headlineContent = { Text("Importar copia") },
-                supportingContent = { Text("Añade los elementos de un fichero .opvault. Los que ya tengas se actualizan si la copia es más nueva.") },
+                headlineContent = { Text(stringResource(R.string.settings_import_backup)) },
+                supportingContent = { Text(stringResource(R.string.settings_import_backup_hint)) },
                 modifier = Modifier.clickable { session.beforeSystemPicker(); importLauncher.launch(arrayOf("*/*")) },
             )
             ListItem(
-                headlineContent = { Text("Importar de otro gestor") },
-                supportingContent = { Text("KeePass (.kdbx), 1Password (.1pux), JSON sin cifrar de Bitwarden o CSV de Chrome, Google, Firefox, Bitwarden o 1Password.") },
+                headlineContent = { Text(stringResource(R.string.settings_import_external)) },
+                supportingContent = { Text(stringResource(R.string.settings_import_external_hint)) },
                 modifier = Modifier.clickable { session.beforeSystemPicker(); externalLauncher.launch(arrayOf("*/*")) },
             )
             ListItem(
-                headlineContent = { Text("Ver clave secreta") },
-                supportingContent = { Text("Para anotarla de nuevo. Te pediremos la contraseña maestra.") },
+                headlineContent = { Text(stringResource(R.string.settings_show_secret_key)) },
+                supportingContent = { Text(stringResource(R.string.settings_show_secret_key_hint)) },
                 modifier = Modifier.clickable { askingPassword = true },
             )
             HorizontalDivider()
-            SectionLabel("Seguridad", Modifier.padding(start = 16.dp, top = 16.dp))
+            SectionLabel(stringResource(R.string.settings_section_security), Modifier.padding(start = 16.dp, top = 16.dp))
             RootWarning(dismissable = false, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
             ListItem(
-                headlineContent = { Text("Autorrelleno") },
+                headlineContent = { Text(stringResource(R.string.settings_autofill)) },
                 supportingContent = {
                     Text(
                         if (autofillOn) {
-                            "Activado: OpenPassword te ofrece tus logins en otras apps y en el navegador."
+                            stringResource(R.string.settings_autofill_on)
                         } else {
-                            "Desactivado. Toca para elegir OpenPassword como servicio de autorrelleno."
+                            stringResource(R.string.settings_autofill_off)
                         },
                     )
                 },
@@ -269,8 +280,8 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
             )
             if (biometricsAvailable) {
                 ListItem(
-                    headlineContent = { Text("Desbloquear con huella") },
-                    supportingContent = { Text("Te pediremos la contraseña maestra cada 14 días y tras reiniciar el teléfono.") },
+                    headlineContent = { Text(stringResource(R.string.settings_biometric)) },
+                    supportingContent = { Text(stringResource(R.string.settings_biometric_hint)) },
                     trailingContent = { Switch(checked = biometricOn, onCheckedChange = null, enabled = !biometricBusy) },
                     modifier = Modifier.toggleable(value = biometricOn, enabled = !biometricBusy, role = Role.Switch) { on ->
                         if (on) {
@@ -288,16 +299,16 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                 )
             }
             ListItem(
-                headlineContent = { Text("Bloquear ahora") },
+                headlineContent = { Text(stringResource(R.string.settings_lock_now)) },
                 modifier = Modifier.clickable { session.lock() },
             )
             ListItem(
-                headlineContent = { Text("Bloqueo automático") },
-                supportingContent = { Text("Tras 5 minutos sin uso, 30 segundos en segundo plano o al apagar la pantalla.") },
+                headlineContent = { Text(stringResource(R.string.settings_auto_lock)) },
+                supportingContent = { Text(stringResource(R.string.settings_auto_lock_hint)) },
             )
             ListItem(
-                headlineContent = { Text("Sin acceso a Internet") },
-                supportingContent = { Text("Esta app no tiene permiso de red. Tus datos solo salen del teléfono en las copias que exportes tú.") },
+                headlineContent = { Text(stringResource(R.string.settings_no_internet)) },
+                supportingContent = { Text(stringResource(R.string.settings_no_internet_hint)) },
             )
             SectionLabel(stringResource(R.string.settings_language), Modifier.padding(start = 16.dp, top = 16.dp))
             ListItem(
@@ -307,8 +318,8 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
             )
             HorizontalDivider()
             ListItem(
-                headlineContent = { Text("OpenPassword ${BuildConfigInfo.versionName(context)}") },
-                supportingContent = { Text("Software libre bajo GPL-3.0-or-later. github.com/rldona/OpenPassword\nFrases de paso con la lista de palabras de la EFF (CC BY 3.0 US).") },
+                headlineContent = { Text(stringResource(R.string.settings_about_version, BuildConfigInfo.versionName(context))) },
+                supportingContent = { Text(stringResource(R.string.settings_about_legal)) },
             )
         }
     }
@@ -361,8 +372,8 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
                 scope.launch {
                     snackbar.showSnackbar(
                         when {
-                            summary.added == 0 && summary.updated == 0 -> "No había nada nuevo: tu caja fuerte ya tenía todo lo de esa copia."
-                            else -> "Importados: ${summary.added} nuevos, ${summary.updated} actualizados."
+                            summary.added == 0 && summary.updated == 0 -> context.getString(R.string.settings_import_nothing_new)
+                            else -> context.getString(R.string.settings_import_result, summary.added, summary.updated)
                         },
                     )
                 }
@@ -394,15 +405,15 @@ fun SettingsScreen(session: VaultSession, autoBackup: AutoBackup, onBack: () -> 
     shownSecretKey?.let { key ->
         ProtectedAlertDialog(
             onDismissRequest = { shownSecretKey = null },
-            title = { Text("Tu clave secreta") },
+            title = { Text(stringResource(R.string.settings_secret_key_title)) },
             text = {
                 @OptIn(ExperimentalLayoutApi::class)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     key.split('-').forEach { Text(it, fontFamily = SecretFont, fontSize = 19.sp, fontWeight = FontWeight.Medium) }
                 }
             },
-            confirmButton = { TextButton(onClick = { shownSecretKey = null }) { Text("Hecho") } },
-            dismissButton = { TextButton(onClick = { session.beforeSystemPicker(); kitLauncher.launch(EMERGENCY_KIT_FILE_NAME) }) { Text("Guardar kit PDF") } },
+            confirmButton = { TextButton(onClick = { shownSecretKey = null }) { Text(stringResource(R.string.settings_secret_key_done)) } },
+            dismissButton = { TextButton(onClick = { session.beforeSystemPicker(); kitLauncher.launch(EMERGENCY_KIT_FILE_NAME) }) { Text(stringResource(R.string.settings_secret_key_save_kit)) } },
         )
     }
 }
@@ -422,8 +433,9 @@ private fun ConfirmPasswordDialog(onDismiss: () -> Unit, onConfirm: suspend (Str
             error = when (val result = onConfirm(password)) {
                 UnlockResult.Success -> null
                 is UnlockResult.WrongPassword ->
-                    "Contraseña incorrecta." + if (result.waitSeconds > 0) " Espera ${result.waitSeconds} s para volver a probar." else ""
-                is UnlockResult.MustWait -> "Demasiados intentos. Espera ${result.waitSeconds} s para volver a probar."
+                    res.getString(R.string.settings_confirm_wrong_password) +
+                        if (result.waitSeconds > 0) " " + res.getString(R.string.settings_confirm_wait, result.waitSeconds) else ""
+                is UnlockResult.MustWait -> res.getString(R.string.settings_confirm_too_many_attempts, result.waitSeconds)
                 is UnlockResult.Failed -> result.failure.message(res)
             }
             password = ""
@@ -433,12 +445,12 @@ private fun ConfirmPasswordDialog(onDismiss: () -> Unit, onConfirm: suspend (Str
 
     ProtectedAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Confirma que eres tú") },
+        title = { Text(stringResource(R.string.settings_confirm_title)) },
         text = {
             PasswordField(
                 value = password,
                 onValueChange = { password = it; error = null },
-                label = "Contraseña maestra",
+                label = stringResource(R.string.settings_master_password),
                 isError = error != null,
                 supportingText = error,
                 enabled = !busy,
@@ -446,8 +458,8 @@ private fun ConfirmPasswordDialog(onDismiss: () -> Unit, onConfirm: suspend (Str
                 modifier = Modifier.fillMaxWidth(),
             )
         },
-        confirmButton = { TextButton(onClick = ::submit, enabled = !busy && password.isNotEmpty()) { Text(if (busy) "Comprobando…" else "Continuar") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+        confirmButton = { TextButton(onClick = ::submit, enabled = !busy && password.isNotEmpty()) { Text(if (busy) stringResource(R.string.settings_checking) else stringResource(R.string.settings_continue)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
 }
 
@@ -469,15 +481,15 @@ private fun ImportDialog(onDismiss: () -> Unit, onImport: suspend (password: Str
                 onImport(password, secretKey)
             } catch (e: OpException) {
                 error = when (e) {
-                    is OpException.WrongCredentials -> "La contraseña no es la de esa copia."
-                    is OpException.WrongSecretKey -> "Esa copia usa otra clave secreta: escríbela."
-                    is OpException.Corrupted -> "Ese fichero no es una copia de OpenPassword o está dañado."
+                    is OpException.WrongCredentials -> res.getString(R.string.settings_import_wrong_password)
+                    is OpException.WrongSecretKey -> res.getString(R.string.settings_import_wrong_secret_key)
+                    is OpException.Corrupted -> res.getString(R.string.settings_import_corrupted)
                     else -> e.toUserMessage(res)
                 }
                 password = ""
                 busy = false
             } catch (_: InternalException) {
-                error = "No se pudo leer la copia. Vuelve a desbloquear la caja fuerte e inténtalo de nuevo."
+                error = res.getString(R.string.settings_import_read_failed)
                 password = ""
                 busy = false
             }
@@ -486,14 +498,14 @@ private fun ImportDialog(onDismiss: () -> Unit, onImport: suspend (password: Str
 
     ProtectedAlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
-        title = { Text("Importar copia") },
+        title = { Text(stringResource(R.string.settings_import_backup)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Escribe la contraseña maestra con la que se hizo la copia.", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.settings_import_dialog_intro), style = MaterialTheme.typography.bodyMedium)
                 PasswordField(
                     value = password,
                     onValueChange = { password = it; error = null },
-                    label = "Contraseña de la copia",
+                    label = stringResource(R.string.settings_import_password),
                     enabled = !busy,
                     imeAction = ImeAction.Next,
                     modifier = Modifier.fillMaxWidth(),
@@ -503,16 +515,16 @@ private fun ImportDialog(onDismiss: () -> Unit, onImport: suspend (password: Str
                     onValueChange = { secretKey = it; error = null },
                     enabled = !busy,
                     imeAction = ImeAction.Done,
-                    supportingText = "Déjala vacía si es una copia hecha en este teléfono.",
+                    supportingText = stringResource(R.string.settings_import_secret_key_hint),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         },
         confirmButton = {
-            TextButton(onClick = ::submit, enabled = !busy && password.isNotEmpty()) { Text(if (busy) "Descifrando…" else "Importar") }
+            TextButton(onClick = ::submit, enabled = !busy && password.isNotEmpty()) { Text(if (busy) stringResource(R.string.import_decrypting) else stringResource(R.string.import_action)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text("Cancelar") } },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.action_cancel)) } },
     )
 }
 

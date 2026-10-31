@@ -1,6 +1,7 @@
 package io.github.rldona.openpassword.ui.settings
 
 import android.content.Context
+import android.content.res.Resources
 import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -19,7 +20,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.core.ImportResult
 import io.github.rldona.openpassword.core.InternalException
 import io.github.rldona.openpassword.core.OpException
@@ -69,37 +73,31 @@ suspend fun unlockExternalExport(locked: LockedExport, password: String, keyFile
     withContext(Dispatchers.Default) { PendingImport(locked.uri, parseImport(locked.bytes, password, keyFile, now())) }
 }.onSuccess { locked.bytes.fill(0) }
 
-fun importErrorMessage(e: Throwable): String = when {
-    e is OpException.WrongCredentials ->
-        "Contraseña o archivo de clave incorrectos. Si tu base de KeePass usa un archivo de clave, añádelo."
-    e is OpException.InvalidInput && "KeePass version" in e.reason ->
-        "Esta versión de KeePass no está admitida. Guarda la base como KDBX 4 en KeePass o KeePassXC."
-    e is OpException.InvalidInput && "KeePass cipher" in e.reason ->
-        "Esta base de KeePass usa Twofish. Cámbiala a AES-256 o ChaCha20 en la configuración de la base."
-    e is OpException.InvalidInput && "too costly" in e.reason ->
-        "La protección de esta base de KeePass es demasiado costosa para un teléfono. Bájala en la configuración de la base."
-    e is OpException.InvalidInput && "key file is damaged" in e.reason -> "El archivo de clave está dañado o no es de KeePass."
-    e is OpException.InvalidInput && "KeePass" in e.reason -> "Esta base de KeePass usa una opción que OpenPassword aún no admite."
-    e is OpException.Corrupted -> "El fichero está dañado o incompleto."
-    e is OpException.InvalidInput && "encrypted Bitwarden" in e.reason ->
-        "Es una exportación cifrada de Bitwarden. Vuelve a exportar eligiendo el formato «.json» sin cifrar."
+fun importErrorMessage(e: Throwable, res: Resources): String = when {
+    e is OpException.WrongCredentials -> res.getString(R.string.import_error_wrong_credentials)
+    e is OpException.InvalidInput && "KeePass version" in e.reason -> res.getString(R.string.import_error_keepass_version)
+    e is OpException.InvalidInput && "KeePass cipher" in e.reason -> res.getString(R.string.import_error_keepass_cipher)
+    e is OpException.InvalidInput && "too costly" in e.reason -> res.getString(R.string.import_error_too_costly)
+    e is OpException.InvalidInput && "key file is damaged" in e.reason -> res.getString(R.string.import_error_key_file)
+    e is OpException.InvalidInput && "KeePass" in e.reason -> res.getString(R.string.import_error_keepass_option)
+    e is OpException.Corrupted -> res.getString(R.string.import_error_corrupted)
+    e is OpException.InvalidInput && "encrypted Bitwarden" in e.reason -> res.getString(R.string.import_error_bitwarden_encrypted)
     e is OpException.InvalidInput && ("no password column" in e.reason || "no items" in e.reason) ->
-        "No reconozco este fichero. Usa el CSV de Chrome, Google, Firefox, Bitwarden o 1Password, el JSON sin cifrar de Bitwarden o el .1pux de 1Password."
-    e is OpException.InvalidInput && "unclosed quote" in e.reason -> "El CSV está incompleto o dañado."
+        res.getString(R.string.import_error_unrecognized)
+    e is OpException.InvalidInput && "unclosed quote" in e.reason -> res.getString(R.string.import_error_csv)
     e is OpException.InvalidInput && ("ZIP" in e.reason || "export.data" in e.reason || "no accounts" in e.reason) ->
-        "Este ZIP no es una exportación .1pux de 1Password o está dañado."
-    e is OpException.InvalidInput && "too large" in e.reason -> "El fichero es demasiado grande para importarlo."
-    e is OpException.InvalidInput && "UTF-8" in e.reason -> "El fichero no es de texto. Elige la exportación en CSV o JSON."
-    e is OpException.KdfTooExpensive ->
-        "La base de KeePass pide ${e.mKib / 1024u} MiB de memoria para derivar la clave, más de lo que este teléfono puede dar. Baja la memoria en la configuración de la base y vuelve a exportarla."
-    else -> "No se pudo leer ese fichero."
+        res.getString(R.string.import_error_zip)
+    e is OpException.InvalidInput && "too large" in e.reason -> res.getString(R.string.import_error_too_large)
+    e is OpException.InvalidInput && "UTF-8" in e.reason -> res.getString(R.string.import_error_not_text)
+    e is OpException.KdfTooExpensive -> res.getString(R.string.import_error_kdf, (e.mKib / 1024u).toLong())
+    else -> res.getString(R.string.import_error_generic)
 }
 
-private fun formatName(format: String) = when (format) {
-    "bitwarden-json" -> "Bitwarden (JSON)"
-    "1password-1pux" -> "1Password (.1pux)"
-    "keepass-kdbx" -> "KeePass (.kdbx)"
-    else -> "CSV"
+private fun formatName(format: String, res: Resources) = when (format) {
+    "bitwarden-json" -> res.getString(R.string.import_format_bitwarden_json)
+    "1password-1pux" -> res.getString(R.string.import_format_1password_1pux)
+    "keepass-kdbx" -> res.getString(R.string.import_format_keepass_kdbx)
+    else -> res.getString(R.string.import_format_csv)
 }
 
 /** Confirms, imports, and then offers to delete the plaintext export. */
@@ -113,23 +111,21 @@ fun ExternalImportDialogs(
     var busy by remember { mutableStateOf(false) }
     var imported by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val res = LocalContext.current.resources
     val result = pending.result
 
     val summary = imported
     if (summary == null) {
         ProtectedAlertDialog(
             onDismissRequest = { if (!busy) onDone("") },
-            title = { Text("Importar ${result.items.size} elementos") },
+            title = { Text(pluralStringResource(R.plurals.import_title, result.items.size, result.items.size)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Formato: ${formatName(result.format)}.")
+                    Text(stringResource(R.string.import_format, formatName(result.format, res)))
                     if (result.skipped > 0u) {
-                        Text(
-                            (if (result.skipped == 1u) "1 entrada no se importará: está vacía o es" else "${result.skipped} entradas no se importarán: están vacías o son") +
-                                " de un tipo que OpenPassword aún no admite (identidades, claves SSH…).",
-                        )
+                        Text(pluralStringResource(R.plurals.import_skipped, result.skipped.toInt(), result.skipped.toInt()))
                     }
-                    Text("Se cifrarán con las claves de tu caja fuerte. Lo que ya tengas no se duplica.", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.import_will_encrypt), style = MaterialTheme.typography.bodySmall)
                 }
             },
             confirmButton = {
@@ -139,15 +135,18 @@ fun ExternalImportDialogs(
                         val message = try {
                             val s = session.importExternal(result.items)
                             when {
-                                s.added == 0 && s.duplicates == 1 -> "No había nada nuevo: ese elemento ya estaba en tu caja fuerte."
-                                s.added == 0 -> "No había nada nuevo: los ${s.duplicates} ya estaban en tu caja fuerte."
+                                s.added == 0 && s.duplicates == 1 -> res.getString(R.string.import_nothing_new_one)
+                                s.added == 0 -> res.getQuantityString(R.plurals.import_nothing_new_many, s.duplicates, s.duplicates)
                                 else -> buildString {
-                                    append(if (s.added == 1) "Importado 1 elemento." else "Importados ${s.added} elementos.")
-                                    if (s.duplicates > 0) append(if (s.duplicates == 1) " 1 ya estaba en tu caja fuerte." else " ${s.duplicates} ya estaban en tu caja fuerte.")
+                                    append(res.getQuantityString(R.plurals.import_added, s.added, s.added))
+                                    if (s.duplicates > 0) {
+                                        append(" ")
+                                        append(res.getQuantityString(R.plurals.import_already_there, s.duplicates, s.duplicates))
+                                    }
                                 }
                             }
                         } catch (e: OpException) {
-                            "No se pudo importar: la caja fuerte está bloqueada."
+                            res.getString(R.string.import_failed_locked)
                         } catch (_: InternalException) {
                             internalMessage(context.resources)
                         }
@@ -155,24 +154,24 @@ fun ExternalImportDialogs(
                         if (result.format == "keepass-kdbx") onDone(message) else imported = message
                         busy = false
                     }
-                }) { Text(if (busy) "Importando…" else "Importar") }
+                }) { Text(if (busy) stringResource(R.string.import_importing) else stringResource(R.string.import_action)) }
             },
-            dismissButton = { TextButton(enabled = !busy, onClick = { onDone("") }) { Text("Cancelar") } },
+            dismissButton = { TextButton(enabled = !busy, onClick = { onDone("") }) { Text(stringResource(R.string.action_cancel)) } },
         )
     } else {
         ProtectedAlertDialog(
             onDismissRequest = { onDone(summary) },
-            title = { Text("Borra el fichero exportado") },
+            title = { Text(stringResource(R.string.import_delete_title)) },
             text = {
-                Text("$summary\n\nEse fichero tiene tus contraseñas sin cifrar: cualquiera que lo encuentre puede leerlas. Bórralo ahora.")
+                Text(stringResource(R.string.import_delete_body, summary))
             },
             confirmButton = {
                 TextButton(onClick = {
                     val deleted = runCatching { DocumentsContract.deleteDocument(context.contentResolver, pending.uri) }.getOrDefault(false)
-                    onDone(if (deleted) "$summary Fichero borrado." else "$summary No se pudo borrar el fichero: bórralo tú desde la app Archivos.")
-                }) { Text("Borrar el fichero") }
+                    onDone(if (deleted) res.getString(R.string.import_deleted, summary) else res.getString(R.string.import_delete_failed, summary))
+                }) { Text(stringResource(R.string.import_delete_action)) }
             },
-            dismissButton = { TextButton(onClick = { onDone("$summary Recuerda borrar el fichero exportado.") }) { Text("Ahora no") } },
+            dismissButton = { TextButton(onClick = { onDone(res.getString(R.string.import_delete_reminder, summary)) }) { Text(stringResource(R.string.import_not_now)) } },
         )
     }
 }
@@ -187,6 +186,7 @@ fun KeePassPasswordDialog(
     beforePicker: () -> Unit,
 ) {
     val context = LocalContext.current
+    val res = context.resources
     var password by remember { mutableStateOf("") }
     var keyFile by remember { mutableStateOf<ByteArray?>(null) }
     var keyFileName by remember { mutableStateOf<String?>(null) }
@@ -200,10 +200,10 @@ fun KeePassPasswordDialog(
                 .onSuccess { bytes ->
                     keyFile?.fill(0)
                     keyFile = bytes
-                    keyFileName = displayNameOf(context, uri) ?: "archivo de clave"
+                    keyFileName = displayNameOf(context, uri) ?: res.getString(R.string.import_key_file_default)
                     error = null
                 }
-                .onFailure { error = "No se pudo leer ese archivo de clave." }
+                .onFailure { error = res.getString(R.string.import_key_file_read_failed) }
         }
     }
 
@@ -219,21 +219,21 @@ fun KeePassPasswordDialog(
         scope.launch {
             unlockExternalExport(locked, password, keyFile)
                 .onSuccess { close { onUnlocked(it) } }
-                .onFailure { error = importErrorMessage(it); password = "" }
+                .onFailure { error = importErrorMessage(it, res); password = "" }
             busy = false
         }
     }
 
     ProtectedAlertDialog(
         onDismissRequest = { if (!busy) close(onCancel) },
-        title = { Text("Base de datos de KeePass") },
+        title = { Text(stringResource(R.string.import_keepass_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Escribe la contraseña maestra de esa base de KeePass. Solo se usa para descifrarla aquí; no se guarda.")
+                Text(stringResource(R.string.import_keepass_intro))
                 PasswordField(
                     value = password,
                     onValueChange = { password = it; error = null },
-                    label = "Contraseña de KeePass",
+                    label = stringResource(R.string.import_keepass_password),
                     enabled = !busy,
                     isError = error != null,
                     supportingText = error,
@@ -241,18 +241,18 @@ fun KeePassPasswordDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 TextButton(onClick = { beforePicker(); keyFileLauncher.launch(arrayOf("*/*")) }, enabled = !busy) {
-                    Text(keyFileName?.let { "Archivo de clave: $it" } ?: "Añadir archivo de clave")
+                    Text(keyFileName?.let { stringResource(R.string.import_key_file_chosen, it) } ?: stringResource(R.string.import_key_file_add))
                 }
                 if (keyFile != null) {
-                    Text("Si la base solo usa archivo de clave, deja la contraseña vacía.", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.import_key_file_only), style = MaterialTheme.typography.bodySmall)
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = ::submit, enabled = !busy && (password.isNotEmpty() || keyFile != null)) {
-                Text(if (busy) "Descifrando…" else "Abrir")
+                Text(if (busy) stringResource(R.string.import_decrypting) else stringResource(R.string.import_open))
             }
         },
-        dismissButton = { TextButton(onClick = { close(onCancel) }, enabled = !busy) { Text("Cancelar") } },
+        dismissButton = { TextButton(onClick = { close(onCancel) }, enabled = !busy) { Text(stringResource(R.string.action_cancel)) } },
     )
 }
