@@ -17,14 +17,14 @@ unprotected values and a password with leading and trailing spaces.
 
 If `fixture.xml` changes, regenerate the `.kdbx` with the command above and review the tests in `kdbx.rs`.
 
-## `keepassxc-keyfile.kdbx`, `keepassxc-keyfile-only.kdbx` and `prueba.keyx`
+## `keepassxc-keyfile.kdbx`, `keepassxc-keyfile-only.kdbx` and `sample.keyx`
 
 The same `fixture.xml`, protected with a password and a key file, and with a key file only.
-`prueba.keyx` is the XML v2.0 key file that KeePassXC generated:
+`sample.keyx` is the XML v2.0 key file that KeePassXC generated:
 
 ```sh
-keepassxc-cli import -p --set-key-file prueba.keyx -t 100 fixture.xml keepassxc-keyfile.kdbx
-keepassxc-cli import --set-key-file prueba.keyx -t 100 fixture.xml keepassxc-keyfile-only.kdbx
+keepassxc-cli import -p --set-key-file sample.keyx -t 100 fixture.xml keepassxc-keyfile.kdbx
+keepassxc-cli import --set-key-file sample.keyx -t 100 fixture.xml keepassxc-keyfile-only.kdbx
 ```
 
 ## Pending

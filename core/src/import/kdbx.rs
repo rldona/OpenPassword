@@ -1144,11 +1144,11 @@ mod tests {
         }
     }
 
-    /// Same XML, created with `keepassxc-cli import -p --set-key-file prueba.keyx` (password
-    /// plus key file) and without -p (key file only). prueba.keyx is KeePassXC's XML v2.0.
+    /// Same XML, created with `keepassxc-cli import -p --set-key-file sample.keyx` (password
+    /// plus key file) and without -p (key file only). sample.keyx is KeePassXC's XML v2.0.
     const WITH_KEY_FILE: &[u8] = include_bytes!("testdata/keepassxc-keyfile.kdbx");
     const KEY_FILE_ONLY: &[u8] = include_bytes!("testdata/keepassxc-keyfile-only.kdbx");
-    const KEY_FILE: &[u8] = include_bytes!("testdata/prueba.keyx");
+    const KEY_FILE: &[u8] = include_bytes!("testdata/sample.keyx");
 
     #[test]
     fn keepassxc_password_and_key_file() {
