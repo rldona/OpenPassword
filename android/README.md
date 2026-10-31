@@ -1,75 +1,75 @@
-# App Android
+# Android app
 
-Kotlin, Jetpack Compose y Material 3. Toda la criptografía la hace `op-core` (Rust), que la app carga como `libop_ffi.so` a través de los bindings de UniFFI.
+Kotlin, Jetpack Compose and Material 3. All cryptography is done by `op-core` (Rust), which the app loads as `libop_ffi.so` through the UniFFI bindings.
 
-## Qué hace ya
+## What it does already
 
-- Alta: contraseña maestra con indicador de fortaleza y clave secreta para anotar en papel.
-- Desbloqueo con contraseña maestra; espera creciente tras 4 intentos fallidos.
-- Desbloqueo con huella (biometría fuerte). La contraseña maestra se pide cada 14 días y tras cada reinicio.
-- Baúl: lista, búsqueda sin acentos, filtros por tipo y favoritos.
-- Tarjetas: el número se valida con Luhn y se muestra la red (Visa, Mastercard, American Express…).
-- Historial de contraseñas en logins, Wi-Fi y secretos: las 10 anteriores, con la fecha del cambio, para verlas o copiarlas.
-- Logins, tarjetas, cuentas bancarias, PINs, documentos, redes Wi-Fi, secretos y notas seguras: crear, ver, editar y borrar.
-- Cuentas bancarias: el IBAN se valida (longitud del país y dígitos de control) y se guarda agrupado de cuatro en cuatro; la lista solo muestra el banco y los cuatro últimos dígitos.
-- Documentos (DNI, pasaporte, carné…): las fechas se guardan como DD/MM/AAAA aunque se escriban sin barras.
-- Wi-Fi: el detalle muestra un QR estándar (`WIFI:T:WPA;…`) para que otro teléfono se conecte con la cámara. Sin contraseña se trata como red abierta.
-- Revelar campo a campo y copiar al portapapeles marcado como sensible, que se borra a los 30 s.
-- Generador de contraseñas, PINs y frases de paso (lista larga de la EFF, 7776 palabras). En el alta puede sugerir una frase de 6 palabras como contraseña maestra.
-- Kit de emergencia en PDF para imprimir, con la clave secreta y cómo restaurar. Se ofrece en el alta y en Ajustes, tras confirmar la contraseña.
-- Exportar una copia cifrada `.opvault` donde elija el usuario. Se abre con `opvault decrypt`. Desde el formato v2 incluye las imágenes.
-- Imágenes cifradas: se adjuntan a cualquier elemento (DNI, tarjeta, póliza) con la cámara de la app o desde la galería. Se reescalan a 2048 px, se recodifican sin EXIF y se sellan con la clave del elemento. Solo se ven dentro de la app, con zoom; no se comparten ni se guardan en la galería. Hay un tope de 10 por elemento y 24 MiB por caja fuerte.
-- Copia automática a una carpeta elegida por el usuario (de su nube, Syncthing o tarjeta SD): unos segundos después de cada cambio y al desbloquear si la última tiene más de un día. Guarda las 10 últimas y solo borra sus propias copias (`openpassword-auto-…opvault`). Como cifrar exige el baúl abierto, con el baúl bloqueado no se hacen copias: las pendientes se hacen al desbloquear.
-- Salud del baúl, sin conexión: contraseñas débiles, contraseñas repetidas entre logins, logins sin modificar en más de un año tarjetas caducadas o que caducan en los próximos 2 meses y documentos caducados o que caducan en los próximos 3. Aparece un aviso encima de la lista solo cuando hay algo que corregir.
-- Importar de otro gestor: KeePass (`.kdbx` 3.1 y 4.x con contraseña, archivo de clave o ambos; sin papelera ni historial), `.1pux` de 1Password (logins con TOTP y campos extra, contraseñas sueltas, tarjetas y notas), JSON sin cifrar de Bitwarden y CSV de Chrome / Google, Firefox, Bitwarden y 1Password (las columnas se reconocen por su nombre). La lectura de KDBX 4 aún no se ha probado con un fichero real. No duplica lo que ya existe y, como la exportación tiene las contraseñas en claro, ofrece borrar el fichero al terminar.
-- Restaurar una copia en un teléfono nuevo desde la bienvenida, con la clave secreta del kit y la contraseña maestra.
-- Importar una copia en el baúl actual: si es del mismo baúl se fusiona por revisión; si es de otro, sus elementos se vuelven a cifrar con las claves de este.
-- Ver la clave secreta de nuevo, tras volver a pedir la contraseña maestra.
-- Bloqueo automático: 5 min sin uso, 30 s después de salir de la app (aunque no vuelvas) o al apagar la pantalla. Mientras está abierto un selector de ficheros o carpetas que el usuario ha pedido (exportar, importar, kit, carpeta de copias), el margen es de 3 minutos, solo para esa vez.
-- Códigos TOTP (verificación en dos pasos): se escanea el QR con la cámara, se lee de una captura o imagen, o se pega el enlace `otpauth://` o el secreto; el detalle muestra el código actual con su cuenta atrás. Se copia el código, nunca el secreto. El QR se decodifica en el teléfono con ZXing; los fotogramas no se guardan y la copia de luminancia se borra tras analizarla.
-- Guardar logins nuevos desde el autorrelleno: al enviar un formulario con contraseña, Android ofrece «Guardar en OpenPassword». Si ya existe un login de ese sitio con el mismo usuario, se ofrece actualizar su contraseña. La contraseña tecleada se queda en la memoria de la app; la ventana de confirmación solo recibe un token, y nada se guarda sin confirmar.
-- Autorrelleno en otras apps y en el navegador (Chrome: *Ajustes → Servicios de autocompletar → Autocompletar con otro servicio*).
+- Signup: master password with a strength meter and a secret key to write down on paper.
+- Unlock with master password; growing delay after 4 failed attempts.
+- Unlock with fingerprint (strong biometrics). The master password is requested every 14 days and after every reboot.
+- Vault: list, accent-insensitive search, filters by type and favorites.
+- Cards: the number is validated with Luhn and the network is shown (Visa, Mastercard, American Express…).
+- Password history on logins, Wi-Fi and secrets: the previous 10, with the change date, to view or copy them.
+- Logins, cards, bank accounts, PINs, documents, Wi-Fi networks, secrets and secure notes: create, view, edit and delete.
+- Bank accounts: the IBAN is validated (country length and check digits) and stored grouped in fours; the list only shows the bank and the last four digits.
+- Documents (ID card, passport, driving license…): dates are stored as DD/MM/YYYY even if they are typed without slashes.
+- Wi-Fi: the detail shows a standard QR (`WIFI:T:WPA;…`) so another phone can connect with its camera. Without a password it is treated as an open network.
+- Reveal field by field and copy to the clipboard marked as sensitive, which is erased after 30 s.
+- Generator of passwords, PINs and passphrases (EFF long list, 7776 words). At signup it can suggest a 6-word phrase as the master password.
+- Emergency kit in PDF for printing, with the secret key and how to restore. It is offered at signup and in Settings, after confirming the password.
+- Export an encrypted `.opvault` backup wherever the user chooses. It opens with `opvault decrypt`. From format v2 it includes the images.
+- Encrypted images: attached to any item (ID card, card, policy) with the app's camera or from the gallery. They are rescaled to 2048 px, re-encoded without EXIF and sealed with the item's key. They are only visible inside the app, with zoom; they are not shared or saved to the gallery. There is a cap of 10 per item and 24 MiB per vault.
+- Automatic backup to a folder chosen by the user (from their cloud, Syncthing or SD card): a few seconds after every change and on unlock if the last one is more than a day old. It keeps the last 10 and only deletes its own backups (`openpassword-auto-…opvault`). Since encrypting requires the vault to be open, with the vault locked no backups are made: pending ones are made on unlock.
+- Vault health, offline: weak passwords, passwords repeated across logins, logins not changed for more than a year, expired cards or cards expiring in the next 2 months, and expired documents or documents expiring in the next 3. A warning appears above the list only when there is something to fix.
+- Import from another manager: KeePass (`.kdbx` 3.1 and 4.x with a password, a key file or both; without recycle bin or history), 1Password `.1pux` (logins with TOTP and extra fields, standalone passwords, cards and notes), unencrypted Bitwarden JSON and CSV from Chrome / Google, Firefox, Bitwarden and 1Password (the columns are recognized by their name). Reading KDBX 4 has not been tested yet with a real file. It does not duplicate what already exists and, since the export has the passwords in the clear, it offers to delete the file when done.
+- Restore a backup on a new phone from the welcome screen, with the secret key from the kit and the master password.
+- Import a backup into the current vault: if it is from the same vault it is merged by revision; if it is from another one, its items are re-encrypted with this vault's keys.
+- View the secret key again, after asking for the master password again.
+- Automatic lock: 5 min without use, 30 s after leaving the app (even if you do not come back) or when the screen turns off. While a file or folder picker requested by the user is open (export, import, kit, backups folder), the margin is 3 minutes, only for that time.
+- TOTP codes (two-step verification): the QR is scanned with the camera, read from a screenshot or image, or the `otpauth://` link or the secret is pasted; the detail shows the current code with its countdown. The code is copied, never the secret. The QR is decoded on the phone with ZXing; frames are not saved and the luminance copy is erased after it is analyzed.
+- Save new logins from autofill: when submitting a form with a password, Android offers «Guardar en OpenPassword» ("Save in OpenPassword"). If a login for that site with the same user already exists, it offers to update its password. The typed password stays in the app's memory; the confirmation window only receives a token, and nothing is saved without confirmation.
+- Autofill in other apps and in the browser (Chrome: *Settings → Autofill services → Autofill with another service* (*Ajustes → Servicios de autocompletar → Autocompletar con otro servicio*)).
 
-**Publicación en tiendas: archivada.** El proyecto es de uso personal; la receta de F-Droid, los metadatos y el flujo de firma quedan en [`docs/archive/fdroid/`](../docs/archive/fdroid) por si algún día vuelve a plantearse como producto público. No hay etiqueta ni release publicada.
+**Publishing to stores: archived.** The project is for personal use; the F-Droid recipe, the metadata and the signing flow remain in [`docs/archive/fdroid/`](../docs/archive/fdroid) in case it is ever planned as a public product again. There is no tag or published release.
 
-## Seguridad que impone la build
+## Security enforced by the build
 
-- `verify<Variant>Manifest` hace fallar la compilación si el manifiesto final declara `INTERNET` o `ACCESS_NETWORK_STATE`, si falta `HIDE_OVERLAY_WINDOWS`, si se declara `QUERY_ALL_PACKAGES`, o si `allowBackup` no es `false`.
-- Anti-tapjacking: `filterTouchesWhenObscured` y `setHideOverlayWindows` en las tres actividades y en todos los diálogos (`ProtectedAlertDialog`); si un toque llega tapado, se avisa.
-- Aviso (nunca bloqueo) si el dispositivo parece tener root o una compilación de depuración: heurísticas locales sin red; el manifiesto declara en `<queries>` solo los nombres de los paquetes de gestores de root.
-- `FLAG_SECURE` en la actividad: sin capturas, grabación ni miniatura en recientes.
-- La clave secreta se guarda sellada con una clave AES-256-GCM de Android Keystore (StrongBox si existe).
-- Huella: la clave del baúl se sella con otra clave de Keystore que exige una autenticación biométrica fuerte en cada uso, solo funciona con el teléfono desbloqueado y Android la destruye si se añade una huella o cara nueva. Los únicos permisos del manifiesto son `USE_BIOMETRIC`, `CAMERA` y `HIDE_OVERLAY_WINDOWS` (permiso normal de Android 12+ que oculta las ventanas superpuestas de otras apps; anti-tapjacking); la cámara se pide solo al pulsar «Escanear QR» o «Hacer foto» y es opcional (`required="false"`): leer el QR de una imagen no necesita ningún permiso. CameraX arrastra `ACCESS_NETWORK_STATE` desde media3 y el manifiesto lo elimina.
-- Los elementos se guardan en SQLite como blobs opacos con `secure_delete`. Se usa SQLite directo en lugar de Room para no depender de procesadores de anotaciones.
-- Nada sensible se guarda en el estado de instancia de Compose (`rememberSaveable`).
-- Las ventanas de la app se excluyen de todos los servicios de autorrelleno, así que ni el de Google ni ningún otro puede leer u ofrecer guardar lo que se escribe en el baúl.
+- `verify<Variant>Manifest` fails the build if the final manifest declares `INTERNET` or `ACCESS_NETWORK_STATE`, if `HIDE_OVERLAY_WINDOWS` is missing, if `QUERY_ALL_PACKAGES` is declared, or if `allowBackup` is not `false`.
+- Anti-tapjacking: `filterTouchesWhenObscured` and `setHideOverlayWindows` in all three activities and in all dialogs (`ProtectedAlertDialog`); if a covered touch arrives, a warning is shown.
+- Warning (never a block) if the device appears to be rooted or running a debug build: local heuristics without network; the manifest declares in `<queries>` only the root manager package names.
+- `FLAG_SECURE` on the activity: no screenshots, recording or thumbnail in recents.
+- The secret key is stored sealed with an AES-256-GCM key from the Android Keystore (StrongBox if present).
+- Fingerprint: the vault key is sealed with another Keystore key that requires strong biometric authentication on every use, only works with the phone unlocked, and Android destroys it if a new fingerprint or face is added. The only manifest permissions are `USE_BIOMETRIC`, `CAMERA` and `HIDE_OVERLAY_WINDOWS` (normal Android 12+ permission that hides the overlay windows of other apps; anti-tapjacking); the camera is requested only when pressing «Escanear QR» ("Scan QR") or «Hacer foto» ("Take photo") and it is optional (`required="false"`): reading the QR from an image needs no permission. CameraX pulls in `ACCESS_NETWORK_STATE` from media3 and the manifest removes it.
+- Items are stored in SQLite as opaque blobs with `secure_delete`. Plain SQLite is used instead of Room to avoid depending on annotation processors.
+- Nothing sensitive is stored in Compose instance state (`rememberSaveable`).
+- The app's windows are excluded from all autofill services, so neither Google's nor any other can read or offer to save what is typed into the vault.
 
-## Autorrelleno
+## Autofill
 
-- Android muestra las sugerencias y solo rellena la que el usuario toca.
-- **Coincidencia estricta**:
-  - En webs, solo el host guardado o sus subdominios: `google.com` vale para `accounts.google.com`, pero nunca para `google.com.phishing.net` ni para `evilgoogle.com`.
-  - En apps, solo el nombre de paquete exacto, que Android verifica, guardado como `androidapp://paquete`.
-  - Un login de una web nunca vale para una app, ni al revés.
-- Con el baúl bloqueado solo se ofrece «Desbloquear OpenPassword», que abre una ventana con contraseña o huella.
-- Si no hay coincidencia, el usuario puede elegir un login a mano. En apps puede recordarlo para esa app; en webs se le avisa de que compruebe el sitio.
-- Los campos se detectan en `autofill/FieldClassifier.kt` (pistas de autorrelleno, tipo de entrada, atributos HTML y nombres en español e inglés). La lógica de detección y de coincidencia tiene tests unitarios.
+- Android shows the suggestions and only fills the one the user taps.
+- **Strict matching**:
+  - On websites, only the saved host or its subdomains: `google.com` works for `accounts.google.com`, but never for `google.com.phishing.net` or for `evilgoogle.com`.
+  - In apps, only the exact package name, which Android verifies, stored as `androidapp://package`.
+  - A login for a website never works for an app, nor the other way round.
+- With the vault locked only «Desbloquear OpenPassword» ("Unlock OpenPassword") is offered, which opens a window with password or fingerprint.
+- If there is no match, the user can pick a login by hand. In apps it can be remembered for that app; on websites the user is warned to check the site.
+- Fields are detected in `autofill/FieldClassifier.kt` (autofill hints, input type, HTML attributes and names in Spanish and English). The detection and matching logic has unit tests.
 
-## Verificación de dependencias
+## Dependency verification
 
-`gradle/verification-metadata.xml` guarda el SHA-256 de cada artefacto Maven (dependencias, plugins y herramientas de build). Gradle lo comprueba en cada resolución y el build falla si una suma no coincide o falta.
+`gradle/verification-metadata.xml` keeps the SHA-256 of every Maven artifact (dependencies, plugins and build tools). Gradle checks it on every resolution and the build fails if a checksum does not match or is missing.
 
-**Una dependencia nueva, o una subida de versión, exige actualizar ese fichero.** Con JDK 17, desde `android/`:
+**A new dependency, or a version bump, requires updating that file.** With JDK 17, from `android/`:
 
     ./gradlew --write-verification-metadata sha256 :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:cyclonedxDirectBom
 
-Revisa el diff del XML (solo deben aparecer los artefactos nuevos) y súbelo en el mismo commit. Es la misma lista de tareas que ejecuta la CI.
+Review the diff of the XML (only the new artifacts should appear) and upload it in the same commit. It is the same task list that the CI runs.
 
-Limitación: hay artefactos que dependen de la plataforma. En macOS, Gradle solo resuelve `aapt2-<versión>-osx.jar`; la CI (Linux) necesita también `aapt2-<versión>-linux.jar`, que se añade a mano con el SHA-256 del fichero descargado de `https://dl.google.com/dl/android/maven2/com/android/tools/build/aapt2/<versión>/`. Si la CI falla con «Dependency verification failed» tras una subida de AGP, empieza por ahí; si no, regenera el fichero en Linux (`--write-verification-metadata` fusiona con lo que ya hay).
+Limitation: some artifacts depend on the platform. On macOS, Gradle only resolves `aapt2-<version>-osx.jar`; the CI (Linux) also needs `aapt2-<version>-linux.jar`, which is added by hand with the SHA-256 of the file downloaded from `https://dl.google.com/dl/android/maven2/com/android/tools/build/aapt2/<version>/`. If the CI fails with «Dependency verification failed» after an AGP bump, start there; if not, regenerate the file on Linux (`--write-verification-metadata` merges with what is already there).
 
-## Compilar
+## Building
 
-Requisitos: JDK 17, Android SDK con la plataforma 37, NDK `30.0.16248370`, Rust con los targets de Android y `cargo-ndk`.
+Requirements: JDK 17, Android SDK with platform 37, NDK `30.0.16248370`, Rust with the Android targets and `cargo-ndk`.
 
 ```sh
 rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
@@ -79,41 +79,41 @@ cd android
 ./gradlew :app:assembleDebug
 ```
 
-La tarea `cargoBuild` compila `op-ffi` con `cargo ndk` (siempre en release, porque Argon2id es demasiado lento sin optimizar) y `uniffiBindings` genera el código Kotlin a partir de la librería. Para compilar solo una ABI y ganar tiempo: `./gradlew :app:assembleDebug -PrustAbis=arm64-v8a`.
+The `cargoBuild` task compiles `op-ffi` with `cargo ndk` (always in release, because Argon2id is too slow without optimization) and `uniffiBindings` generates the Kotlin code from the library. To build only one ABI and save time: `./gradlew :app:assembleDebug -PrustAbis=arm64-v8a`.
 
-Las librerías nativas están alineadas a 16 KB, como exige Android 15+ en dispositivos con páginas de 16 KB.
+Native libraries are 16 KB aligned, as Android 15+ requires on devices with 16 KB pages.
 
 ## Tests
 
 ```sh
-./gradlew :app:testDebugUnitTest            # JVM: generadores, lista EFF, fortaleza, campos, espera tras fallos
-./gradlew :app:connectedDebugAndroidTest    # en un móvil o emulador: sesión completa con op-core, Keystore y SQLite reales
+./gradlew :app:testDebugUnitTest            # JVM: generators, EFF list, strength, fields, delay after failures
+./gradlew :app:connectedDebugAndroidTest    # on a phone or emulator: full session with real op-core, Keystore and SQLite
 ```
 
-Los tests instrumentados usan un espacio de nombres propio por test (ficheros, base de datos y clave de Keystore) y lo borran al terminar: nunca tocan los datos de la app. Gradle desinstala la app de depuración al acabar.
+The instrumented tests use their own namespace per test (files, database and Keystore key) and delete it when done: they never touch the app's data. Gradle uninstalls the debug app at the end.
 
-## Firma de release
+## Release signing
 
-La clave no está en el repositorio. Gradle la usa solo si existe `~/.openpassword/release-signing.properties` (o el fichero que indiques con `-PsigningProperties=…`):
+The key is not in the repository. Gradle only uses it if `~/.openpassword/release-signing.properties` exists (or the file you specify with `-PsigningProperties=…`):
 
 ```properties
-storeFile=/ruta/a/openpassword-release.p12
+storeFile=/path/to/openpassword-release.p12
 storePassword=…
 keyAlias=openpassword
 keyPassword=…
 ```
 
-En GitHub, la CI escribe ese mismo fichero a partir de los secretos `RELEASE_KEYSTORE_BASE64`
-(el `.p12` en base64), `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS` y `RELEASE_KEY_PASSWORD`. Las
-pull requests no reciben secretos: su APK queda sin firmar.
+On GitHub, the CI writes that same file from the secrets `RELEASE_KEYSTORE_BASE64`
+(the `.p12` in base64), `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD`. Pull
+requests do not receive secrets: their APK is left unsigned.
 
-Cada push a `main` actualiza la prerelease `latest`; una etiqueta `v*` crea su release. El APK se
-descarga sin cuenta desde <https://github.com/rldona/OpenPassword/releases>. La CI pasa
-`-PversionCode` (número de commits, siempre creciente) y `-PversionName` (la etiqueta o
-`0.1.0-<commit>`), de modo que la build nueva se instala encima de la anterior. Se firma con el
-esquema v3, que permite rotar la clave en el futuro.
+Every push to `main` updates the `latest` prerelease; a `v*` tag creates its release. The APK is
+downloaded without an account from <https://github.com/rldona/OpenPassword/releases>. The CI passes
+`-PversionCode` (number of commits, always increasing) and `-PversionName` (the tag or
+`0.1.0-<commit>`), so the new build installs over the previous one. It is signed with the v3
+scheme, which allows rotating the key in the future.
 
-Certificado de las releases oficiales (compruébalo con `apksigner verify --print-certs`):
+Certificate of the official releases (check it with `apksigner verify --print-certs`):
 
 ```
 CN=OpenPassword, O=rldona · RSA 4096

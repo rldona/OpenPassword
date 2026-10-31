@@ -1,60 +1,60 @@
-# Especificación criptográfica de OpenPassword · v1
+# OpenPassword cryptographic specification · v1
 
-Estado: implementada y verificada por los vectores dorados de `core/tests/vectors/op-v1.json`; pendiente de auditoría externa. Este documento es normativo: si el código y la especificación no coinciden, el error está en el código o hay que versionar la especificación.
+Status: implemented and verified by the golden vectors in `core/tests/vectors/op-v1.json`; pending external audit. This document is normative: if the code and the specification disagree, the bug is in the code or the specification has to be versioned.
 
-Las palabras DEBE, NO DEBE y PUEDE se usan en el sentido de RFC 2119.
+The words MUST, MUST NOT and MAY are used as defined in RFC 2119.
 
-## 1. Objetivos
+## 1. Goals
 
-1. Conocimiento cero: solo quien conoce la contraseña maestra **y** tiene la clave secreta puede descifrar un baúl o un respaldo.
-2. Un fichero de respaldo robado DEBE resistir fuerza bruta aunque la contraseña maestra sea débil.
-3. Todo el contenido de un elemento, incluidos los metadatos (tipo, título, URLs, etiquetas, fechas), DEBE ir cifrado.
-4. Ningún bloque cifrado DEBE poder moverse a otro contexto (otro elemento, otra revisión, otro baúl, otro campo) sin que falle la autenticación.
-5. Solo primitivas estándar con implementaciones auditadas.
+1. Zero knowledge: only someone who knows the master password **and** holds the secret key can decrypt a vault or a backup.
+2. A stolen backup file MUST withstand brute force even if the master password is weak.
+3. All the content of an item, including metadata (type, title, URLs, tags, dates), MUST be encrypted.
+4. No encrypted block MUST be movable to another context (another item, another revision, another vault, another field) without authentication failing.
+5. Only standard primitives with audited implementations.
 
-## 2. Primitivas
+## 2. Primitives
 
-| Uso | Primitiva | Implementación |
+| Use | Primitive | Implementation |
 |---|---|---|
-| Derivación desde contraseña | Argon2id v1.3 (RFC 9106) | crate `argon2` (RustCrypto) |
-| Derivación de claves | HKDF-SHA256 (RFC 5869) | crate `hkdf` + `sha2` |
-| Cifrado autenticado | XChaCha20-Poly1305 (draft-irtf-cfrg-xchacha) | crate `chacha20poly1305` |
-| Cifrado por bloques del respaldo | STREAM, variante BE32 (Hoang, Reyhanitabar, Rogaway, Vizár, 2015) sobre XChaCha20-Poly1305 | `chacha20poly1305::aead::stream` |
-| Resumen | SHA-256 | crate `sha2` |
-| Aleatoriedad | CSPRNG del sistema operativo | crate `getrandom` |
+| Derivation from password | Argon2id v1.3 (RFC 9106) | `argon2` crate (RustCrypto) |
+| Key derivation | HKDF-SHA256 (RFC 5869) | `hkdf` + `sha2` crates |
+| Authenticated encryption | XChaCha20-Poly1305 (draft-irtf-cfrg-xchacha) | `chacha20poly1305` crate |
+| Block encryption of the backup | STREAM, BE32 variant (Hoang, Reyhanitabar, Rogaway, Vizár, 2015) over XChaCha20-Poly1305 | `chacha20poly1305::aead::stream` |
+| Digest | SHA-256 | `sha2` crate |
+| Randomness | Operating system CSPRNG | `getrandom` crate |
 
-No se usa compresión antes de cifrar: evita filtraciones por longitud (tipo CRIME) y una dependencia en C.
+No compression is used before encrypting: it avoids length leaks (CRIME type) and a dependency in C.
 
-## 3. Claves
+## 3. Keys
 
-Todas las claves simétricas tienen 256 bits.
+All symmetric keys are 256 bits.
 
-| Nombre | Qué es | Dónde vive |
+| Name | What it is | Where it lives |
 |---|---|---|
-| **MP** | Contraseña maestra, normalizada Unicode NFKD | Solo en la cabeza del usuario |
-| **SK** | Clave secreta, 128 bits aleatorios | Dispositivo (protegida por Keystore) y kit de emergencia en papel |
-| **KEK** | Clave de cifrado de claves, derivada de MP y SK | Solo en memoria, durante el desbloqueo |
-| **VK** | Clave del baúl, aleatoria | Envuelta por la KEK (y opcionalmente por una clave del Keystore) |
-| **IK** | Clave de elemento, aleatoria, una por elemento | Envuelta por la VK |
-| **FK** | Clave de fichero, aleatoria, una por respaldo | Envuelta por la VK dentro del respaldo |
+| **MP** | Master password, Unicode NFKD normalized | Only in the user's head |
+| **SK** | Secret key, 128 random bits | Device (protected by Keystore) and paper emergency kit |
+| **KEK** | Key encryption key, derived from MP and SK | Only in memory, during unlock |
+| **VK** | Vault key, random | Wrapped by the KEK (and optionally by a Keystore key) |
+| **IK** | Item key, random, one per item | Wrapped by the VK |
+| **FK** | File key, random, one per backup | Wrapped by the VK inside the backup |
 
-## 4. Clave secreta (SK)
+## 4. Secret key (SK)
 
-- 16 bytes del CSPRNG.
-- Representación para humanos: prefijo de versión `OP1` y 30 caracteres en Base32 de Crockford (`0123456789ABCDEFGHJKMNPQRSTVWXYZ`), en grupos de 6:
+- 16 bytes from the CSPRNG.
+- Human representation: version prefix `OP1` and 30 Crockford Base32 characters (`0123456789ABCDEFGHJKMNPQRSTVWXYZ`), in groups of 6:
 
   ```
   OP1-XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX
   ```
 
-  - Caracteres 1–26: los 128 bits de la SK en big-endian, seguidos de 2 bits a cero.
-  - Caracteres 27–30: suma de control de 20 bits = los 20 primeros bits de `SHA-256("op/sk-check/v1" ‖ SK)`.
-- Al leerla, la implementación DEBE ignorar guiones y espacios, aceptar minúsculas y mapear `O→0` e `I, L→1`. DEBE rechazar una suma de control incorrecta o bits de relleno distintos de cero.
-- Identificador público: `sk_id = HKDF-SHA256(ikm = SK, salt = vacío, info = "op/sk-id/v1")[0..4]`. Permite avisar de «clave secreta equivocada» antes de ejecutar Argon2id. No revela bits de la SK.
+  - Characters 1–26: the 128 bits of the SK in big-endian, followed by 2 zero bits.
+  - Characters 27–30: 20-bit checksum = the first 20 bits of `SHA-256("op/sk-check/v1" ‖ SK)`.
+- When reading it, the implementation MUST ignore hyphens and spaces, accept lowercase and map `O→0` and `I, L→1`. It MUST reject an incorrect checksum or non-zero padding bits.
+- Public identifier: `sk_id = HKDF-SHA256(ikm = SK, salt = empty, info = "op/sk-id/v1")[0..4]`. It allows a «clave secreta equivocada» warning before running Argon2id. It does not reveal any bits of the SK.
 
-## 5. Derivación de la KEK
+## 5. KEK derivation
 
-Entradas: MP, SK, `salt` (32 bytes aleatorios por baúl) y parámetros de Argon2id.
+Inputs: MP, SK, `salt` (32 random bytes per vault) and Argon2id parameters.
 
 ```
 mp_bytes = UTF-8(NFKD(MP))
@@ -63,120 +63,120 @@ sk_key   = HKDF-SHA256(ikm = SK, salt = salt, info = "op/sk/v1", len = 32)
 KEK      = HKDF-SHA256(ikm = pw_key ‖ sk_key, salt = salt, info = "op/kek/v1", len = 32)
 ```
 
-La contraseña no se recorta ni se modifica salvo la normalización NFKD, para que la misma contraseña escrita en teclados distintos produzca los mismos bytes.
+The password is not trimmed or modified except for NFKD normalization, so that the same password typed on different keyboards produces the same bytes.
 
-### Parámetros de Argon2id
+### Argon2id parameters
 
-| Perfil | m (KiB) | t | p | Uso |
+| Profile | m (KiB) | t | p | Use |
 |---|---|---|---|---|
-| Recomendado | 262 144 (256 MiB) | 3 | 4 | Por defecto al crear un baúl |
-| Mínimo | 65 536 (64 MiB) | 2 | 1 | Gama baja; no se PUEDE crear por debajo |
-| Máximo aceptado al leer | 2 097 152 (2 GiB) | 16 | 16 | Rechazar cabeceras más costosas (evita denegación de servicio) |
+| Recommended | 262 144 (256 MiB) | 3 | 4 | Default when creating a vault |
+| Minimum | 65 536 (64 MiB) | 2 | 1 | Low end; it MUST NOT be possible to create below this |
+| Maximum accepted on read | 2 097 152 (2 GiB) | 16 | 16 | Reject costlier headers (prevents denial of service) |
 
-Las plataformas PUEDEN aplicar un techo más bajo que el máximo del formato. Android: 512 MiB / 6 / 8 (`MOBILE_MAXIMUM` en `op-ffi`), comprobado antes de derivar la clave.
+Platforms MAY apply a lower ceiling than the format maximum. Android: 512 MiB / 6 / 8 (`MOBILE_MAXIMUM` in `op-ffi`), checked before deriving the key.
 
-Al leer un baúl o respaldo ya existente se aceptan parámetros por debajo del mínimo (pueden venir de un dispositivo antiguo), pero la app DEBE proponer recifrar con parámetros actuales.
+When reading an existing vault or backup, parameters below the minimum are accepted (they may come from an older device), but the app MUST offer to re-encrypt with current parameters.
 
-## 6. Cifrado autenticado
+## 6. Authenticated encryption
 
-### 6.1 Formato de un bloque sellado
-
-```
-sealed = nonce (24 bytes, aleatorio) ‖ ciphertext ‖ tag (16 bytes)
-```
-
-Cada operación de sellado DEBE usar un nonce nuevo del CSPRNG. Con 192 bits el riesgo de colisión es despreciable.
-
-### 6.2 Datos asociados (AAD)
-
-Todo sellado lleva AAD que fija su contexto. Codificación:
+### 6.1 Format of a sealed block
 
 ```
-aad(dominio, partes...) = UTF-8(dominio) ‖ 0x00 ‖ para cada parte: u32_le(len(parte)) ‖ parte
+sealed = nonce (24 bytes, random) ‖ ciphertext ‖ tag (16 bytes)
 ```
 
-| Qué se sella | Clave | Dominio | Partes |
+Every sealing operation MUST use a fresh nonce from the CSPRNG. With 192 bits the collision risk is negligible.
+
+### 6.2 Associated data (AAD)
+
+Every sealing carries AAD that fixes its context. Encoding:
+
+```
+aad(domain, parts...) = UTF-8(domain) ‖ 0x00 ‖ for each part: u32_le(len(part)) ‖ part
+```
+
+| What is sealed | Key | Domain | Parts |
 |---|---|---|---|
 | VK | KEK | `op/wrap/v1` | `"vault_key"`, `vault_id` |
 | IK | VK | `op/wrap/v1` | `"item_key"`, `vault_id`, `item_id` |
-| Resumen del elemento | IK | `op/item/v1` | `"overview"`, `vault_id`, `item_id`, `u64_le(revision)` |
-| Detalles del elemento | IK | `op/item/v1` | `"details"`, `vault_id`, `item_id`, `u64_le(revision)` |
-| Imagen adjunta | IK | `op/attachment/v1` | `"image"`, `vault_id`, `item_id`, `attachment_id` |
-| FK del respaldo | VK | `op/wrap/v1` | `"file_key"`, `vault_id`, `stream_nonce` |
+| Item overview | IK | `op/item/v1` | `"overview"`, `vault_id`, `item_id`, `u64_le(revision)` |
+| Item details | IK | `op/item/v1` | `"details"`, `vault_id`, `item_id`, `u64_le(revision)` |
+| Attached image | IK | `op/attachment/v1` | `"image"`, `vault_id`, `item_id`, `attachment_id` |
+| Backup FK | VK | `op/wrap/v1` | `"file_key"`, `vault_id`, `stream_nonce` |
 
-Consecuencias: no se puede intercambiar el resumen de un elemento con el de otro, ni mezclar el resumen de la revisión 3 con los detalles de la 2, ni reutilizar una IK envuelta en otro elemento o baúl.
+Consequences: the overview of one item cannot be swapped with that of another, nor can the overview of revision 3 be mixed with the details of revision 2, nor can an IK wrapped in another item or vault be reused.
 
-### 6.3 Relleno
+### 6.3 Padding
 
-Antes de sellar, el JSON de un resumen o de unos detalles se rellena para ocultar su longitud exacta:
+Before sealing, the JSON of an overview or of some details is padded to hide its exact length:
 
 ```
-padded = u32_le(len(json)) ‖ json ‖ 0x00…  (hasta un múltiplo de 64 bytes)
+padded = u32_le(len(json)) ‖ json ‖ 0x00…  (up to a multiple of 64 bytes)
 ```
 
-Al abrir, el relleno DEBE ser todo ceros y la longitud total múltiplo de 64.
+When opening, the padding MUST be all zeros and the total length a multiple of 64.
 
-Las imágenes usan bloques de 4096 bytes. Su texto en claro es `u8 versión = 1 ‖ u8 tipo = 1 (JPEG) ‖ jpeg`. El bloque es más grueso porque una imagen ya oculta su tamaño aproximado y el relleno de 64 bytes no aportaría nada.
+Images use 4096-byte blocks. Their plaintext is `u8 version = 1 ‖ u8 type = 1 (JPEG) ‖ jpeg`. The block is coarser because an image already hides its approximate size and 64-byte padding would add nothing.
 
-## 7. Elementos
+## 7. Items
 
-Cada elemento se guarda como:
+Each item is stored as:
 
-| Campo | Contenido |
+| Field | Contents |
 |---|---|
-| `id` | 16 bytes aleatorios |
-| `revision` | u64, empieza en 1 y sube en cada edición |
-| `wrapped_item_key` | IK sellada con la VK |
-| `overview` | Sellado con la IK: tipo, título, subtítulo, URLs, etiquetas, favorito, fechas. Se descifra al desbloquear para la lista y la búsqueda |
-| `details` | Sellado con la IK: campos, notas e historial de contraseñas. Se descifra solo al abrir el elemento |
+| `id` | 16 random bytes |
+| `revision` | u64, starts at 1 and increases on each edit |
+| `wrapped_item_key` | IK sealed with the VK |
+| `overview` | Sealed with the IK: type, title, subtitle, URLs, tags, favorite, dates. Decrypted on unlock for the list and search |
+| `details` | Sealed with the IK: fields, notes and password history. Decrypted only when opening the item |
 
-Una edición mantiene la IK, incrementa `revision` y vuelve a sellar `overview` y `details` con nonces nuevos.
+An edit keeps the IK, increments `revision` and re-seals `overview` and `details` with fresh nonces.
 
-### Imágenes
+### Images
 
-Un elemento puede llevar hasta 10 imágenes. Cada una es un campo `image` cuyo valor es el id del adjunto (hex de 16 bytes) y un registro `EncryptedAttachment` aparte, sellado con la IK del elemento y el AAD de la tabla de 6.2. El adjunto es inmutable: sustituir una imagen crea un id nuevo, por eso su AAD no incluye la revisión. La lista de campos `image` es la fuente de verdad; una referencia sin adjunto se conserva y la app la muestra como no disponible.
+An item may carry up to 10 images. Each one is an `image` field whose value is the attachment id (hex of 16 bytes) and a separate `EncryptedAttachment` record, sealed with the item's IK and the AAD from the table in 6.2. The attachment is immutable: replacing an image creates a new id, which is why its AAD does not include the revision. The list of `image` fields is the source of truth; a reference without an attachment is kept and the app shows it as unavailable.
 
-Solo se aceptan JPEG sin metadatos (sin APP1/Exif, COM ni MPF) de hasta 1,5 MiB. La app los reescala y recodifica antes de sellarlos. Las imágenes no entran en el historial de contraseñas. El respaldo `.opvault` v2 las incluye; v1 no las tenía.
+Only JPEGs without metadata (no APP1/Exif, COM or MPF) of up to 1.5 MiB are accepted. The app rescales and re-encodes them before sealing them. Images do not go into the password history. The `.opvault` v2 backup includes them; v1 did not have them.
 
-### Historial de contraseñas
+### Password history
 
-En logins, Wi-Fi y secretos, al editar, el núcleo descifra los `details` de la revisión anterior y añade a `history` cada campo oculto cuyo valor ya no está con la misma etiqueta: `{label, value, changed_at}`, con `changed_at` igual al `updated_at` de la edición. Se guardan los 10 más recientes, del más nuevo al más antiguo. El historial lo calcula el núcleo, no la app, para que un error de la interfaz no pueda borrarlo. Las tarjetas no guardan historial: un CVV antiguo no aporta nada y es un secreto más. Si `history` está vacío no se serializa, así que los elementos sin historial cifran lo mismo que antes.
+In logins, Wi-Fi and secrets, when editing, the core decrypts the `details` of the previous revision and appends to `history` every hidden field whose value is no longer present under the same label: `{label, value, changed_at}`, with `changed_at` equal to the `updated_at` of the edit. The 10 most recent are kept, from newest to oldest. The history is computed by the core, not by the app, so that a UI bug cannot erase it. Cards do not keep history: an old CVV adds nothing and is one more secret. If `history` is empty it is not serialized, so items without history encrypt the same as before.
 
-## 8. Cambio de contraseña o de clave secreta
+## 8. Changing the password or the secret key
 
-Se genera un `salt` nuevo, se deriva la nueva KEK y se vuelve a envolver la VK. Los elementos no se tocan. Los respaldos antiguos siguen abriéndose con las credenciales antiguas: la app DEBE avisarlo.
+A new `salt` is generated, the new KEK is derived and the VK is wrapped again. Items are not touched. Old backups still open with the old credentials: the app MUST warn about it.
 
-## 9. Desbloqueo biométrico (Android)
+## 9. Biometric unlock (Android)
 
-1. Se crea en Android Keystore una clave AES-256-GCM con `setUserAuthenticationRequired(true)`, autenticación `BIOMETRIC_STRONG`, `setInvalidatedByBiometricEnrollment(true)`, `setUnlockedDeviceRequired(true)` y StrongBox cuando exista.
-2. La VK se cifra con esa clave tras un desbloqueo con contraseña y se guarda junto al baúl.
-3. Al desbloquear con huella, el Keystore descifra la VK.
-4. La app DEBE pedir la contraseña maestra cada 14 días y tras reiniciar el dispositivo. Para detectar el reinicio, guarda `Settings.Global.BOOT_COUNT` en cada desbloqueo con contraseña.
-5. Fichero `vault-key.biometric`: `versión (1) ‖ iv (12) ‖ VK cifrada (32) ‖ tag (16)`. Si Android invalida la clave (`KeyPermanentlyInvalidatedException`), la app borra el fichero y la clave y vuelve a la contraseña.
+1. An AES-256-GCM key is created in the Android Keystore with `setUserAuthenticationRequired(true)`, `BIOMETRIC_STRONG` authentication, `setInvalidatedByBiometricEnrollment(true)`, `setUnlockedDeviceRequired(true)` and StrongBox when available.
+2. The VK is encrypted with that key after a password unlock and stored next to the vault.
+3. When unlocking with a fingerprint, the Keystore decrypts the VK.
+4. The app MUST ask for the master password every 14 days and after a device reboot. To detect the reboot, it stores `Settings.Global.BOOT_COUNT` on every password unlock.
+5. File `vault-key.biometric`: `version (1) ‖ iv (12) ‖ encrypted VK (32) ‖ tag (16)`. If Android invalidates the key (`KeyPermanentlyInvalidatedException`), the app deletes the file and the key and falls back to the password.
 
-Esta parte vive en la capa Android, no en `op-core`.
+This part lives in the Android layer, not in `op-core`.
 
-## 10. Higiene de memoria
+## 10. Memory hygiene
 
-- Los tipos de clave de `op-core` borran su contenido al liberarse (`zeroize`) y no imprimen su valor en `Debug`.
-- Los textos en claro descifrados se devuelven en tipos que se borran al liberarse.
-- Límite conocido: la JVM y Compose manejan `String` inmutables que no se pueden borrar. La capa Android DEBE minimizar su vida útil.
-- Sobrante aceptado: `decrypt_image` devuelve los bytes por UniFFI en un `RustBuffer` que se libera sin borrar. La app borra su copia; los mapas de bits se borran al salir del visor.
+- The key types in `op-core` wipe their contents when freed (`zeroize`) and do not print their value in `Debug`.
+- Decrypted plaintexts are returned in types that are wiped when freed.
+- Known limitation: the JVM and Compose handle immutable `String`s that cannot be wiped. The Android layer MUST minimize their lifetime.
+- Accepted leftover: `decrypt_image` returns the bytes over UniFFI in a `RustBuffer` that is freed without wiping. The app wipes its copy; bitmaps are wiped when leaving the viewer.
 
-## 11. Versionado
+## 11. Versioning
 
-- Los dominios llevan sufijo de versión (`/v1`). Un cambio incompatible crea `/v2` y una nueva versión de formato.
-- Los vectores de prueba de `core/tests/vectors/op-v1.json` fijan esta versión. Si un cambio de código los rompe, el cambio es incompatible.
-- El formato `.opvault` v2 añade imágenes adjuntas. Un lector v1 rechaza una copia v2 por su byte de versión; un lector v2 abre v1 y v2.
+- Domains carry a version suffix (`/v1`). An incompatible change creates `/v2` and a new format version.
+- The test vectors in `core/tests/vectors/op-v1.json` pin this version. If a code change breaks them, the change is incompatible.
+- The `.opvault` v2 format adds attached images. A v1 reader rejects a v2 backup by its version byte; a v2 reader opens v1 and v2.
 
-## 12. Códigos TOTP
+## 12. TOTP codes
 
-- RFC 6238 sobre HOTP (RFC 4226), con HMAC-SHA1, SHA-256 o SHA-512, de 6 a 8 dígitos y un periodo de 1 a 3600 s. Por defecto: SHA-1, 6 dígitos y 30 s.
-- Entrada: un enlace `otpauth://totp/Emisor:cuenta?secret=…&issuer=…&algorithm=…&digits=…&period=…` o el secreto en base32 (se ignoran mayúsculas, espacios, guiones y relleno `=`). No se admite HOTP (`otpauth://hotp`), porque exige guardar un contador.
-- El secreto introducido por el usuario DEBE tener al menos 80 bits. Así se rechazan palabras o texto pegado por error.
-- El secreto es un campo más de los detalles del elemento: va cifrado como el resto y nunca se muestra. La app solo muestra y copia el código.
-- Implementación en `core/src/totp.rs`, probada con los vectores de RFC 6238 (apéndice B) y RFC 4226 (apéndice D).
+- RFC 6238 over HOTP (RFC 4226), with HMAC-SHA1, SHA-256 or SHA-512, 6 to 8 digits and a period of 1 to 3600 s. By default: SHA-1, 6 digits and 30 s.
+- Input: an `otpauth://totp/Issuer:account?secret=…&issuer=…&algorithm=…&digits=…&period=…` link or the secret in base32 (uppercase, spaces, hyphens and `=` padding are ignored). HOTP (`otpauth://hotp`) is not supported, because it requires storing a counter.
+- The secret entered by the user MUST be at least 80 bits. This rejects words or text pasted by mistake.
+- The secret is one more field of the item's details: it is encrypted like the rest and never shown. The app only shows and copies the code.
+- Implementation in `core/src/totp.rs`, tested with the RFC 6238 (appendix B) and RFC 4226 (appendix D) vectors.
 
-## 13. Fuera de alcance de v1
+## 13. Out of scope for v1
 
-Compartir elementos entre usuarios, sincronización y passkeys. Las imágenes adjuntas entran en v2 (sección 7). El diseño de IK por elemento deja preparado compartir.
+Sharing items between users, synchronization and passkeys. Attached images arrive in v2 (section 7). The per-item IK design leaves sharing prepared.

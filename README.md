@@ -1,96 +1,99 @@
 # OpenPassword
 
-Gestor de contraseñas, tarjetas, PINs y secretos, offline y sin servidor. Android primero.
+Password manager for passwords, cards, PINs and secrets, offline and without a server. Android first.
 
-> **Proyecto personal.** Lo uso yo en mi propio teléfono: no se publica en ninguna tienda, no tiene
-> usuarios externos ni soporte, y **no ha pasado una auditoría de seguridad externa**. Si alguien más
-> lo usa, lo hace por su cuenta y riesgo. Lo que sí está hecho y probado es lo que protege la bóveda:
-> cifrado, copias automáticas, restauración y un conjunto de tests y fuzzing que han encontrado fallos
-> reales.
+> **Personal project.** I use it on my own phone: it is not published in any store, it has no
+> external users or support, and **it has not gone through an external security audit**. If anyone
+> else uses it, they do so at their own risk. What is done and tested is what protects the vault:
+> encryption, automatic backups, restore and a set of tests and fuzzing that have found real bugs.
 
-## Qué hace
+## What it does
 
-- Baúl de logins, tarjetas, cuentas bancarias, PINs, documentos, redes Wi-Fi, secretos y notas, con
-  búsqueda sin acentos, filtros y favoritos.
-- Autorrelleno en otras apps y en el navegador, con comprobación de dominio (lista de sufijos públicos
-  incluida) y sin aceptar el dominio que declare una app que no sea un navegador.
-- Desbloqueo con contraseña maestra o huella, bloqueo automático y `FLAG_SECURE` (sin capturas).
-- Códigos TOTP: escaneados con la cámara, leídos de una imagen o pegados desde `otpauth://`.
-- Imágenes cifradas (DNI, tarjetas, pólizas) adjuntas a cualquier elemento, hechas con la cámara de la
-  app o elegidas de la galería. Solo se ven dentro de OpenPassword: no se comparten ni se guardan fuera.
-- Generador de contraseñas, PINs y frases de paso (lista EFF).
-- Copia automática cifrada a una carpeta que elijas (nube, Syncthing o tarjeta SD) y exportación
-  manual `.opvault`.
-- Importación desde KeePass, 1Password, Bitwarden, Chrome, Firefox y CSV.
-- Kit de emergencia en PDF para imprimir, con la clave secreta.
+- Vault for logins, cards, bank accounts, PINs, documents, Wi-Fi networks, secrets and notes, with
+  accent-insensitive search, filters and favorites.
+- Autofill in other apps and in the browser, with domain checking (public suffix list included) and
+  without accepting the domain declared by an app that is not a browser.
+- Unlock with master password or fingerprint, automatic lock and `FLAG_SECURE` (no screenshots).
+- TOTP codes: scanned with the camera, read from an image or pasted from `otpauth://`.
+- Encrypted images (ID card, cards, policies) attached to any item, taken with the app's camera or
+  picked from the gallery. They are only visible inside OpenPassword: they are not shared or saved
+  outside.
+- Generator of passwords, PINs and passphrases (EFF list).
+- Automatic encrypted backup to a folder you choose (cloud, Syncthing or SD card) and manual
+  `.opvault` export.
+- Import from KeePass, 1Password, Bitwarden, Chrome, Firefox and CSV.
+- Emergency kit in PDF for printing, with the secret key.
 
-Detalle completo en [`android/README.md`](android/README.md).
+Full detail in [`android/README.md`](android/README.md).
 
-## Empezar a usarla
+## Getting started
 
-Requisitos: JDK 17, Android SDK con la plataforma 37 y el NDK `30.0.16248370`, Rust con los targets de
-Android y `cargo-ndk 4.1.2`, como se explica en [`android/README.md`](android/README.md).
+Requirements: JDK 17, Android SDK with platform 37 and NDK `30.0.16248370`, Rust with the Android
+targets and `cargo-ndk 4.1.2`, as explained in [`android/README.md`](android/README.md).
 
 ```sh
 cd android
-./gradlew :app:installDebug     # instala io.github.rldona.openpassword.debug
+./gradlew :app:installDebug     # installs io.github.rldona.openpassword.debug
 ```
 
-### Descargar el APK
+### Downloading the APK
 
-Cada push a `main` publica una build firmada; las etiquetas `v*` crean su release:
+Every push to `main` publishes a signed build; `v*` tags create their release:
 
-- Última build de `main`: <https://github.com/rldona/OpenPassword/releases/download/latest/OpenPassword.apk>
-- Versiones publicadas: <https://github.com/rldona/OpenPassword/releases>
+- Latest build of `main`: <https://github.com/rldona/OpenPassword/releases/download/latest/OpenPassword.apk>
+- Published versions: <https://github.com/rldona/OpenPassword/releases>
 
-El APK está firmado con la clave de release (huella en [`android/README.md`](android/README.md)), así
-que se instala encima de la versión anterior **sin perder la bóveda**. No lo desinstales para
-actualizar. La build de depuración (`io.github.rldona.openpassword.debug`) tiene su propio
-identificador y sus propios datos: puede convivir con la de release.
+The APK is signed with the release key (fingerprint in [`android/README.md`](android/README.md)), so
+it installs over the previous version **without losing the vault**. Do not uninstall it to
+update. The debug build (`io.github.rldona.openpassword.debug`) has its own identifier and its own
+data: it can live alongside the release one.
 
-## Lo que más importa: no perder la bóveda
+## What matters most: not losing the vault
 
-El riesgo real no es un ataque: es perder el teléfono, olvidar la contraseña maestra o quedarte sin la
-clave secreta. Tres cosas lo cubren:
+The real risk is not an attack: it is losing the phone, forgetting the master password or running
+out of the secret key. Three things cover it:
 
-1. **Kit de emergencia en papel.** La app lo genera en el alta y en Ajustes. Contiene la clave secreta.
-   Guárdalo con tus documentos importantes. Sin esa clave, una copia de seguridad no se puede abrir.
-2. **Copia automática.** Se escribe cifrada en la carpeta que elijas, guarda las 10 últimas y solo
-   borra las suyas (`openpassword-auto-…opvault`). Con el baúl bloqueado no se hacen copias: las
-   pendientes se hacen al desbloquear.
-3. **Restauración probada.** Una vez al año, o al cambiar de teléfono: exporta una copia, instala en un
-   teléfono limpio y restaura con la clave secreta del kit. Si no lo has probado, no tienes copia.
+1. **Paper emergency kit.** The app generates it at signup and in Settings. It contains the secret
+   key. Keep it with your important documents. Without that key, a backup cannot be opened.
+2. **Automatic backup.** It is written encrypted to the folder you choose, keeps the last 10 and only
+   deletes its own (`openpassword-auto-…opvault`). With the vault locked no backups are made: pending
+   ones are made on unlock.
+3. **Tested restore.** Once a year, or when changing phones: export a backup, install on a clean
+   phone and restore with the secret key from the kit. If you have not tested it, you do not have a
+   backup.
 
-   > Ciclo completo verificado el 30-oct-2026 en un SM-S948B (Android 17): exportar, desinstalar,
-   > reinstalar y restaurar. Los cuatro elementos de prueba volvieron con su contraseña, usuario y URL
-   > intactos, y la copia exportada se descifró además con `opvault decrypt` desde el ordenador.
+   > Full cycle verified on 2026-10-30 on an SM-S948B (Android 17): export, uninstall, reinstall and
+   > restore. The four test items came back with their password, user and URL intact, and the
+   > exported backup was also decrypted with `opvault decrypt` from the computer.
 
-**No desinstales la app para actualizarla**: instala la nueva versión encima (`./gradlew :app:installDebug`
-o `adb install -r`). Desinstalar borra la bóveda y las claves del Keystore, y ni una copia `.opvault`
-basta sin la clave secreta.
+**Do not uninstall the app to update it**: install the new version over it (`./gradlew :app:installDebug`
+or `adb install -r`). Uninstalling erases the vault and the Keystore keys, and not even a `.opvault`
+backup is enough without the secret key.
 
-## Actualizar
+## Updating
 
-Descarga el APK nuevo desde [Releases](https://github.com/rldona/OpenPassword/releases) y ábrelo, o
-instálalo por `adb`:
+Download the new APK from [Releases](https://github.com/rldona/OpenPassword/releases) and open it, or
+install it with `adb`:
 
 ```sh
 adb install -r OpenPassword.apk
 ```
 
-Se instala encima de la versión anterior. Para desarrollo, `git pull` y `./gradlew :app:installDebug`.
+It installs over the previous version. For development, `git pull` and `./gradlew :app:installDebug`.
 
-El formato `.opvault` v1 no cambia entre versiones: si algún día cambia, será una versión nueva del
-formato, no una reinterpretación de la anterior (ver los vectores en `core/tests/vectors/op-v1.json`).
+The `.opvault` v1 format does not change between versions: if it ever changes, it will be a new
+version of the format, not a reinterpretation of the previous one (see the vectors in
+`core/tests/vectors/op-v1.json`).
 
-## Desarrollo
+## Development
 
-Usa la versión de Rust fijada en [`rust-toolchain.toml`](rust-toolchain.toml); rustup la instala sola.
+Use the Rust version pinned in [`rust-toolchain.toml`](rust-toolchain.toml); rustup installs it by
+itself.
 
 ```sh
-cargo test --workspace          # unitarios, vectores oficiales y vectores dorados v1
+cargo test --workspace          # unit tests, official vectors and v1 golden vectors
 cargo clippy --workspace --all-targets -- -D warnings
-cargo deny --locked check       # avisos, licencias, duplicados y orígenes
+cargo deny --locked check       # advisories, licenses, duplicates and sources
 cargo build --release -p opvault-cli
 ```
 
@@ -101,7 +104,7 @@ cd android
 ./gradlew :app:lintDebug :app:testDebugUnitTest :app:assembleDebug
 ```
 
-### Probar la CLI
+### Trying the CLI
 
 ```sh
 SK=$(./target/release/opvault new-secret-key)
@@ -110,55 +113,55 @@ SK=$(./target/release/opvault new-secret-key)
 ./target/release/opvault decrypt demo.opvault --secret-key "$SK"
 ```
 
-### Vectores de prueba
+### Test vectors
 
-`core/tests/vectors/op-v1.json` fija cada byte del formato v1. Si un cambio los rompe, es incompatible
-con los baúles existentes: hay que crear una versión nueva del formato, no regenerarlos. Cualquier otra
-implementación (Kotlin, Swift) debe pasar el mismo fichero.
+`core/tests/vectors/op-v1.json` pins every byte of the v1 format. If a change breaks them, it is
+incompatible with existing vaults: a new version of the format has to be created, not the vectors
+regenerated. Any other implementation (Kotlin, Swift) must pass the same file.
 
-## Qué hay en el repositorio
+## What is in the repository
 
-| Ruta | Contenido |
+| Path | Contents |
 |---|---|
-| [`core/`](core) | `op-core`, el núcleo en Rust: derivación de claves, cifrado por elemento y formato `.opvault` |
-| [`ffi/`](ffi) | `op-ffi`, bindings UniFFI de `op-core` para Kotlin |
-| [`cli/`](cli) | `opvault`, herramienta para inspeccionar y descifrar copias sin la app |
-| [`fuzz/`](fuzz) | Objetivos de `cargo-fuzz` para los parsers que leen datos no confiables. Ver [fuzz/README.md](fuzz/README.md) |
-| [`android/`](android) | App Android: Kotlin + Jetpack Compose. Ver [android/README.md](android/README.md) |
-| [`docs/crypto-spec.md`](docs/crypto-spec.md) | Especificación criptográfica v1 (normativa) |
-| [`docs/opvault-format.md`](docs/opvault-format.md) | Formato del fichero de copia |
-| [`docs/threat-model.md`](docs/threat-model.md) | Modelo de amenazas |
-| [`docs/archive/`](docs/archive) | Material de cuando el proyecto se planteaba como producto público: propuesta, planes de distribución y paquete de auditoría. **No se mantiene.** |
+| [`core/`](core) | `op-core`, the Rust core: key derivation, per-item encryption and `.opvault` format |
+| [`ffi/`](ffi) | `op-ffi`, UniFFI bindings of `op-core` for Kotlin |
+| [`cli/`](cli) | `opvault`, a tool to inspect and decrypt backups without the app |
+| [`fuzz/`](fuzz) | `cargo-fuzz` targets for the parsers that read untrusted data. See [fuzz/README.md](fuzz/README.md) |
+| [`android/`](android) | Android app: Kotlin + Jetpack Compose. See [android/README.md](android/README.md) |
+| [`docs/crypto-spec.md`](docs/crypto-spec.md) | Cryptographic specification v1 (normative) |
+| [`docs/opvault-format.md`](docs/opvault-format.md) | Backup file format |
+| [`docs/threat-model.md`](docs/threat-model.md) | Threat model |
+| [`docs/archive/`](docs/archive) | Material from when the project was planned as a public product: proposal, distribution plans and audit package. **Not maintained.** |
 
-## Resumen del diseño
+## Design summary
 
-- La contraseña maestra (Argon2id, 256 MiB) se combina con una **clave secreta** de 128 bits. Una copia
-  robada no se puede atacar por fuerza bruta sin ella.
-- Cada elemento tiene su propia clave. Todo va cifrado con XChaCha20-Poly1305, metadatos incluidos.
-- Cada imagen adjunta es un registro cifrado aparte, sellado con la clave de su elemento y dentro de
-  las copias `.opvault` v2. Se reescala y recodifica al guardarla, así que pierde EXIF y GPS.
-- Cada bloque cifrado está ligado a su contexto (baúl, elemento, revisión, parte) mediante datos
-  asociados.
-- La app no tiene permiso de Internet. Las copias se escriben cifradas en la carpeta que elijas.
+- The master password (Argon2id, 256 MiB) is combined with a 128-bit **secret key**. A stolen backup
+  cannot be attacked by brute force without it.
+- Each item has its own key. Everything is encrypted with XChaCha20-Poly1305, metadata included.
+- Each image attachment is a separate encrypted record, sealed with its item's key and inside
+  `.opvault` v2 backups. It is rescaled and re-encoded when saved, so it loses EXIF and GPS.
+- Each encrypted block is bound to its context (vault, item, revision, part) through associated
+  data.
+- The app has no Internet permission. Backups are written encrypted to the folder you choose.
 
-## Seguridad
+## Security
 
-No hay auditoría externa. La revisión interna, los hallazgos y su estado están en el archivo
-([`docs/archive/audit/internal-review.md`](docs/archive/audit/internal-review.md)); los fallos conocidos
-que se aceptaron como riesgo residual están en [`docs/threat-model.md`](docs/threat-model.md).
+There is no external audit. The internal review, the findings and their status are in the archive
+([`docs/archive/audit/internal-review.md`](docs/archive/audit/internal-review.md)); the known bugs
+accepted as residual risk are in [`docs/threat-model.md`](docs/threat-model.md).
 
-Si encuentras un fallo, ábrelo como issue normal del repositorio: no hay usuarios a los que proteger.
+If you find a bug, open it as a normal repository issue: there are no users to protect.
 
-## Licencia
+## License
 
-GPL-3.0-or-later. Ver [LICENSE](LICENSE).
+GPL-3.0-or-later. See [LICENSE](LICENSE).
 
-### Componentes de terceros
+### Third-party components
 
-- Lista de palabras para frases de paso: [EFF Large Wordlist](https://www.eff.org/dice) de la
-  Electronic Frontier Foundation, bajo [CC BY 3.0 US](https://creativecommons.org/licenses/by/3.0/us/).
-  Se incluye solo la columna de palabras (`android/app/src/main/assets/eff_large_wordlist.txt`).
-- Lista de sufijos públicos: [Public Suffix List](https://publicsuffix.org/list/public_suffix_list.dat)
-  de Mozilla y colaboradores, bajo [MPL 2.0](https://mozilla.org/MPL/2.0/). Se incluye sin modificar
-  (`android/app/src/main/resources/public_suffix_list.dat`); el autorrelleno la usa para no ofrecer una
-  credencial de `github.io` o `co.uk` a cualquier subdominio.
+- Wordlist for passphrases: [EFF Large Wordlist](https://www.eff.org/dice) from the
+  Electronic Frontier Foundation, under [CC BY 3.0 US](https://creativecommons.org/licenses/by/3.0/us/).
+  Only the word column is included (`android/app/src/main/assets/eff_large_wordlist.txt`).
+- Public suffix list: [Public Suffix List](https://publicsuffix.org/list/public_suffix_list.dat)
+  from Mozilla and contributors, under [MPL 2.0](https://mozilla.org/MPL/2.0/). Included unmodified
+  (`android/app/src/main/resources/public_suffix_list.dat`); autofill uses it so as not to offer a
+  `github.io` or `co.uk` credential to any subdomain.

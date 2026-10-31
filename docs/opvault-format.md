@@ -1,24 +1,24 @@
-# Formato de respaldo `.opvault` · v2
+# `.opvault` backup format · v2
 
-Formato abierto para que cualquiera pueda descifrar sus datos sin la app, por ejemplo con `opvault decrypt`. La criptografía está en [crypto-spec.md](crypto-spec.md).
+Open format so that anyone can decrypt their data without the app, for example with `opvault decrypt`. The cryptography is in [crypto-spec.md](crypto-spec.md).
 
-La v2 añade imágenes adjuntas. La v1 sigue leyéndose: no tenía adjuntos.
+v2 adds attached images. v1 is still read: it had no attachments.
 
-## Estructura
+## Structure
 
 ```
 ┌──────────────────────────────┐
 │ magic         8 bytes        │  "OPVAULT" 0x02
 │ header_len    u32 LE         │  ≤ 65 536
-│ header        header_len     │  JSON UTF-8, en claro pero autenticado
+│ header        header_len     │  JSON UTF-8, plaintext but authenticated
 ├──────────────────────────────┤
-│ body          resto          │  STREAM-BE32 sobre XChaCha20-Poly1305
+│ body          rest           │  STREAM-BE32 over XChaCha20-Poly1305
 └──────────────────────────────┘
 ```
 
-El último byte de `magic` es la versión mayor del formato. Un fichero completo no puede pasar de 64 MiB.
+The last byte of `magic` is the major version of the format. A complete file cannot exceed 64 MiB.
 
-## Cabecera
+## Header
 
 ```json
 {
@@ -36,17 +36,17 @@ El último byte de `magic` es la versión mayor del formato. Un fichero completo
 }
 ```
 
-La cabecera no contiene datos del usuario: ni número de elementos, ni títulos, ni imágenes. Solo lo necesario para derivar claves. `created_at` es un instante Unix en segundos.
+The header contains no user data: no number of items, no titles, no images. Only what is needed to derive keys. `created_at` is a Unix timestamp in seconds.
 
-## Cuerpo
+## Body
 
-1. `FK` se obtiene abriendo `wrapped_file_key` con la VK y AAD `aad("op/wrap/v1", "file_key", vault_id, stream_nonce)`.
-2. El texto en claro se parte en bloques de 65 536 bytes; el último puede ser más corto o vacío.
-3. Cada bloque se cifra con STREAM-BE32: nonce = `stream_nonce (19) ‖ contador u32 BE ‖ marca_final (1 byte)`.
-4. AAD de cada bloque: `SHA-256(magic ‖ header_len ‖ header)`. Modificar un solo byte de la cabecera invalida el cuerpo.
-5. Cada bloque cifrado ocupa 65 552 bytes salvo el último. La marca de final detecta truncamientos, incluso en el límite exacto de un bloque.
+1. `FK` is obtained by opening `wrapped_file_key` with the VK and AAD `aad("op/wrap/v1", "file_key", vault_id, stream_nonce)`.
+2. The plaintext is split into 65 536-byte blocks; the last one may be shorter or empty.
+3. Each block is encrypted with STREAM-BE32: nonce = `stream_nonce (19) ‖ counter u32 BE ‖ marca_final (1 byte)`.
+4. AAD of each block: `SHA-256(magic ‖ header_len ‖ header)`. Modifying a single byte of the header invalidates the body.
+5. Each encrypted block occupies 65 552 bytes except the last one. The end marker detects truncations, even at the exact limit of one block.
 
-El texto en claro del cuerpo es JSON:
+The plaintext of the body is JSON:
 
 ```json
 {
@@ -59,22 +59,22 @@ El texto en claro del cuerpo es JSON:
 }
 ```
 
-Los elementos siguen cifrados individualmente dentro del cuerpo (sección 7 de la especificación). Así el cuerpo oculta el número de elementos y sus revisiones, y un elemento se puede importar sin recifrarlo. Los adjuntos también van cifrados: `data` es el sobre de una imagen sellada con la clave del elemento, y se abre como se describe en `crypto-spec.md`.
+Items remain individually encrypted inside the body (section 7 of the specification). Thus the body hides the number of items and their revisions, and an item can be imported without re-encrypting it. Attachments are encrypted too: `data` is the envelope of an image sealed with the item key, and it is opened as described in `crypto-spec.md`.
 
-`attachments` es opcional. En una copia v1 nunca aparece; si aparece con contenido, un lector v2 rechaza el fichero en lugar de perder las imágenes.
+`attachments` is optional. In a v1 backup it never appears; if it appears with content, a v2 reader rejects the file instead of losing the images.
 
-## Procedimiento de apertura
+## Opening procedure
 
-1. Comprobar que el fichero no pasa de 64 MiB, que empieza por `OPVAULT` y que la versión es 1 o 2.
-2. Comprobar que `header.format_version` coincide con el byte de `magic`.
-3. Rechazar parámetros de KDF por encima del máximo aceptado.
-4. Comparar `secret_key_id` con el de la SK introducida y avisar si no coincide.
-5. Derivar la KEK y abrir la VK. Si falla: contraseña o clave secreta incorrectas.
-6. Abrir la FK y descifrar el cuerpo. En v2, rechazar adjuntos duplicados o mayores que el máximo; descartar los que apunten a un elemento ausente.
+1. Check that the file does not exceed 64 MiB, that it starts with `OPVAULT` and that the version is 1 or 2.
+2. Check that `header.format_version` matches the `magic` byte.
+3. Reject KDF parameters above the accepted maximum.
+4. Compare `secret_key_id` with that of the SK entered and warn if they do not match.
+5. Derive the KEK and open the VK. If it fails: wrong password or secret key.
+6. Open the FK and decrypt the body. In v2, reject duplicate attachments or attachments larger than the maximum; discard those that point to a missing item.
 
-## Compatibilidad
+## Compatibility
 
-- Un lector v1 DEBE rechazar `magic` con otra versión mayor. Por eso una app antigua avisa «versión más nueva» ante una copia v2, en vez de ignorar las imágenes.
-- Un lector v2 DEBE abrir v1 (sin adjuntos) y v2.
-- Se PUEDEN añadir campos nuevos a la cabecera; los lectores los ignoran, pero siguen autenticados.
-- El cuerpo v2 admite campos nuevos, pero un lector v2 ignora `attachments` desconocidos: no se deben añadir datos imprescindibles sin subir la versión.
+- A v1 reader MUST reject `magic` with another major version. That is why an old app warns «versión más nueva» on a v2 backup, instead of ignoring the images.
+- A v2 reader MUST open v1 (without attachments) and v2.
+- New fields MAY be added to the header; readers ignore them, but they remain authenticated.
+- The v2 body accepts new fields, but a v2 reader ignores unknown `attachments`: data that is essential must not be added without bumping the version.

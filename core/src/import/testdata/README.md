@@ -1,35 +1,35 @@
-# Ficheros de prueba de los importadores
+# Importer test files
 
-Todos los datos son inventados. Las contraseñas de este directorio no protegen nada real.
+All the data is made up. The passwords in this directory protect nothing real.
 
 ## `keepassxc-3.1.kdbx`
 
-Base de datos real creada por **KeePassXC 2.8.0** a partir de `fixture.xml`:
+A real database created by **KeePassXC 2.8.0** from `fixture.xml`:
 
 ```sh
-keepassxc-cli import -p -t 100 fixture.xml keepassxc-3.1.kdbx   # contraseña: prueba-kdbx
+keepassxc-cli import -p -t 100 fixture.xml keepassxc-3.1.kdbx   # password: prueba-kdbx
 ```
 
-KDBX 3.1, AES-256, AES-KDF (~5,8 millones de rondas) y valores protegidos con Salsa20. Incluye una
-entrada con historial (solo debe importarse la contraseña actual), otra en la papelera (no debe
-importarse), un campo protegido personalizado, un TOTP de KeePassXC, una nota, entidades XML en
-valores sin proteger y una contraseña con espacios al principio y al final.
+KDBX 3.1, AES-256, AES-KDF (~5.8 million rounds) and values protected with Salsa20. It includes an
+entry with history (only the current password must be imported), another one in the recycle bin (it must
+not be imported), a custom protected field, a KeePassXC TOTP, a note, XML entities in
+unprotected values and a password with leading and trailing spaces.
 
-Si cambia `fixture.xml`, regenera el `.kdbx` con el comando de arriba y revisa los tests de `kdbx.rs`.
+If `fixture.xml` changes, regenerate the `.kdbx` with the command above and review the tests in `kdbx.rs`.
 
-## `keepassxc-keyfile.kdbx`, `keepassxc-keyfile-only.kdbx` y `prueba.keyx`
+## `keepassxc-keyfile.kdbx`, `keepassxc-keyfile-only.kdbx` and `prueba.keyx`
 
-El mismo `fixture.xml`, protegido con contraseña y archivo de clave, y solo con archivo de clave.
-`prueba.keyx` es el archivo de clave XML v2.0 que generó KeePassXC:
+The same `fixture.xml`, protected with a password and a key file, and with a key file only.
+`prueba.keyx` is the XML v2.0 key file that KeePassXC generated:
 
 ```sh
 keepassxc-cli import -p --set-key-file prueba.keyx -t 100 fixture.xml keepassxc-keyfile.kdbx
 keepassxc-cli import --set-key-file prueba.keyx -t 100 fixture.xml keepassxc-keyfile-only.kdbx
 ```
 
-## Pendiente
+## Pending
 
-`keepassxc-cli` solo crea KDBX 3.1. Falta un KDBX 4 real (ChaCha20 + Argon2id) creado desde la
-interfaz de KeePassXC (*Base de datos → Configuración → Seguridad*) para cubrir esa ruta con un
-fichero de referencia. Hasta entonces, el código de KDBX 4 está escrito según la especificación
-pero no se ha probado contra un fichero real.
+`keepassxc-cli` only creates KDBX 3.1. A real KDBX 4 (ChaCha20 + Argon2id) created from the
+KeePassXC interface (*Database → Database Settings → Security*) is missing to cover that path with a
+reference file. Until then, the KDBX 4 code is written according to the specification
+but has not been tested against a real file.

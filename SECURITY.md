@@ -1,39 +1,39 @@
-# Seguridad
+# Security
 
-OpenPassword guarda mis contraseñas, así que un fallo de seguridad se trata antes que cualquier otra cosa.
+OpenPassword stores my passwords, so a security bug is handled before anything else.
 
-> **Proyecto personal, sin auditoría externa.** No hay usuarios a los que dar soporte, ni programa de
-> recompensas, ni plazos de divulgación pactados. Los riesgos que conozco y he decidido aceptar están
-> en el [modelo de amenazas](docs/threat-model.md).
+> **Personal project, no external audit.** There are no users to support, no bug bounty program and
+> no agreed disclosure deadlines. The risks I know about and have decided to accept are in the
+> [threat model](docs/threat-model.md).
 
-## Si encuentras un fallo
+## If you find a bug
 
-Abre un issue en el repositorio con:
+Open an issue in the repository with:
 
-- qué componente falla (`op-core`, `op-ffi`, la app Android, la CLI o el formato `.opvault`) y en qué
-  commit o versión;
-- los pasos o el fichero para reproducirlo;
-- qué puede conseguir un atacante y bajo qué supuestos (ver el [modelo de amenazas](docs/threat-model.md)).
+- which component fails (`op-core`, `op-ffi`, the Android app, the CLI or the `.opvault` format) and
+  in which commit or version;
+- the steps or the file to reproduce it;
+- what an attacker can achieve and under which assumptions (see the [threat model](docs/threat-model.md)).
 
-No hay nada que proteger con divulgación privada: el repositorio no tiene usuarios externos.
+There is nothing to protect with private disclosure: the repository has no external users.
 
-## Dentro del alcance
+## In scope
 
-- La criptografía y su implementación: [especificación](docs/crypto-spec.md), derivación de claves,
-  cifrado por elemento y formato de copia.
-- Lectura de datos no confiables: copias `.opvault`, importadores (KeePass, 1Password, Bitwarden, CSV),
-  enlaces `otpauth://` y códigos QR.
-- La app Android: autorrelleno (dominios, sufijos públicos y paquetes), bloqueo automático, biometría,
-  portapapeles, permisos y copias.
+- The cryptography and its implementation: [specification](docs/crypto-spec.md), key derivation,
+  per-item encryption and backup format.
+- Reading untrusted data: `.opvault` backups, importers (KeePass, 1Password, Bitwarden, CSV),
+  `otpauth://` links and QR codes.
+- The Android app: autofill (domains, public suffixes and packages), automatic lock, biometrics,
+  clipboard, permissions and backups.
 
-## Fuera del alcance
+## Out of scope
 
-Lo que el [modelo de amenazas](docs/threat-model.md) deja fuera: un teléfono con root o malware con
-privilegios, un *keylogger*, o alguien que conoce la contraseña maestra y tiene la clave secreta.
+What the [threat model](docs/threat-model.md) leaves out: a rooted phone or malware with privileges,
+a *keylogger*, or someone who knows the master password and has the secret key.
 
-## Fallos conocidos y aceptados
+## Known and accepted bugs
 
-Están en el [modelo de amenazas](docs/threat-model.md) y en la revisión interna archivada
-([`docs/archive/audit/internal-review.md`](docs/archive/audit/internal-review.md)). El más relevante
-para el uso diario: en Android, la contraseña copiada al portapapeles no se borra a los 30 s si la app
-está en segundo plano; se borra al volver a la app o al apagar la pantalla.
+They are in the [threat model](docs/threat-model.md) and in the archived internal review
+([`docs/archive/audit/internal-review.md`](docs/archive/audit/internal-review.md)). The most relevant
+one for daily use: on Android, the password copied to the clipboard is not erased after 30 s if the
+app is in the background; it is erased when you return to the app or when the screen turns off.
