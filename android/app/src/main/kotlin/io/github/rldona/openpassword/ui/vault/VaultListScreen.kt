@@ -172,7 +172,7 @@ private fun EntryRow(entry: VaultEntry, onClick: () -> Unit) {
     val o = entry.overview
     ListItem(
         headlineContent = { Text(o.title, maxLines = 1) },
-        supportingContent = { Text(o.subtitle?.let { storedLabelText(it) } ?: o.kind.labelText(), maxLines = 1) },
+        supportingContent = { Text(o.subtitle?.let { subtitleText(o.kind, it) } ?: o.kind.labelText(), maxLines = 1) },
         leadingContent = { Avatar(initialOf(o.title), o.kind.avatarColor()) },
         trailingContent = if (o.favorite) {
             { Icon(Icons.Filled.Star, contentDescription = stringResource(R.string.vault_list_favorite), tint = MaterialTheme.colorScheme.tertiary) }

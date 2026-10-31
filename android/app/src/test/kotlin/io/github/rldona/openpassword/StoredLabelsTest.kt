@@ -1,10 +1,13 @@
 package io.github.rldona.openpassword
 
+import io.github.rldona.openpassword.core.ItemKindRecord
 import io.github.rldona.openpassword.data.StoredLabels
 import io.github.rldona.openpassword.ui.vault.FieldLabels
+import io.github.rldona.openpassword.ui.vault.template
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -67,6 +70,19 @@ class StoredLabelsTest {
             field.isAccessible = true
             val value = field.get(StoredLabels) as String
             assertNotNull("no presentation for ${field.name} = $value", FieldLabels.resourceFor(value))
+        }
+    }
+
+    @Test
+    fun everyTemplateLabelIsAStoredLabel() {
+        val stable = StoredLabels::class.java.declaredFields
+            .filter { it.type == String::class.java }
+            .map { it.apply { isAccessible = true }.get(StoredLabels) as String }
+            .toSet()
+        for (kind in ItemKindRecord.entries) {
+            for (field in kind.template()) {
+                assertTrue("${kind.name} writes a label that is not stable: ${field.label}", field.label in stable)
+            }
         }
     }
 

@@ -8,6 +8,7 @@ import androidx.compose.ui.res.stringResource
 import io.github.rldona.openpassword.R
 import io.github.rldona.openpassword.core.FieldRecord
 import io.github.rldona.openpassword.data.StoredLabels
+import io.github.rldona.openpassword.core.ItemKindRecord
 
 /**
  * Presentation of [StoredLabels]: what the user reads, never what the vault keeps.
@@ -75,6 +76,18 @@ fun FieldRecord.displayLabel(): String {
     FieldLabels.imageIndex(label)?.let { return stringResource(R.string.field_image_n, it) }
     return label
 }
+
+/**
+ * The only subtitle the app generates itself is the PIN one ("4 digits"); every other subtitle
+ * is user data (a service name, a bank, a username) and must be shown untouched.
+ */
+@Composable
+fun subtitleText(kind: ItemKindRecord, subtitle: String): String =
+    if (kind == ItemKindRecord.PIN) {
+        FieldLabels.pinDigits(subtitle)?.let { pluralStringResource(R.plurals.field_pin_digits, it, it) } ?: subtitle
+    } else {
+        subtitle
+    }
 
 /** Translated version of any stored label, subtitle included. */
 @Composable

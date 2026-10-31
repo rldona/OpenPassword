@@ -76,7 +76,8 @@ class SaveLoginActivity : ComponentActivity() {
 
     /** Applies the per-app language on Android 12 and below; 13+ does it in the platform. */
     override fun attachBaseContext(newBase: android.content.Context) {
-        AppLocales.overrideFor(newBase)?.let(::applyOverrideConfiguration)
+        val override = AppLocales.overrideFor(newBase)
+        if (override != null) applyOverrideConfiguration(override)
         super.attachBaseContext(newBase)
     }
     private var token: String? = null

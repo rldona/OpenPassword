@@ -16,8 +16,14 @@ enum class AppLanguage(val tag: String?) {
     ;
 
     companion object {
-        /** Also validates tags that touch the preference file, so an unknown value falls back. */
-        fun fromTag(tag: String?): AppLanguage = entries.firstOrNull { it.tag == tag } ?: SYSTEM
+        /**
+         * Accepts a full tag ("es-ES", the form the platform returns and a device may carry) and
+         * falls back to the system for anything we do not ship.
+         */
+        fun fromTag(tag: String?): AppLanguage {
+            val language = tag?.substringBefore('-')?.lowercase()?.ifBlank { null } ?: return SYSTEM
+            return entries.firstOrNull { it.tag == language } ?: SYSTEM
+        }
     }
 }
 

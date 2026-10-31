@@ -10,13 +10,16 @@ class AppLanguageTest {
         assertEquals(AppLanguage.SYSTEM, AppLanguage.fromTag(null))
         assertEquals(AppLanguage.SYSTEM, AppLanguage.fromTag(""))
         assertEquals(AppLanguage.SYSTEM, AppLanguage.fromTag("fr"))
-        assertEquals(AppLanguage.SYSTEM, AppLanguage.fromTag("es-ES-exploded"))
+        assertEquals(AppLanguage.SYSTEM, AppLanguage.fromTag("fr-CA"))
     }
 
     @Test
     fun `known tags map to their language`() {
         assertEquals(AppLanguage.ENGLISH, AppLanguage.fromTag("en"))
         assertEquals(AppLanguage.SPANISH, AppLanguage.fromTag("es"))
+        assertEquals(AppLanguage.SPANISH, AppLanguage.fromTag("es-ES"))
+        assertEquals(AppLanguage.ENGLISH, AppLanguage.fromTag("en-GB"))
+        assertEquals(AppLanguage.SPANISH, AppLanguage.fromTag("ES"))
     }
 
     @Test
