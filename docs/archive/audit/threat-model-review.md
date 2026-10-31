@@ -174,9 +174,9 @@ Cada entrada: **qué es**, **lo que hay hoy** (con evidencia), **brecha** y **pr
 - **Qué es**: perder la clave deja a los usuarios sin actualizaciones; filtrarla permite una
   actualización maliciosa con la firma legítima.
 - **Hoy**: la clave de release está en `~/.openpassword/release-signing.properties` y su `.p12`, en el
-  ordenador del mantenedor (`build.gradle.kts:13-18`, `scripts/firmar-release.sh:13`); firma v2 y v3
+  ordenador del mantenedor (`build.gradle.kts:13-18`, `scripts/sign-release.sh:13`); firma v2 y v3
   «para poder rotarla» (`build.gradle.kts:43-45`). El APK se firma **después** de bajar el artefacto de
-  la CI (`firmar-release.sh:21`). `docs/fdroid/README.md:29-31` pide una copia fuera del ordenador y
+  la CI (`sign-release.sh:21`). `docs/fdroid/README.md:29-31` pide una copia fuera del ordenador y
   admite que, si se pierde, «no podrás publicar actualizaciones con la misma firma».
 - **Brecha**: no hay procedimiento escrito de rotación (v3 lo permite, pero requiere el certificado
   antiguo) ni de revocación; una app que no se puede actualizar con la misma firma obliga a
@@ -195,7 +195,7 @@ Cada entrada: **qué es**, **lo que hay hoy** (con evidencia), **brecha** y **pr
   `android/gradle/verification-metadata.xml`). Permisos de la CI: `contents: read`, y
   `id-token`/`attestations: write` solo en el job `release`.
 - **Brecha**: el mantenedor firma el artefacto de la CI **sin reconstruirlo antes** (macOS no
-  reproduce el APK de Linux, `firmar-release.sh:4-5`); la única comprobación independiente la hará
+  reproduce el APK de Linux, `sign-release.sh:4-5`); la única comprobación independiente la hará
   F-Droid después. `dtolnay/rust-toolchain` se fija por el SHA de su **rama** `stable` (`# stable branch`), no de una
   versión etiquetada, lo que dificulta revisar qué cambia en cada subida. `cargo install cargo-ndk` y
   `cargo install cargo-cyclonedx` van con versión y `--locked`, pero **sin suma de comprobación**. El `release` no crea la *release*: adjuntar los ficheros es manual.

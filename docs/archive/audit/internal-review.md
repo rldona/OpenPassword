@@ -763,7 +763,7 @@ ejecute código en OpenPassword (A10, fuera de alcance); sin probar en dispositi
 ### 6.1 Método
 
 Lectura de `.github/workflows/ci.yml` y `fuzz-nightly.yml`, `deny.toml`, `.github/dependabot.yml`,
-`android/app/build.gradle.kts`, `android/gradle/verification-metadata.xml`, `scripts/firmar-release.sh`
+`android/app/build.gradle.kts`, `android/gradle/verification-metadata.xml`, `scripts/sign-release.sh`
 y `fuzz/`. Ejecución de `cargo audit` (0 vulnerabilidades, 139 *crates*) y `cargo deny --locked check`
 (`advisories ok, bans ok, licenses ok, sources ok`).
 

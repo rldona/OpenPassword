@@ -91,7 +91,7 @@ distribuye (firmado con la clave del proyecto) es el de la CI sin la firma es pa
 | `op-ffi` | `ffi/` | Frontera UniFFI: tipos de secretos (`SecretString`), panics, límites de la KDF, `Mutex` de la sesión |
 | App Android | `android/app/src/main` | Sesión, autorrelleno, Keystore y biometría, portapapeles, anti-tapjacking, aviso de root, almacenamiento, manifiesto |
 | Formato `.opvault` v1 | [`docs/opvault-format.md`](../../opvault-format.md)), [`docs/crypto-spec.md`](../../crypto-spec.md)) | Diseño: derivación de claves, AAD, STREAM, versionado |
-| Builds reproducibles y firma | `android/`, `.github/workflows/ci.yml`, `scripts/firmar-release.sh`, `rust-toolchain.toml` | Que el APK publicado corresponde al código, y que la cadena de firma es sana |
+| Builds reproducibles y firma | `android/`, `.github/workflows/ci.yml`, `scripts/sign-release.sh`, `rust-toolchain.toml` | Que el APK publicado corresponde al código, y que la cadena de firma es sana |
 
 Cualquier dependencia de terceros se evalúa **en su uso** (cómo la llama OpenPassword), no se
 audita su código; el inventario va en [`dependencies.md`](dependencies.md)) (en preparación).
@@ -157,7 +157,7 @@ F-nn» o «no he podido evaluarlo»).
 11. **Almacenamiento y manifiesto.** SQLite con `secure_delete`, `allowBackup=false`, permisos,
     componentes exportados, `FLAG_SECURE`, exclusión del autorrelleno de otros servicios.
 12. **Cadena de suministro y firma.** ¿El APK distribuido equivale al de la CI? ¿Son sanos
-    `ci.yml`, `scripts/firmar-release.sh` y la gestión de la clave de firma?
+    `ci.yml`, `scripts/sign-release.sh` y la gestión de la clave de firma?
 
 ### Preguntas abiertas
 

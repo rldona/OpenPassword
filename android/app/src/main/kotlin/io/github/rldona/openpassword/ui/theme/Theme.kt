@@ -13,7 +13,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// Palette from docs/propuesta.html: steel neutrals with a vault green accent.
+// Palette from docs/proposal.html: steel neutrals with a vault green accent.
 private val Light = lightColorScheme(
     primary = Color(0xFF0E6B5C),
     onPrimary = Color(0xFFFFFFFF),

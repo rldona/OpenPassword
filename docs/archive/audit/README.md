@@ -2,7 +2,7 @@
 
 Este directorio reúne todo lo que un auditor externo necesita para revisar OpenPassword, y lo que el
 proyecto necesita para contratar, seguir y cerrar esa auditoría. Cubre la Fase 3 de la
-[propuesta](../propuesta.html)).
+[propuesta](../proposal.html)).
 
 ## Resumen de cierre (30-oct-2026)
 

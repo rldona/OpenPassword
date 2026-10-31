@@ -10,12 +10,12 @@ código tiene las defensas que tiene.
 
 | Ruta | Contenido | Estado |
 |---|---|---|
-| [`propuesta.html`](propuesta.html) | Propuesta funcional y técnica con prototipos y hoja de ruta | Histórico |
+| [`proposal.html`](proposal.html) | Propuesta funcional y técnica con prototipos y hoja de ruta | Histórico |
 | [`audit/`](audit) | Paquete de auditoría: alcance, proveedores, presupuesto, revisión interna, superficie de ataque, dependencias, fuzzing y pruebas en dispositivo | Congelado el 30-oct-2026 |
 | [`fdroid/`](fdroid) | Receta y pasos para publicar en F-Droid | Pausado |
 | [`releases/`](releases) | Notas de la fallida `v0.1.0` | Histórico |
 | [`fastlane/`](fastlane) | Metadatos de tienda | Histórico |
-| [`scripts/firmar-release.sh`](scripts/firmar-release.sh) | Firma del APK compilado por la CI | Histórico |
+| [`scripts/sign-release.sh`](scripts/sign-release.sh) | Firma del APK compilado por la CI | Histórico |
 
 ## Qué sigue siendo útil para uso personal
 

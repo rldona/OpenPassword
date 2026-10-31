@@ -4,8 +4,8 @@
 # The published APK must be the Linux build: F-Droid builds on Linux and the NDK and Cargo
 # embed host-specific details, so an APK built on macOS never matches theirs byte for byte.
 #
-# usage: scripts/firmar-release.sh <github-actions-run-id> <version>
-#   e.g.: scripts/firmar-release.sh 40939999999 0.1.0
+# usage: scripts/sign-release.sh <github-actions-run-id> <version>
+#   e.g.: scripts/sign-release.sh 40939999999 0.1.0
 set -euo pipefail
 
 RUN_ID=${1:?run id of the CI run for the tagged commit}

@@ -46,7 +46,7 @@ clave. Así los usuarios reciben siempre la misma firma, vengan de F-Droid o de 
    `gh run list -R rldona/OpenPassword --branch v0.1.0`). El script descarga el APK sin firmar,
    lo firma con tu clave local (v2 + v3, como Gradle) y comprueba el certificado:
    ```sh
-   scripts/firmar-release.sh <id-de-la-ejecución> 0.1.0
+   scripts/sign-release.sh <id-de-la-ejecución> 0.1.0
    ```
    El artefacto de la CI caduca a los 14 días (`retention-days: 14` en `ci.yml`): firma el APK dentro de ese plazo
    o tendrás que relanzar la ejecución.
