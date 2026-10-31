@@ -26,8 +26,10 @@ android {
         applicationId = "io.github.rldona.openpassword"
         minSdk = 28
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        // La CI los pasa con -PversionCode / -PversionName. El versionCode sale del número de
+        // commits, así que nunca retrocede y una build se puede instalar encima de la anterior.
+        versionCode = providers.gradleProperty("versionCode").getOrElse("1").toInt()
+        versionName = providers.gradleProperty("versionName").getOrElse("0.1.0")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Only ABIs we build op-ffi for; drops JNA's legacy mips/armeabi/x86 binaries.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }

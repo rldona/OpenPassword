@@ -103,7 +103,15 @@ keyAlias=openpassword
 keyPassword=…
 ```
 
-Sin ese fichero, `assembleRelease` produce un APK sin firmar, como en la CI. Se firma con el esquema v3, que permite rotar la clave en el futuro.
+En GitHub, la CI escribe ese mismo fichero a partir de los secretos `RELEASE_KEYSTORE_BASE64`
+(el `.p12` en base64), `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS` y `RELEASE_KEY_PASSWORD`. Las
+pull requests no reciben secretos: su APK queda sin firmar.
+
+Cada push a `main` actualiza la prerelease `latest`; una etiqueta `v*` crea su release. El APK se
+descarga sin cuenta desde <https://github.com/rldona/OpenPassword/releases>. La CI pasa
+`-PversionCode` (número de commits, siempre creciente) y `-PversionName` (la etiqueta o
+`0.1.0-<commit>`), de modo que la build nueva se instala encima de la anterior. Se firma con el
+esquema v3, que permite rotar la clave en el futuro.
 
 Certificado de las releases oficiales (compruébalo con `apksigner verify --print-certs`):
 
