@@ -69,9 +69,7 @@ impl Credentials {
         };
         let secret_key = match &self.secret_key {
             Some(sk) => SecretKey::parse(sk),
-            None => SecretKey::parse(&Zeroizing::new(rpassword::prompt_password(
-                "Secret key: ",
-            )?)),
+            None => SecretKey::parse(&Zeroizing::new(rpassword::prompt_password("Secret key: ")?)),
         }
         .context("invalid secret key")?;
         Ok((password, secret_key))
