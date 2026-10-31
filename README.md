@@ -36,8 +36,17 @@ cd android
 ./gradlew :app:installDebug     # instala io.github.rldona.openpassword.debug
 ```
 
-Para uso diario sirve la build de depuración: tiene su propio identificador, sus propios datos y sus
-propias claves, y no choca con una build de release instalada.
+### Descargar el APK
+
+Cada push a `main` publica una build firmada; las etiquetas `v*` crean su release:
+
+- Última build de `main`: <https://github.com/rldona/OpenPassword/releases/download/latest/OpenPassword.apk>
+- Versiones publicadas: <https://github.com/rldona/OpenPassword/releases>
+
+El APK está firmado con la clave de release (huella en [`android/README.md`](android/README.md)), así
+que se instala encima de la versión anterior **sin perder la bóveda**. No lo desinstales para
+actualizar. La build de depuración (`io.github.rldona.openpassword.debug`) tiene su propio
+identificador y sus propios datos: puede convivir con la de release.
 
 ## Lo que más importa: no perder la bóveda
 
@@ -62,10 +71,14 @@ basta sin la clave secreta.
 
 ## Actualizar
 
+Descarga el APK nuevo desde [Releases](https://github.com/rldona/OpenPassword/releases) y ábrelo, o
+instálalo por `adb`:
+
 ```sh
-git pull
-cd android && ./gradlew :app:installDebug
+adb install -r OpenPassword.apk
 ```
+
+Se instala encima de la versión anterior. Para desarrollo, `git pull` y `./gradlew :app:installDebug`.
 
 El formato `.opvault` v1 no cambia entre versiones: si algún día cambia, será una versión nueva del
 formato, no una reinterpretación de la anterior (ver los vectores en `core/tests/vectors/op-v1.json`).
