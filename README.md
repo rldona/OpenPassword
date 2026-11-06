@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/cover.png" alt="OpenPassword: your vault, on your phone. No account, no server." width="860">
+</p>
+
 # OpenPassword
 
 Password manager for passwords, cards, PINs and secrets, offline and without a server. Android first.

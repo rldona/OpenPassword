@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Repository cover / GitHub social preview (1280x640). Rendered into cover.png by docs/assets/make-cover.sh. -->
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    font-family: -apple-system, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    color: #fff; position: relative;
+    background:
+      radial-gradient(900px 600px at 105% 105%, rgba(20, 160, 135, .50), transparent 62%),
+      radial-gradient(700px 500px at -10% -20%, rgba(14, 107, 92, .34), transparent 60%),
+      linear-gradient(135deg, #050f0d 0%, #0b2620 60%, #071a16 100%);
+  }
+  .brand { position: absolute; left: 76px; top: 92px; width: 540px; }
+  .icon { width: 132px; height: 132px; display: block; filter: drop-shadow(0 14px 28px rgba(0, 0, 0, .45)); }
+  h1 { font-size: 92px; line-height: 1; letter-spacing: -2.5px; margin-top: 34px; font-weight: 800; }
+  .tag { font-size: 32px; line-height: 1.3; margin-top: 22px; color: #c6e9e2; font-weight: 500; }
+  .chips { display: flex; flex-wrap: nowrap; gap: 8px; margin-top: 34px; white-space: nowrap; }
+  .chip { font-size: 17px; padding: 6px 13px; border-radius: 999px; border: 1.5px solid rgba(255,255,255,.28); background: rgba(255,255,255,.07); color: #e4f4f0; }
+  /* Phone frame: no title bar, a thin dark bezel instead. */
+  .shot {
+    position: absolute; left: 792px; top: 40px; width: 404px; border-radius: 54px; overflow: hidden;
+    padding: 12px; background: #050908;
+    box-shadow: 0 50px 100px rgba(0, 0, 0, .7), 0 0 0 1.5px rgba(255, 255, 255, .16), 0 0 140px rgba(20, 160, 135, .28);
+  }
+  .shot img { display: block; width: 100%; border-radius: 42px; }
+</style>
+</head>
+<body>
+  <div class="brand">
+    <svg class="icon" viewBox="0 0 1024 1024" role="img" aria-label="OpenPassword icon">
+      <rect width="1024" height="1024" rx="224" fill="#0E6B5C"/>
+      <path d="M372 468 V 392 a 140 140 0 0 1 280 0 V 468" fill="none" stroke="#EAF4F1" stroke-width="64" stroke-linecap="round"/>
+      <rect x="292" y="452" width="440" height="340" rx="48" fill="#EAF4F1"/>
+      <circle cx="512" cy="592" r="46" fill="#0E6B5C"/>
+      <rect x="490" y="620" width="44" height="84" rx="22" fill="#0E6B5C"/>
+    </svg>
+    <h1>OpenPassword</h1>
+    <p class="tag">Your vault, on your phone.<br>No account, no server.</p>
+    <div class="chips">
+      <span class="chip">Open source</span><span class="chip">No account</span><span class="chip">Offline</span><span class="chip">AES-256</span><span class="chip">Android</span>
+    </div>
+  </div>
+  <div class="shot">
+    <img src="openpassword-screenshot.png" alt="OpenPassword">
+  </div>
+</body>
+</html>
